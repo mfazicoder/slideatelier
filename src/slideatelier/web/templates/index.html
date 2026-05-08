@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not api_key_set %}
+<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded">
+  <p class="text-red-800 font-medium">ANTHROPIC_API_KEY is not set on the server.</p>
+  <p class="text-red-700 text-sm mt-1">Add it to <code class="bg-red-100 px-1 rounded">.env</code> and restart the container.</p>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- LEFT: brief + generate -->
+  <section class="lg:col-span-2 bg-white rounded-lg shadow-sm border border-stone-200 p-6">
+    <h2 class="text-lg font-semibold mb-1">Generate a deck</h2>
+    <p class="text-sm text-stone-500 mb-5">Paste your brief, pick a template, generate.</p>
+
+    <form hx-post="/generate"
+          hx-target="#job-area"
+          hx-swap="innerHTML"
+          enctype="multipart/form-data"
+          class="space-y-4">
+
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Brief content</label>
+        <textarea name="content"
+                  rows="10"
+                  required
+                  placeholder="Paste your brief: source material, data, context, recommendations…"
+                  class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">
+          Template
+          <button type="button"
+                  onclick="document.getElementById('register-modal').classList.remove('hidden')"
+                  class="ml-2 text-xs text-amber-700 hover:underline font-normal">
+            + register new master
+          </button>
+        </label>
+        <select name="template" id="template-select"
+                class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+          {% include "partials/template_options.html" %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">
+          Requirements <span class="text-stone-400 font-normal">(optional)</span>
+        </label>
+        <textarea name="requirements"
+                  rows="2"
+                  placeholder="e.g., 'Audience: board of directors. 30-min slot. Decision required on X.'"
+                  class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+      </div>
+
+      <label class="flex items-center gap-2 text-sm text-stone-600">
+        <input type="checkbox" name="regenerate" value="true"
+               class="rounded border-stone-300 text-amber-600 focus:ring-amber-500">
+        <span>Force fresh generation (bypass cache)</span>
+        <span class="text-xs text-stone-400">— same brief returns the cached deck by default</span>
+      </label>
+
+      <button type="submit"
+              class="w-full bg-stone-900 text-white py-2.5 rounded-md text-sm font-medium hover:bg-stone-800 transition-colors">
+        Generate deck
+        <span class="htmx-indicator ml-2">…</span>
+      </button>
+    </form>
+
+    <div id="job-area" class="mt-6"></div>
+  </section>
+
+  <!-- RIGHT: template list + library status -->
+  <aside class="space-y-4 self-start">
+
+    {% if library_info %}
+    <div class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
+      <h2 class="text-lg font-semibold mb-1">Asset library</h2>
+      {% if library_info.scanned %}
+        <p class="text-sm text-stone-500 mb-3">
+          {{ library_info.asset_count }} diagram assets across {{ library_info.category_count }} categories
+        </p>
+        <a href="/library" class="text-sm text-amber-700 hover:underline">Browse library →</a>
+      {% else %}
+        <p class="text-sm text-stone-500 mb-2">Library not scanned yet.</p>
+        <p class="text-xs text-stone-400">
+          Run <code class="bg-stone-100 px-1 rounded">atelier library scan</code> from the project dir.
+        </p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
+    <h2 class="text-lg font-semibold mb-1">Templates</h2>
+    <p class="text-sm text-stone-500 mb-4">{{ templates_list | length }} registered.</p>
+
+    {% if templates_list %}
+    <ul class="space-y-3">
+      {% for t in templates_list %}
+      <li class="text-sm">
+        <div class="flex items-baseline gap-2">
+          <span class="font-medium text-stone-900">{{ t.name }}</span>
+          {% if t.is_default %}
+            <span class="text-xs px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded">default</span>
+          {% endif %}
+          {% if t.mode == "master" %}
+            <span class="text-xs px-1.5 py-0.5 bg-amber-50 text-amber-800 rounded">master</span>
+          {% elif t.mode == "json" %}
+            <span class="text-xs px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded">json</span>
+          {% endif %}
+        </div>
+        <p class="text-xs text-stone-500 mt-0.5">{{ t.description or "—" }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-stone-500">No templates yet. Register a master <code>.pptx</code> to begin.</p>
+    {% endif %}
+    </div>
+  </aside>
+</div>
+
+<!-- Register modal -->
+<div id="register-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+    <div class="flex justify-between items-start mb-1">
+      <h3 class="text-lg font-semibold">Register a master template</h3>
+      <button onclick="document.getElementById('register-modal').classList.add('hidden')"
+              class="text-stone-400 hover:text-stone-700 text-xl leading-none">×</button>
+    </div>
+    <p class="text-sm text-stone-500 mb-4">
+      Upload a <code>.pptx</code> file you've designed in PowerPoint. slideAtelier will add
+      generated slides into its master layouts, inheriting all theme/colors/fonts/logos.
+    </p>
+
+    <form hx-post="/templates/register"
+          hx-target="#template-select"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful) document.getElementById('register-modal').classList.add('hidden')"
+          enctype="multipart/form-data"
+          class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Name</label>
+        <input type="text" name="name" required placeholder="acme"
+               class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Description</label>
+        <input type="text" name="description" placeholder="Acme Corp brand"
+               class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Master .pptx</label>
+        <input type="file" name="master" accept=".pptx" required
+               class="w-full text-sm text-stone-700 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200">
+      </div>
+      <button type="submit" class="w-full bg-stone-900 text-white py-2 rounded-md text-sm font-medium hover:bg-stone-800">
+        Register
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

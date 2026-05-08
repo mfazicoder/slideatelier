@@ -1,0 +1,32 @@
+{# Three-stage progress indicator. Expects:
+     current: "storyboard" | "wireframe" | "hi_fi"
+     done_stages: set/list of stage names already complete
+#}
+{% set steps = [
+  ("storyboard", "Storyboard", "1"),
+  ("wireframe", "Wireframe", "2"),
+  ("hi_fi", "Hi-fi", "3"),
+] %}
+<nav aria-label="Workflow progress" class="mb-8">
+  <ol class="flex items-center gap-2 sm:gap-4 text-sm">
+    {% for key, label, num in steps %}
+      {% set is_done = key in done_stages %}
+      {% set is_current = key == current %}
+      <li class="flex items-center gap-2 flex-1">
+        <span class="flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold border
+          {% if is_done %}bg-emerald-600 text-white border-emerald-600
+          {% elif is_current %}bg-amber-600 text-white border-amber-600
+          {% else %}bg-white text-stone-400 border-stone-300{% endif %}">
+          {% if is_done %}&#10003;{% elif is_current %}&#9679;{% else %}{{ num }}{% endif %}
+        </span>
+        <span class="font-medium
+          {% if is_done %}text-emerald-700
+          {% elif is_current %}text-amber-700
+          {% else %}text-stone-400{% endif %}">{{ label }}</span>
+        {% if not loop.last %}
+          <span class="flex-1 h-px {% if is_done %}bg-emerald-300{% else %}bg-stone-200{% endif %}"></span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>

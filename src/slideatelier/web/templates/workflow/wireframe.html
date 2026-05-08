@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Wireframe · slideAtelier{% endblock %}
+{% block content %}
+
+{% include "workflow/_stage_nav.html" %}
+
+<div class="max-w-7xl mx-auto">
+  <header class="mb-4 flex items-baseline justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-stone-900">Wireframe</h1>
+      <p class="text-sm text-stone-500">
+        Edit each slide in place — what you see is what renders. Drag the ⋮⋮ handle to reorder.
+        Template: <code class="text-stone-700">{{ template_name }}</code>
+      </p>
+    </div>
+    <div class="text-xs text-stone-400 font-mono">{{ job_id }}</div>
+  </header>
+
+  {% if not ready %}
+    {% include "workflow/_status.html" %}
+  {% else %}
+    {% include "workflow/_status.html" %}
+
+    <!-- Action bar -->
+    <div class="bg-white -mx-2 px-3 py-3 my-3 rounded-lg border border-stone-200 flex flex-wrap gap-3 items-center">
+      <button type="button"
+              hx-post="/workflow/wireframe/{{ job_id }}/critique"
+              hx-target="#critique-area"
+              hx-swap="innerHTML"
+              class="bg-stone-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-stone-800">
+        🧐 Run AI critique
+      </button>
+      <a href="/workflow/hi-fi/{{ job_id }}"
+         class="bg-amber-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-amber-700 no-underline">
+        Continue to Hi-fi →
+      </a>
+
+      <!-- Undo / Redo -->
+      <div class="flex items-center gap-1 ml-1">
+        <button type="button"
+                hx-post="/workflow/wireframe/{{ job_id }}/undo"
+                hx-swap="none"
+                class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100"
+                title="Undo last edit">↶ Undo</button>
+        <button type="button"
+                hx-post="/workflow/wireframe/{{ job_id }}/redo"
+                hx-swap="none"
+                class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100"
+                title="Redo">↷ Redo</button>
+        <button type="button"
+                hx-get="/workflow/{{ job_id }}/history"
+                hx-target="body"
+                hx-swap="beforeend"
+                class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100 ml-1"
+                title="View full cross-stage history">⏱ History</button>
+      </div>
+
+      <!-- Persistent saved indicator (refreshes every 6s + on deck-saved events) -->
+      <div id="save-status"
+           hx-get="/workflow/wireframe/{{ job_id }}/history-status"
+           hx-trigger="load, every 6s, deck-saved from:body"
+           hx-swap="innerHTML"
+           class="text-xs text-stone-500 flex items-center gap-2 ml-2"></div>
+
+      <a href="/workflow/storyboard/{{ job_id }}"
+         class="ml-auto px-4 py-2 text-sm text-stone-600 hover:text-stone-900">
+        ← Back to storyboard
+      </a>
+      <a href="/workflow" class="text-sm text-stone-500 hover:text-stone-800">
+        All workflows
+      </a>
+    </div>
+
+    <!-- Critique area: populated when "Run AI critique" is clicked. -->
+    <div id="critique-area" class="mb-4"></div>
+
+    <!-- TWO-COLUMN LAYOUT: sticky sidebar + slide canvas -->
+    <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+
+      <!-- LEFT SIDEBAR: storyline + slides. Scrolls independently from main on lg+. -->
+      <aside id="wireframe-sidebar"
+             class="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto pb-4 space-y-4">
+
+        <!-- Storyline (inline-editable; click any field to edit) -->
+        <div class="bg-white rounded-lg border border-stone-200 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs uppercase tracking-wide text-stone-500">Storyline</h3>
+            <span class="text-[10px] text-stone-400">click to edit</span>
+          </div>
+
+          {% with field="title", value=deck.title, mode="view" %}
+            {% include "workflow/_meta_field.html" %}
+          {% endwith %}
+
+          <div class="mt-1.5">
+            {% with field="subtitle", value=deck.subtitle, mode="view" %}
+              {% include "workflow/_meta_field.html" %}
+            {% endwith %}
+          </div>
+
+          <div class="mt-4">
+            <div class="text-[10px] uppercase tracking-wide text-stone-400 mb-1 px-2">Core message</div>
+            {% with field="core_message", value=deck.core_message, mode="view" %}
+              {% include "workflow/_meta_field.html" %}
+            {% endwith %}
+          </div>
+
+          <div class="mt-3">
+            <div class="text-[10px] uppercase tracking-wide text-stone-400 mb-1 px-2">Narrative arc</div>
+            {% with field="narrative_arc", value=deck.narrative_arc, mode="view" %}
+              {% include "workflow/_meta_field.html" %}
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- Slides: drag to reorder, inline delete, inline add (at top and bottom) -->
+        {% set layout_types = ["title", "section_divider", "content", "two_column", "bullet_list", "key_takeaway", "closing"] %}
+        <div class="bg-white rounded-lg border border-stone-200 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs uppercase tracking-wide text-stone-500">Slides ({{ deck.slides|length }})</h3>
+            <span class="text-[10px] text-stone-400">drag ⋮⋮ · click to jump</span>
+          </div>
+
+          <!-- Add at top -->
+          <form hx-post="/workflow/wireframe/{{ job_id }}/add-slide"
+                hx-swap="none"
+                class="flex items-center gap-1.5 mb-2">
+            <input type="hidden" name="position" value="top">
+            <select name="layout"
+                    class="text-[11px] border border-stone-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-stone-400">
+              {% for lt in layout_types %}
+                <option value="{{ lt }}" {% if lt == "content" %}selected{% endif %}>{{ lt }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit"
+                    class="text-[11px] px-2 py-1 border border-stone-200 rounded text-stone-700 hover:bg-stone-100 hover:border-stone-300 flex-1">
+              + add at top
+            </button>
+          </form>
+
+          <ol id="slide-toc" class="space-y-1 text-xs border-t border-stone-100 pt-2">
+            {% for slide in deck.slides %}
+              <li data-slide-toc="{{ loop.index0 }}"
+                  class="flex items-start gap-2 px-1.5 py-1.5 rounded hover:bg-stone-50 group border border-transparent hover:border-stone-200">
+                <span class="toc-drag-handle cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-700 select-none pt-0.5" title="Drag to reorder">⋮⋮</span>
+                <span class="font-mono text-stone-400 w-5 text-right pt-0.5 flex-shrink-0">{{ loop.index }}</span>
+                <span class="w-7 aspect-[16/9] flex-shrink-0 text-stone-500 group-hover:text-stone-800 mt-0.5">
+                  {% with layout=slide.layout %}{% include "workflow/_layout_icon.html" %}{% endwith %}
+                </span>
+                <a href="#slide-card-{{ loop.index0 }}"
+                   class="flex-1 min-w-0 leading-snug">
+                  <span class="block text-[10px] uppercase tracking-wide text-stone-400 group-hover:text-stone-600">{{ slide.layout }}</span>
+                  <span class="block text-stone-800 group-hover:text-stone-900 break-words">
+                    {{ slide.title or '(untitled)' }}
+                  </span>
+                </a>
+                <button type="button"
+                        hx-post="/workflow/wireframe/{{ job_id }}/delete-slide/{{ loop.index0 }}"
+                        hx-confirm="Delete slide #{{ loop.index }}?"
+                        hx-on:htmx:after-request="if(event.detail.successful) window.location.reload()"
+                        class="opacity-0 group-hover:opacity-100 text-[10px] text-red-600 hover:text-red-800 hover:bg-red-50 px-1 py-0.5 rounded flex-shrink-0 mt-0.5"
+                        title="Delete slide">
+                  ✕
+                </button>
+              </li>
+            {% endfor %}
+          </ol>
+
+          <!-- Add at bottom -->
+          <form hx-post="/workflow/wireframe/{{ job_id }}/add-slide"
+                hx-swap="none"
+                class="flex items-center gap-1.5 mt-2 pt-2 border-t border-stone-100">
+            <input type="hidden" name="position" value="bottom">
+            <select name="layout"
+                    class="text-[11px] border border-stone-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-stone-400">
+              {% for lt in layout_types %}
+                <option value="{{ lt }}" {% if lt == "content" %}selected{% endif %}>{{ lt }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit"
+                    class="text-[11px] px-2 py-1 border border-stone-200 rounded text-stone-700 hover:bg-stone-100 hover:border-stone-300 flex-1">
+              + add at bottom
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <!-- RIGHT MAIN: slide cards (drag-and-drop) -->
+      <main>
+
+        <!-- Reorder status indicator -->
+        <div id="reorder-status" class="mb-2 h-4"></div>
+
+        <!-- Draggable slide list -->
+        <div id="slide-list" class="space-y-4">
+          {% for slide in deck.slides %}
+            {% with slide_idx=loop.index0, saved=False %}
+              {% include "workflow/_slide_edit_card.html" %}
+            {% endwith %}
+          {% endfor %}
+        </div>
+      </main>
+    </div>
+  {% endif %}
+</div>
+
+<!-- SortableJS for drag-and-drop reordering. CDN load. -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+
+<!-- Library picker opener — vanilla JS so it can't be intercepted by SortableJS / HTMX edge cases -->
+<script>
+  window.openLibraryPicker = async function(jobId, slideIdx) {
+    try {
+      // Remove any existing modal first to avoid stacking
+      const existing = document.getElementById('library-picker-modal');
+      if (existing) existing.remove();
+
+      const r = await fetch(`/workflow/wireframe/${jobId}/library-picker/${slideIdx}`, {
+        headers: { 'Accept': 'text/html' }
+      });
+      if (!r.ok) {
+        console.error('library-picker fetch failed', r.status);
+        alert('Failed to load library: ' + r.status);
+        return;
+      }
+      const html = await r.text();
+      // Insert into body
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html.trim();
+      const modal = tmp.firstElementChild;
+      document.body.appendChild(modal);
+      // Process HTMX attributes on the freshly-inserted nodes (forms, hx-get on category links)
+      if (window.htmx) {
+        window.htmx.process(modal);
+      }
+    } catch (err) {
+      console.error('openLibraryPicker error', err);
+      alert('Library picker error: ' + err.message);
+    }
+  };
+</script>
+
+<!-- Wheel routing: cursor X position decides whether sidebar or main scrolls -->
+<script>
+  (function() {
+    const aside = document.getElementById('wireframe-sidebar');
+    if (!aside) return;
+    window.addEventListener('wheel', function(e) {
+      // Only intercept on lg+ where the sticky sidebar layout is active
+      if (window.innerWidth < 1024) return;
+      const rect = aside.getBoundingClientRect();
+      // Cursor must be in the sidebar's vertical range
+      if (e.clientY < rect.top || e.clientY > rect.bottom) return;
+      // Cursor must be left of (or on) the sidebar's right edge
+      if (e.clientX > rect.right) return;
+      e.preventDefault();
+      aside.scrollTop += e.deltaY;
+    }, { passive: false });
+  })();
+</script>
+
+<script>
+  (function() {
+    const list = document.getElementById('slide-list');
+    if (!list || typeof Sortable === 'undefined') return;
+    const jobId = {{ job_id|tojson }};
+    function persistOrder(orderArr) {
+      const fd = new FormData();
+      fd.append('order', orderArr.join(','));
+      fetch(`/workflow/wireframe/${jobId}/reorder`, { method: 'POST', body: fd })
+        .then(r => r.text())
+        .then(text => {
+          const status = document.getElementById('reorder-status');
+          if (status) status.innerHTML = text;
+          setTimeout(() => window.location.reload(), 400);
+        })
+        .catch(err => {
+          console.error('reorder failed', err);
+          alert('Reorder failed: ' + err.message);
+        });
+    }
+
+    // Main slide-card list (right column WYSIWYG cards)
+    Sortable.create(list, {
+      animation: 150,
+      handle: '.drag-handle',
+      ghostClass: 'opacity-30',
+      chosenClass: 'ring-2',
+      filter: 'input, textarea, select, button, a',
+      preventOnFilter: false,
+      onEnd: function() {
+        const cards = list.querySelectorAll('[data-slide-card]');
+        persistOrder(Array.from(cards).map(c => c.dataset.slideCard));
+      }
+    });
+
+    // Sidebar TOC list (left column compact rows)
+    const toc = document.getElementById('slide-toc');
+    if (toc) {
+      Sortable.create(toc, {
+        animation: 150,
+        handle: '.toc-drag-handle',
+        ghostClass: 'opacity-30',
+        filter: 'a, button, input, select',
+        preventOnFilter: false,
+        onEnd: function() {
+          const items = toc.querySelectorAll('[data-slide-toc]');
+          persistOrder(Array.from(items).map(c => c.dataset.slideToc));
+        }
+      });
+    }
+  })();
+</script>
+
+{% endblock %}

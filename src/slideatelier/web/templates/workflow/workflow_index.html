@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Workflow · slideAtelier{% endblock %}
+{% block content %}
+
+{% if not api_key_set %}
+<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded">
+  <p class="text-red-800 font-medium">ANTHROPIC_API_KEY is not set on the server.</p>
+  <p class="text-red-700 text-sm mt-1">Add it to <code class="bg-red-100 px-1 rounded">.env</code> and restart.</p>
+</div>
+{% endif %}
+
+<div class="max-w-3xl mx-auto">
+  <header class="mb-6">
+    <h1 class="text-2xl font-semibold text-stone-900">Workflows</h1>
+    <p class="text-sm text-stone-500 mt-1">
+      Each workflow is a deck draft. Resume any past workflow below, or start a new one.
+    </p>
+  </header>
+
+  <!-- Past workflows (file management) -->
+  {% if workflows %}
+  <section class="mb-8">
+    <div class="flex items-baseline justify-between mb-3">
+      <h2 class="text-sm font-medium text-stone-700">Recent decks ({{ workflows|length }})</h2>
+      <div class="flex items-center gap-3">
+        {% if show_archived %}
+          <a href="/workflow" class="text-xs text-stone-500 hover:underline">Hide archived</a>
+        {% else %}
+          <a href="/workflow?show_archived=true" class="text-xs text-stone-500 hover:underline">Show archived</a>
+        {% endif %}
+        <a href="#new-workflow" class="text-xs text-amber-700 hover:underline">+ Start new workflow</a>
+      </div>
+    </div>
+    <div class="space-y-2">
+      {% for w in workflows %}
+        {% set stage_label = {"storyboard":"Storyboard","wireframe":"Wireframe","hi_fi":"Hi-fi","new":"Empty"}.get(w.stage, w.stage) %}
+        {% set resume_url = "/workflow/storyboard/" ~ w.job_id if w.stage == "storyboard"
+                            else ("/workflow/wireframe/" ~ w.job_id) if w.stage == "wireframe"
+                            else ("/workflow/hi-fi/" ~ w.job_id) if w.stage == "hi_fi"
+                            else "/workflow/storyboard/" ~ w.job_id %}
+        <div class="relative p-3 bg-white border border-stone-200 rounded-md hover:border-amber-500 hover:shadow-sm transition group{% if w.archived %} opacity-60{% endif %}"
+             id="workflow-card-{{ w.job_id }}">
+          <div class="flex items-start gap-4">
+            <a href="{{ resume_url }}" class="flex-1 min-w-0 no-underline">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-stone-900 truncate group-hover:text-amber-800">{{ w.title }}</span>
+                {% if w.archived %}
+                  <span class="text-[10px] px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded border border-stone-200">archived</span>
+                {% endif %}
+                {% if w.has_pptx %}
+                  <span class="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200">.pptx ready</span>
+                {% endif %}
+              </div>
+              {% if w.subtitle %}
+                <div class="text-xs text-stone-500 truncate mt-0.5">{{ w.subtitle }}</div>
+              {% endif %}
+              <div class="text-[11px] text-stone-400 mt-1 flex items-center gap-3 flex-wrap">
+                <span>Stage: <span class="text-stone-600 font-medium">{{ stage_label }}</span></span>
+                {% if w.slide_count %}<span>{{ w.slide_count }} slides</span>{% endif %}
+                <span>Modified <span data-relative-time="{{ w.last_modified_iso }}">{{ w.last_modified_iso[:10] }}</span></span>
+                <span class="font-mono text-stone-300">{{ w.job_id }}</span>
+              </div>
+            </a>
+
+            <!-- Kebab menu: rename / archive / delete -->
+            {% if not w.archived %}
+            <div class="relative" data-kebab>
+              <button type="button"
+                      class="text-stone-400 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100"
+                      onclick="event.preventDefault(); event.stopPropagation(); this.nextElementSibling.classList.toggle('hidden')"
+                      title="More actions">⋮</button>
+              <div class="hidden absolute right-0 top-8 w-44 bg-white border border-stone-200 rounded-md shadow-lg z-20 text-sm">
+                <button type="button"
+                        onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('rename-form-{{ w.job_id }}').classList.toggle('hidden'); this.closest('[data-kebab]').querySelector('div').classList.add('hidden')"
+                        class="w-full text-left px-3 py-2 hover:bg-stone-50 text-stone-700">Rename</button>
+                <form hx-post="/workflow/{{ w.job_id }}/archive"
+                      hx-confirm="Archive this workflow? It will be hidden from the main list."
+                      hx-swap="none"
+                      class="block">
+                  <button type="submit"
+                          onclick="event.stopPropagation()"
+                          class="w-full text-left px-3 py-2 hover:bg-stone-50 text-stone-700">Archive</button>
+                </form>
+                <button type="button"
+                        onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('delete-form-{{ w.job_id }}').classList.toggle('hidden'); this.closest('[data-kebab]').querySelector('div').classList.add('hidden')"
+                        class="w-full text-left px-3 py-2 hover:bg-red-50 text-red-700">Delete…</button>
+              </div>
+            </div>
+            {% endif %}
+            <div class="text-stone-400 group-hover:text-amber-700 self-center">→</div>
+          </div>
+
+          {% if not w.archived %}
+          <!-- Inline rename form (hidden by default) -->
+          <form id="rename-form-{{ w.job_id }}"
+                hx-post="/workflow/{{ w.job_id }}/rename"
+                hx-swap="none"
+                class="hidden mt-3 pt-3 border-t border-stone-100 flex items-center gap-2"
+                onclick="event.stopPropagation()">
+            <input type="text" name="title" value="{{ w.title }}" required
+                   class="flex-1 border border-stone-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+                   onclick="event.stopPropagation()">
+            <button type="submit" onclick="event.stopPropagation()"
+                    class="text-xs px-3 py-1.5 bg-stone-900 text-white rounded hover:bg-stone-800">Save</button>
+            <button type="button"
+                    onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('rename-form-{{ w.job_id }}').classList.add('hidden')"
+                    class="text-xs px-2 py-1.5 text-stone-500 hover:text-stone-800">Cancel</button>
+          </form>
+
+          <!-- Inline delete form with typed-confirmation -->
+          <form id="delete-form-{{ w.job_id }}"
+                hx-post="/workflow/{{ w.job_id }}/delete"
+                hx-swap="none"
+                class="hidden mt-3 pt-3 border-t border-red-100 flex flex-col gap-2"
+                onclick="event.stopPropagation()">
+            <p class="text-xs text-red-700">
+              Type the workflow title <span class="font-semibold">{{ w.title }}</span> below to confirm permanent deletion.
+            </p>
+            <div class="flex items-center gap-2">
+              <input type="text" name="confirm_title" required
+                     placeholder="Type the title to confirm"
+                     class="flex-1 border border-red-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                     onclick="event.stopPropagation()">
+              <button type="submit" onclick="event.stopPropagation()"
+                      class="text-xs px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+              <button type="button"
+                      onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('delete-form-{{ w.job_id }}').classList.add('hidden')"
+                      class="text-xs px-2 py-1.5 text-stone-500 hover:text-stone-800">Cancel</button>
+            </div>
+          </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <header id="new-workflow" class="mb-3">
+    <h2 class="text-lg font-semibold text-stone-900">{% if workflows %}Start new workflow{% else %}Three-stage workflow{% endif %}</h2>
+    {% if not workflows %}
+      <p class="text-sm text-stone-500 mt-1">
+        Iterate through Storyboard → Wireframe → Hi-fi. Edit between stages.
+      </p>
+    {% endif %}
+  </header>
+
+  <section class="mb-6">
+    <div class="flex items-baseline justify-between mb-2">
+      <h2 class="text-sm font-medium text-stone-700">Try a sample brief</h2>
+      <span class="text-xs text-stone-400">Click a card to pre-fill the form below</span>
+    </div>
+    <div id="sample-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <button type="button"
+              data-sample-id="uae-setup"
+              class="sample-card text-left p-3 bg-white border border-stone-200 rounded-md hover:border-amber-500 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500">
+        <div class="text-sm font-semibold text-stone-900">UAE company setup</div>
+        <div class="text-xs text-stone-500 mt-1">Jurisdiction decision driving a market-entry plan</div>
+        <div class="text-xs text-amber-700 mt-2 font-medium">Use this brief →</div>
+      </button>
+      <button type="button"
+              data-sample-id="acme-q3"
+              class="sample-card text-left p-3 bg-white border border-stone-200 rounded-md hover:border-amber-500 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500">
+        <div class="text-sm font-semibold text-stone-900">Acme Q3 board review</div>
+        <div class="text-xs text-stone-500 mt-1">Asymmetric quarter — recommend reallocating SMB budget</div>
+        <div class="text-xs text-amber-700 mt-2 font-medium">Use this brief →</div>
+      </button>
+      <button type="button"
+              data-sample-id="go-to-market"
+              class="sample-card text-left p-3 bg-white border border-stone-200 rounded-md hover:border-amber-500 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500">
+        <div class="text-sm font-semibold text-stone-900">Enterprise tier GTM</div>
+        <div class="text-xs text-stone-500 mt-1">Pick the right launch motion + pricing model</div>
+        <div class="text-xs text-amber-700 mt-2 font-medium">Use this brief →</div>
+      </button>
+    </div>
+  </section>
+
+  <section class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
+    <form method="post" action="/workflow/storyboard" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Brief</label>
+        <textarea name="brief"
+                  rows="12"
+                  required
+                  placeholder="Paste the brief — source content, context, decisions sought…"
+                  class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">
+          Requirements <span class="text-stone-400 font-normal">(optional)</span>
+        </label>
+        <textarea name="requirements"
+                  rows="2"
+                  placeholder="e.g., 'Audience: board of directors. 30-min slot. Decision required on X.'"
+                  class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-stone-700 mb-1">Template</label>
+        <select name="template"
+                class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <option value="default">default</option>
+          {% for t in templates_list %}
+            {% if t.name != "default" %}
+              <option value="{{ t.name }}">{{ t.name }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit"
+              class="w-full bg-stone-900 text-white py-3 rounded-md text-sm font-semibold hover:bg-stone-800 transition-colors">
+        Start workflow
+      </button>
+    </form>
+  </section>
+
+  <section class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+    <div class="p-4 border border-stone-200 rounded bg-white">
+      <div class="font-semibold text-amber-700 mb-1">1 · Storyboard</div>
+      <p class="text-stone-600">
+        Sketch the deck's argument — title, core message, narrative arc, slide titles.
+        Cheap to iterate; commit to structure before prose.
+      </p>
+    </div>
+    <div class="p-4 border border-stone-200 rounded bg-white">
+      <div class="font-semibold text-amber-700 mb-1">2 · Wireframe</div>
+      <p class="text-stone-600">
+        Expand the storyboard into a full SlideDeck with body bullets, columns,
+        and speaker notes. Review before rendering.
+      </p>
+    </div>
+    <div class="p-4 border border-stone-200 rounded bg-white">
+      <div class="font-semibold text-amber-700 mb-1">3 · Hi-fi</div>
+      <p class="text-stone-600">
+        Render the deck to .pptx using your chosen template. Download and present.
+      </p>
+    </div>
+  </section>
+</div>
+
+<script>
+  (function () {
+    const cards = document.querySelectorAll('[data-sample-id]');
+    const briefField = document.querySelector('textarea[name="brief"]');
+    const reqField = document.querySelector('textarea[name="requirements"]');
+
+    function clearHighlights() {
+      cards.forEach(function (c) {
+        c.classList.remove('ring-2', 'ring-amber-500', 'border-amber-500', 'bg-amber-50');
+      });
+    }
+
+    cards.forEach(function (card) {
+      card.addEventListener('click', async function () {
+        const id = card.getAttribute('data-sample-id');
+        try {
+          const res = await fetch('/workflow/sample/' + encodeURIComponent(id));
+          if (!res.ok) {
+            console.error('sample fetch failed', res.status);
+            return;
+          }
+          const data = await res.json();
+          if (briefField) briefField.value = data.brief || '';
+          if (reqField) reqField.value = data.requirements || '';
+          clearHighlights();
+          card.classList.add('ring-2', 'ring-amber-500', 'border-amber-500', 'bg-amber-50');
+          if (briefField) briefField.focus({ preventScroll: true });
+        } catch (err) {
+          console.error('sample fetch error', err);
+        }
+      });
+    });
+  })();
+</script>
+
+{% endblock %}

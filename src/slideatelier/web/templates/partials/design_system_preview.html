@@ -1,0 +1,94 @@
+{# Design-system live preview fragment.
+   Receives: primary, accent, text, muted, background, success, warning, danger,
+             heading_font, body_font.
+   All dynamic colors/fonts go through inline style="" so each request renders
+   a fresh swatch — no Tailwind arbitrary value gymnastics needed. #}
+{% set primary = primary | default("#1F3A5F") %}
+{% set accent = accent | default("#C86E3C") %}
+{% set text = text | default("#222222") %}
+{% set muted = muted | default("#6B6B6B") %}
+{% set background = background | default("#FFFFFF") %}
+{% set success = success | default("#2E7D5B") %}
+{% set warning = warning | default("#C9941F") %}
+{% set danger = danger | default("#B23A3A") %}
+{% set heading_font = heading_font | default("Calibri") %}
+{% set body_font = body_font | default("Calibri") %}
+
+<div class="relative w-full"
+     style="aspect-ratio: 16/9; background-color: {{ background }}; color: {{ text }}; font-family: '{{ body_font }}', sans-serif;">
+
+  <!-- Accent rule along the left edge — a small piece of slide chrome -->
+  <div class="absolute left-0 top-0 bottom-0" style="width: 6px; background-color: {{ accent }};"></div>
+
+  <div class="absolute inset-0 px-[6%] py-[5%] flex flex-col">
+
+    <!-- Header row: faux logo lockup + status badges -->
+    <div class="flex items-start justify-between">
+      <div class="flex items-center gap-2">
+        <div class="h-3 w-3 rounded-sm" style="background-color: {{ primary }};"></div>
+        <span class="text-[10px] tracking-[0.2em] uppercase" style="color: {{ muted }}; font-family: '{{ body_font }}', sans-serif;">
+          Acme &nbsp;·&nbsp; Confidential draft
+        </span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide"
+              style="background-color: {{ success }}; color: {{ background }};">On track</span>
+        <span class="px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide"
+              style="background-color: {{ warning }}; color: {{ background }};">At risk</span>
+        <span class="px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide"
+              style="background-color: {{ danger }}; color: {{ background }};">Off track</span>
+      </div>
+    </div>
+
+    <!-- Title block -->
+    <div class="mt-[4%]">
+      <div class="h-[3px] w-12 mb-3" style="background-color: {{ accent }};"></div>
+      <div class="text-[10px] tracking-[0.25em] uppercase font-semibold"
+           style="color: {{ accent }}; font-family: '{{ heading_font }}', serif;">
+        Strategic review &nbsp;/&nbsp; Q2 2026
+      </div>
+      <h1 class="mt-2 leading-tight font-semibold"
+          style="color: {{ primary }}; font-family: '{{ heading_font }}', serif; font-size: clamp(20px, 3.4vw, 38px);">
+        Three moves to defend the core
+        <span style="color: {{ accent }};">and unlock the next $50M</span>
+      </h1>
+      <p class="mt-2 text-sm md:text-base"
+         style="color: {{ muted }}; font-family: '{{ body_font }}', sans-serif;">
+        Findings, recommendations &amp; a 90-day decision plan for the leadership team.
+      </p>
+    </div>
+
+    <!-- Body: numbered bullets + accent callout pill -->
+    <div class="mt-auto grid grid-cols-3 gap-4 items-end">
+      <div class="col-span-2 space-y-1.5">
+        {% set bullets = [
+          ("01", "Re-segment the customer base around willingness-to-pay."),
+          ("02", "Consolidate the long tail of low-margin SKUs."),
+          ("03", "Stand up a dedicated growth squad against new ICPs."),
+        ] %}
+        {% for num, text_line in bullets %}
+        <div class="flex items-baseline gap-3 text-[13px] leading-snug"
+             style="color: {{ text }}; font-family: '{{ body_font }}', sans-serif;">
+          <span class="font-semibold tabular-nums" style="color: {{ accent }};">{{ num }}</span>
+          <span>{{ text_line }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="justify-self-end">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-wide"
+             style="background-color: {{ accent }}; color: {{ background }}; font-family: '{{ heading_font }}', serif;">
+          <span class="h-1.5 w-1.5 rounded-full" style="background-color: {{ background }};"></span>
+          Decision required
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer rule -->
+    <div class="mt-[3%] pt-2 border-t flex items-center justify-between text-[10px]"
+         style="border-color: {{ muted }}33; color: {{ muted }}; font-family: '{{ body_font }}', sans-serif;">
+      <span>Prepared by Strategy Office</span>
+      <span class="tabular-nums">01 / 24</span>
+    </div>
+
+  </div>
+</div>

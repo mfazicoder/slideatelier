@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Hi-fi · slideAtelier{% endblock %}
+{% block content %}
+
+{% include "workflow/_stage_nav.html" %}
+
+<div class="max-w-3xl mx-auto">
+  <header class="mb-6 flex items-baseline justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-stone-900">Hi-fi</h1>
+      <p class="text-sm text-stone-500">
+        Confirm the template's design system, then render to .pptx.
+      </p>
+    </div>
+    <div class="text-xs text-stone-400 font-mono">{{ job_id }}</div>
+  </header>
+
+  {% if deck is none %}
+    <div class="p-6 bg-amber-50 border border-amber-200 rounded">
+      <p class="text-sm font-medium text-amber-900">No deck yet — finish the wireframe first.</p>
+      <a href="/workflow/storyboard/{{ job_id }}" class="text-xs text-amber-800 underline">← Back to storyboard</a>
+    </div>
+  {% else %}
+    <!-- Status (only shows when actively rendering) -->
+    {% if status.status == "running" or status.status == "pending" %}
+      {% include "workflow/_status.html" %}
+    {% endif %}
+
+    <!-- Deck summary + template applied -->
+    <section class="bg-white rounded-lg border border-stone-200 p-6 space-y-4">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-stone-500">Deck</div>
+          <h2 class="text-xl font-semibold text-stone-900">{{ deck.title }}</h2>
+          {% if deck.subtitle %}<p class="text-sm text-stone-500">{{ deck.subtitle }}</p>{% endif %}
+          <p class="text-xs text-stone-400 mt-1">{{ deck.slides|length }} slides</p>
+        </div>
+        <a href="/workflow/wireframe/{{ job_id }}" class="text-xs text-stone-500 hover:text-stone-900 whitespace-nowrap">
+          ← Back to wireframe
+        </a>
+      </div>
+
+      {% if tpl %}
+        <div class="border-t border-stone-100 pt-4">
+          <div class="text-xs uppercase tracking-wide text-stone-500 mb-2">Template applied</div>
+          <div class="flex items-center gap-3 flex-wrap text-sm">
+            <span class="font-medium text-stone-900">{{ template_name }}</span>
+            <span class="text-xs px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded">{{ "master" if tpl.master_pptx else "json" }}</span>
+            <span class="flex items-center gap-1">
+              <span class="inline-block w-3 h-3 rounded" style="background:{{ tpl.colors.primary }}" title="primary"></span>
+              <span class="inline-block w-3 h-3 rounded" style="background:{{ tpl.colors.accent }}" title="accent"></span>
+              <span class="inline-block w-3 h-3 rounded border border-stone-300" style="background:{{ tpl.colors.background }}" title="background"></span>
+            </span>
+            <span class="text-xs text-stone-500">{{ tpl.fonts.heading }} / {{ tpl.fonts.body }}</span>
+          </div>
+          <p class="text-xs text-stone-400 mt-2">
+            Tweak colors / fonts at <a href="/design-system" class="text-amber-700 hover:underline">/design-system</a> before rendering.
+          </p>
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- Render action / download -->
+    <section class="mt-6 bg-white rounded-lg border border-stone-200 p-6">
+      {% if pptx_ready %}
+        <div class="flex items-center gap-3 mb-3">
+          <span class="inline-block w-3 h-3 rounded-full bg-emerald-600"></span>
+          <span class="text-sm font-medium text-emerald-800">Rendered.</span>
+          {% if pptx_fresh %}
+            <span class="text-xs text-stone-500">Up-to-date with current deck.</span>
+          {% else %}
+            <span class="text-xs text-amber-700">Outdated — deck has changed since last render.</span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <a href="/workflow/hi-fi/{{ job_id }}/download"
+             class="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white text-base font-semibold px-6 py-3 rounded-md no-underline">
+            Download .pptx
+          </a>
+          <button type="button"
+                  hx-post="/workflow/wireframe/{{ job_id }}/render?force=1"
+                  hx-swap="none"
+                  class="text-sm px-4 py-2 border border-stone-300 rounded-md text-stone-700 hover:bg-stone-100">
+            {% if pptx_fresh %}Re-render{% else %}Render again{% endif %}
+          </button>
+        </div>
+      {% else %}
+        <div class="flex items-center gap-3 mb-1">
+          <span class="text-sm font-medium text-stone-900">Ready to render.</span>
+        </div>
+        <p class="text-xs text-stone-500 mb-4">
+          Generates a fully-editable .pptx using the template above. Native PowerPoint shapes; opens cleanly in Keynote and Google Slides.
+        </p>
+        <button type="button"
+                hx-post="/workflow/wireframe/{{ job_id }}/render"
+                hx-swap="none"
+                class="inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-base font-semibold px-6 py-3 rounded-md">
+          Render to .pptx →
+        </button>
+      {% endif %}
+    </section>
+
+    <div class="mt-6 flex items-center justify-between text-sm">
+      <a href="/workflow/wireframe/{{ job_id }}" class="text-stone-500 hover:text-stone-900">← Back to wireframe</a>
+      <a href="/workflow" class="text-amber-700 hover:underline">Start a new workflow</a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

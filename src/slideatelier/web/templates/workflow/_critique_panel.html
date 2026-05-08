@@ -1,0 +1,76 @@
+{# Inline per-slide AI partner critique. Pure fragment.
+   Expects:
+     job_id: workflow id
+     slide_idx: 0-based index of the slide
+     slide: the SlideDeck.slides[slide_idx] (or any object with .title)
+     critique: SlideCritique
+#}
+{% set sev = critique.severity %}
+{% if sev == "fatal" %}
+  {% set border = "border-l-red-600" %}
+  {% set badge_bg = "bg-red-100 text-red-800" %}
+  {% set bg = "bg-red-50" %}
+{% elif sev == "major" %}
+  {% set border = "border-l-amber-500" %}
+  {% set badge_bg = "bg-amber-100 text-amber-800" %}
+  {% set bg = "bg-amber-50" %}
+{% elif sev == "minor" %}
+  {% set border = "border-l-stone-400" %}
+  {% set badge_bg = "bg-stone-100 text-stone-700" %}
+  {% set bg = "bg-stone-50" %}
+{% else %}
+  {% set border = "border-l-emerald-500" %}
+  {% set badge_bg = "bg-emerald-100 text-emerald-800" %}
+  {% set bg = "bg-emerald-50" %}
+{% endif %}
+
+<div id="critique-panel-{{ slide_idx }}"
+     class="border border-stone-200 border-l-4 {{ border }} {{ bg }} rounded-md p-4 text-sm">
+  <div class="flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded {{ badge_bg }}">
+        {{ sev }}
+      </span>
+      <span class="text-xs text-stone-500 font-mono">slide #{{ slide_idx + 1 }}</span>
+    </div>
+    <button type="button"
+            hx-post="/workflow/wireframe/{{ job_id }}/dismiss-critique/{{ slide_idx }}"
+            hx-target="#critique-panel-{{ slide_idx }}"
+            hx-swap="outerHTML"
+            class="text-xs text-stone-400 hover:text-stone-700">
+      Dismiss
+    </button>
+  </div>
+
+  <p class="mt-2 text-stone-800 font-medium">{{ critique.verdict }}</p>
+
+  {% if critique.issues %}
+    <ul class="list-disc pl-5 mt-2 space-y-1 text-stone-700">
+      {% for issue in critique.issues %}<li>{{ issue }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if critique.suggestion %}
+    <div class="mt-3 p-3 bg-white border border-stone-200 rounded text-stone-700">
+      <div class="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Suggestion</div>
+      {{ critique.suggestion }}
+    </div>
+  {% endif %}
+
+  {% if critique.proposed_title %}
+    <div class="mt-3 p-3 bg-white border border-stone-200 rounded">
+      <div class="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Proposed title</div>
+      <div class="text-stone-500 line-through">{{ slide.title or critique.current_title }}</div>
+      <div class="text-stone-900 font-semibold">{{ critique.proposed_title }}</div>
+      <div class="mt-2">
+        <button type="button"
+                hx-post="/workflow/wireframe/{{ job_id }}/apply-title/{{ slide_idx }}"
+                hx-target="#critique-panel-{{ slide_idx }}"
+                hx-swap="outerHTML"
+                class="bg-amber-600 text-white text-xs px-3 py-1.5 rounded hover:bg-amber-700">
+          Apply title
+        </button>
+      </div>
+    </div>
+  {% endif %}
+</div>

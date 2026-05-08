@@ -1,0 +1,39 @@
+{
+  "name": "Contrast Test",
+  "description": "Deliberately garish — proves colors flow through the renderer",
+  "colors": {
+    "primary": "#CC0000",
+    "accent": "#00CC44",
+    "text": "#1A1A1A",
+    "muted": "#888888",
+    "background": "#FFF5E6",
+    "success": "#2E7D5B",
+    "warning": "#C9941F",
+    "danger": "#B23A3A"
+  },
+  "fonts": {
+    "heading": "Calibri",
+    "body": "Calibri",
+    "sizes": {
+      "title_slide_title": 44,
+      "title_slide_subtitle": 20,
+      "section_divider": 36,
+      "slide_title": 24,
+      "body": 16,
+      "key_takeaway_title": 32,
+      "key_takeaway_body": 18
+    }
+  },
+  "logo": {
+    "path": null,
+    "position": "none",
+    "width_inches": 1.0
+  },
+  "footer": {
+    "enabled": false,
+    "text": "",
+    "show_page_numbers": true
+  },
+  "slide_width_inches": 13.333,
+  "slide_height_inches": 7.5
+}

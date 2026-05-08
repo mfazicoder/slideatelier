@@ -1,0 +1,104 @@
+{# Library picker drawer fragment. Rendered into a modal container.
+   Required context: job_id, slide_idx, categories (list[str]), selected (str), assets (list[LibraryAsset])
+
+   The wrapper has id="library-picker-modal" so attach-extra can OOB-swap an
+   empty replacement to close it after a successful attach.
+#}
+<div id="library-picker-modal"
+     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+     onclick="if(event.target === this) this.remove()">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col"
+       onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
+      <div>
+        <h3 class="text-lg font-semibold text-stone-900">Attach a diagram</h3>
+        <p class="text-xs text-stone-500">Pick a slide from the asset library to attach to slide #{{ slide_idx + 1 }}</p>
+      </div>
+      <button type="button"
+              onclick="document.getElementById('library-picker-modal').remove()"
+              class="text-stone-400 hover:text-stone-700 text-2xl leading-none px-2">×</button>
+    </div>
+
+    <!-- Body: category sidebar + thumbnail grid -->
+    <div class="flex-1 grid grid-cols-[200px_1fr] gap-0 overflow-hidden">
+      <!-- Categories -->
+      <aside class="border-r border-stone-200 overflow-y-auto py-3 bg-stone-50">
+        {% for c in categories %}
+          <a href="#"
+             hx-get="/workflow/wireframe/{{ job_id }}/library-picker/{{ slide_idx }}?category={{ c|urlencode }}"
+             hx-target="#library-picker-modal"
+             hx-swap="outerHTML"
+             class="block px-4 py-2 text-sm transition-colors
+                    {% if c == selected %}bg-stone-900 text-white{% else %}text-stone-700 hover:bg-stone-200{% endif %}">
+            {{ c }}
+          </a>
+        {% endfor %}
+      </aside>
+
+      <!-- Thumbnails -->
+      <div class="overflow-y-auto p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-sm font-semibold text-stone-700">{{ selected }}
+            <span class="text-xs text-stone-400 font-normal">({{ assets|length }} shown)</span>
+          </h4>
+          <label class="text-xs text-stone-600">
+            Position:
+            <select id="picker-position" class="text-xs border border-stone-300 rounded px-2 py-0.5 ml-1">
+              <option value="right" selected>right</option>
+              <option value="below">below</option>
+              <option value="left">left</option>
+              <option value="inline">inline</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {% for a in assets %}
+            <form
+                  hx-post="/workflow/wireframe/{{ job_id }}/attach-extra/{{ slide_idx }}"
+                  hx-target="[data-slide-card='{{ slide_idx }}']"
+                  hx-swap="outerHTML"
+                  hx-include="#picker-position"
+                  class="group cursor-pointer">
+              <input type="hidden" name="type" value="library_asset">
+              <input type="hidden" name="asset_ref" value="{{ a.id }}">
+              <button type="submit"
+                      class="block w-full bg-white border border-stone-200 rounded overflow-hidden hover:shadow-md hover:border-amber-400 transition-all text-left">
+                <div class="aspect-[16/9] bg-stone-100">
+                  {% if a.has_thumbnail %}
+                    <img src="/thumbnails/{{ a.id|replace('/', '__') }}.png"
+                         loading="lazy" alt="{{ a.id }}"
+                         class="w-full h-full object-contain">
+                  {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-xs text-stone-400">no thumbnail</div>
+                  {% endif %}
+                </div>
+                <div class="px-2 py-1.5 border-t border-stone-100">
+                  <p class="text-[10px] text-stone-400 font-mono truncate">{{ a.id }}</p>
+                  <p class="text-[10px] text-stone-600 mt-0.5 truncate">
+                    {{ a.text_snippets[0] if a.text_snippets else '—' }}
+                  </p>
+                </div>
+              </button>
+            </form>
+          {% endfor %}
+        </div>
+        {% if not assets %}
+          <p class="text-sm text-stone-400 italic">No assets in this category.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-3 border-t border-stone-200 text-xs text-stone-500">
+      Click any diagram to attach it. Position controls where on the slide it lands.
+    </div>
+  </div>
+</div>
+
+<script>
+  // Picker-position select needs `name=position` so it gets included via hx-include.
+  document.getElementById('picker-position').setAttribute('name', 'position');
+</script>

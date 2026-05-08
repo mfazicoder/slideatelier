@@ -1,0 +1,19 @@
+services:
+  slideatelier:
+    build: .
+    image: slideatelier:dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./templates:/app/templates
+      - ./output:/app/output
+      - ./library:/app/library   # 539 indexed library assets + thumbnails
+      - ./src:/app/src           # live-mount source for hot reload in dev
+      # The asset library .pptx source files live outside the project on the Mac.
+      # Mount them read-only so asset_copier can copy slide shapes from them.
+      - /Users/farha/Documents/Powerpoint slides:/Users/farha/Documents/Powerpoint slides:ro
+    env_file: .env
+    environment:
+      - SLIDEATELIER_OUTPUT_DIR=/app/output
+      - SLIDEATELIER_TEMPLATES_DIR=/app/templates
+    command: uvicorn slideatelier.web.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src

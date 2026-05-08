@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+output/*.pptx
+output/*.json
+cache/
+.DS_Store
+*.egg-info/
+dist/
+build/
+uv.lock

@@ -1,0 +1,50 @@
+<div id="history-modal"
+     class="fixed inset-0 z-50 bg-stone-900/40 flex items-start justify-center p-6 overflow-y-auto"
+     onclick="if(event.target===this) this.remove()">
+  <div class="bg-white rounded-lg shadow-xl max-w-xl w-full mt-12 border border-stone-200">
+    <header class="flex items-center justify-between border-b border-stone-200 px-5 py-3">
+      <div>
+        <h2 class="text-base font-semibold text-stone-900">History</h2>
+        <p class="text-xs text-stone-500">Cross-stage timeline. Click any past snapshot to restore.</p>
+      </div>
+      <button type="button"
+              onclick="document.getElementById('history-modal').remove()"
+              class="text-stone-400 hover:text-stone-700 text-xl leading-none px-2">×</button>
+    </header>
+
+    <div class="max-h-[70vh] overflow-y-auto p-2">
+      {% if not snapshots %}
+        <div class="p-6 text-center text-sm text-stone-500">
+          No history yet. Edit the storyboard or wireframe to start tracking changes.
+        </div>
+      {% else %}
+        <ul class="divide-y divide-stone-100">
+          {% for s in snapshots %}
+            <li class="flex items-center gap-3 px-3 py-2 hover:bg-stone-50">
+              <span class="text-[10px] uppercase tracking-wide font-medium {{ 'text-amber-700' if s.kind == 'storyboard' else 'text-emerald-700' }} w-20">
+                {{ s.kind }}
+              </span>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm text-stone-800">
+                  {{ s.label }}{% if s.is_current %}
+                    <span class="ml-1 text-[10px] px-1.5 py-0.5 bg-stone-200 text-stone-700 rounded">current</span>
+                  {% endif %}
+                </div>
+                <div class="text-[11px] text-stone-500">{{ s.relative or s.iso }}</div>
+              </div>
+              {% if not s.is_current %}
+                <form hx-post="/workflow/{{ job_id }}/restore?kind={{ s.kind }}&timestamp={{ s.timestamp }}"
+                      hx-swap="none">
+                  <button type="submit"
+                          class="text-xs px-2.5 py-1 rounded border border-stone-300 text-stone-700 hover:bg-amber-50 hover:border-amber-400 hover:text-amber-800">
+                    Restore
+                  </button>
+                </form>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+</div>

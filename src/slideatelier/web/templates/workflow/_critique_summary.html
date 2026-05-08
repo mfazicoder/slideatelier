@@ -1,0 +1,82 @@
+{# Deck-level critique summary. Pure fragment.
+   Expects:
+     job_id: workflow id
+     critique: CritiqueResult
+     deck (optional): the SlideDeck — used to render slide-level panels inline
+     slide_panels (optional): list of {slide_idx, slide, slide_critique} for nested rendering
+#}
+<div id="critique-summary" class="bg-white rounded-lg border border-stone-200 p-6 space-y-5">
+  <div class="flex items-baseline justify-between">
+    <div>
+      <div class="text-xs uppercase tracking-wide text-stone-500">AI partner review</div>
+      <h2 class="text-lg font-semibold text-stone-900">Critique</h2>
+    </div>
+    <div class="text-xs text-stone-400 font-mono">{{ critique.critic_version }}</div>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    <span class="px-3 py-1 text-xs font-semibold rounded bg-red-100 text-red-800">
+      {{ critique.fatal_count }} fatal
+    </span>
+    <span class="px-3 py-1 text-xs font-semibold rounded bg-amber-100 text-amber-800">
+      {{ critique.major_count }} major
+    </span>
+    <span class="px-3 py-1 text-xs font-semibold rounded bg-stone-100 text-stone-700">
+      {{ critique.minor_count }} minor
+    </span>
+    <span class="px-3 py-1 text-xs font-semibold rounded bg-emerald-100 text-emerald-800">
+      {{ critique.ok_count }} ok
+    </span>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+    <div class="space-y-3">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Core message</div>
+        <p class="text-stone-700">{{ critique.deck_critique.core_message_assessment }}</p>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Narrative arc</div>
+        <p class="text-stone-700">{{ critique.deck_critique.narrative_arc_assessment }}</p>
+      </div>
+      {% if critique.deck_critique.weakest_slide_index is not none %}
+        <div>
+          <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Weakest slide</div>
+          <p class="text-stone-700">Slide #{{ critique.deck_critique.weakest_slide_index + 1 }} — fix this first.</p>
+        </div>
+      {% endif %}
+      {% if critique.deck_critique.missing_slide %}
+        <div>
+          <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Missing slide</div>
+          <p class="text-stone-700">{{ critique.deck_critique.missing_slide }}</p>
+        </div>
+      {% endif %}
+    </div>
+    <div class="bg-amber-50 border border-amber-200 rounded p-4">
+      <div class="text-xs uppercase tracking-wide text-amber-800 mb-1">Overall verdict</div>
+      <p class="text-base text-stone-900 leading-snug">
+        {{ critique.deck_critique.overall_verdict }}
+      </p>
+    </div>
+  </div>
+
+  <div class="pt-2 border-t border-stone-100 flex flex-wrap gap-3">
+    <button type="button"
+            hx-post="/workflow/wireframe/{{ job_id }}/apply-all-major"
+            hx-target="#critique-summary"
+            hx-swap="afterend"
+            class="bg-amber-600 text-white text-sm px-4 py-2 rounded-md hover:bg-amber-700">
+      Apply all major+fatal title swaps
+    </button>
+  </div>
+
+  {% if slide_panels %}
+    <div class="hidden" id="critique-slide-panels">
+      {% for entry in slide_panels %}
+        {% with slide_idx=entry.slide_idx, slide=entry.slide, critique=entry.slide_critique %}
+          {% include "workflow/_critique_panel.html" %}
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

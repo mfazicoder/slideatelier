@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Design System Builder · slideAtelier{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <h2 class="text-2xl font-semibold text-stone-900">Design System Builder</h2>
+  <p class="text-sm text-stone-500 mt-1">
+    Define your brand colors and typography. The preview on the right updates live —
+    save when it looks right and the template becomes available on the Generate page.
+  </p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- LEFT: form -->
+  <section class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
+    <form id="design-form"
+          hx-post="/design-system/preview"
+          hx-target="#preview"
+          hx-swap="innerHTML"
+          hx-trigger="change delay:200ms from:closest form"
+          class="space-y-5">
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Name</label>
+          <input type="text" name="name" required placeholder="Acme brand"
+                 class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Description</label>
+          <input type="text" name="description" placeholder="Internal board deck system"
+                 class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-semibold text-stone-700 mb-2">Brand colors</h3>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+          {% set color_specs = [
+            ("primary", "Primary", "#1F3A5F"),
+            ("accent", "Accent", "#C86E3C"),
+            ("text", "Text", "#222222"),
+            ("muted", "Muted", "#6B6B6B"),
+            ("background", "Background", "#FFFFFF"),
+            ("success", "Success", "#2E7D5B"),
+            ("warning", "Warning", "#C9941F"),
+            ("danger", "Danger", "#B23A3A"),
+          ] %}
+          {% for field, label, default in color_specs %}
+          <label class="flex items-center gap-3 text-sm text-stone-700">
+            <input type="color" name="{{ field }}" value="{{ default }}"
+                   class="h-9 w-12 border border-stone-300 rounded cursor-pointer p-0.5">
+            <span class="flex flex-col">
+              <span class="font-medium">{{ label }}</span>
+              <span class="text-xs text-stone-400 font-mono">{{ default }}</span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-semibold text-stone-700 mb-2">Typography</h3>
+        <div class="grid grid-cols-2 gap-3 relative">
+          <div>
+            <label class="block text-sm font-medium text-stone-700 mb-1">Heading font</label>
+            {% with picker_id="heading", field_name="heading_font", initial_value="Inter" %}
+              {% include "_font_picker.html" %}
+            {% endwith %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-stone-700 mb-1">Body font</label>
+            {% with picker_id="body", field_name="body_font", initial_value="Inter" %}
+              {% include "_font_picker.html" %}
+            {% endwith %}
+          </div>
+        </div>
+        <p class="text-xs text-stone-400 mt-2">
+          Browse curated web fonts, detect fonts installed on this machine
+          (Chrome / Edge 103+), or upload your own .ttf / .otf / .woff2.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <button type="button"
+                hx-post="/design-system/preview"
+                hx-target="#preview"
+                hx-include="closest form"
+                class="px-4 py-2 bg-stone-100 text-stone-800 rounded-md text-sm font-medium hover:bg-stone-200 border border-stone-300">
+          Preview
+        </button>
+        <button type="button"
+                hx-post="/design-system/save"
+                hx-target="#save-status"
+                hx-include="closest form"
+                class="px-4 py-2 bg-stone-900 text-white rounded-md text-sm font-medium hover:bg-stone-800">
+          Save template
+        </button>
+        <span class="htmx-indicator text-xs text-stone-400">…working</span>
+      </div>
+
+      <div id="save-status"></div>
+    </form>
+
+    <div class="mt-8 pt-6 border-t border-stone-200">
+      <h3 class="text-sm font-semibold text-stone-700 mb-2">Saved templates</h3>
+      {% if templates_list %}
+      <ul class="space-y-1.5 text-sm">
+        {% for t in templates_list %}
+        <li class="flex items-baseline gap-2">
+          <span class="font-medium text-stone-800">{{ t.name }}</span>
+          <code class="text-xs text-stone-400">{{ t.filename }}</code>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-sm text-stone-500">No templates saved yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- RIGHT: live preview -->
+  <section class="self-start sticky top-6">
+    <div class="text-xs uppercase tracking-wide text-stone-400 mb-2">Live preview · 16:9</div>
+    <div id="preview" class="bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
+      {% include "partials/design_system_preview.html" ignore missing %}
+    </div>
+  </section>
+
+</div>
+
+{% endblock %}

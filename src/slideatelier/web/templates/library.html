@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Library — slideAtelier{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+  <a href="/" class="text-sm text-amber-700 hover:underline">← Back to generator</a>
+</div>
+
+<div class="flex justify-between items-baseline mb-6">
+  <div>
+    <h2 class="text-2xl font-semibold">Asset library</h2>
+    <p class="text-sm text-stone-500 mt-1">
+      {% if scanned %}
+        {{ asset_count }} assets across {{ categories|length }} categories
+      {% else %}
+        Library not scanned yet
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+{% if not scanned %}
+<div class="p-6 bg-amber-50 border border-amber-200 rounded">
+  <p class="text-sm font-medium text-amber-900">Library catalog missing.</p>
+  <p class="text-xs text-amber-800 mt-1">
+    Run <code class="bg-amber-100 px-1 rounded">uv run atelier library scan</code> from the project directory.
+  </p>
+</div>
+{% else %}
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+  <!-- LEFT: category sidebar -->
+  <aside class="lg:col-span-1">
+    <h3 class="text-sm font-semibold text-stone-700 mb-2">Categories</h3>
+    <ul class="space-y-0.5">
+      {% for c in categories %}
+      <li>
+        <a href="/library?category={{ c|urlencode }}"
+           class="block px-3 py-1.5 rounded text-sm transition-colors
+                  {% if c == selected_category %}bg-stone-900 text-white{% else %}text-stone-700 hover:bg-stone-200{% endif %}">
+          {{ c }}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <!-- RIGHT: tag filter chips + thumbnail grid -->
+  <section class="lg:col-span-3" id="library-filter-region">
+    <h3 class="text-sm font-semibold text-stone-700 mb-3">
+      {{ selected_category }}
+      <span class="text-xs text-stone-500 font-normal ml-2">({{ assets|length }} assets)</span>
+    </h3>
+
+    <!-- Tag filter strip — populated client-side from /api/library/tags -->
+    <div class="mb-3">
+      <p class="text-[11px] uppercase tracking-wide text-stone-500 mb-1.5">Filter by style</p>
+      <div id="library-tag-strip" class="flex flex-wrap gap-1.5">
+        <span class="text-xs text-stone-400 italic">loading tags…</span>
+      </div>
+    </div>
+
+    <!-- Active filters row -->
+    <div id="library-active-filters"
+         class="hidden mb-3 flex items-center flex-wrap gap-2 text-xs text-stone-600">
+      <span class="text-[11px] uppercase tracking-wide text-stone-500">Active:</span>
+      <span id="library-active-filters-list" class="flex flex-wrap gap-1.5"></span>
+      <button type="button"
+              onclick="libraryClearTags()"
+              class="text-[11px] text-amber-700 hover:underline ml-1">clear all</button>
+    </div>
+
+    <!-- The grid (shared partial — also returned by /library/filter) -->
+    {% include "_library_grid.html" %}
+
+  </section>
+</div>
+
+<script>
+  // ---------------------------------------------------------------------
+  // Library tag filtering — keeps a small Set in memory; on every change
+  // it asks /library/filter to swap a fresh #asset-grid into place.
+  // ---------------------------------------------------------------------
+  (function () {
+    const ACTIVE = new Set();
+    const SELECTED_CATEGORY = {{ selected_category|tojson if selected_category else 'null' }};
+
+    function buildFilterUrl() {
+      const params = new URLSearchParams();
+      if (SELECTED_CATEGORY) params.set('category', SELECTED_CATEGORY);
+      if (ACTIVE.size) params.set('tags', Array.from(ACTIVE).join(','));
+      return '/library/filter?' + params.toString();
+    }
+
+    function refreshGrid() {
+      const url = buildFilterUrl();
+      fetch(url, { headers: { 'HX-Request': 'true' } })
+        .then(r => r.text())
+        .then(html => {
+          const grid = document.getElementById('asset-grid');
+          if (!grid) return;
+          // Replace the grid with the freshly-rendered fragment.
+          const wrap = document.createElement('div');
+          wrap.innerHTML = html;
+          const newGrid = wrap.querySelector('#asset-grid');
+          if (newGrid) {
+            grid.replaceWith(newGrid);
+            if (window.htmx) window.htmx.process(newGrid);
+          }
+        });
+    }
+
+    function renderChips(tags) {
+      const strip = document.getElementById('library-tag-strip');
+      if (!strip) return;
+      if (!tags.length) {
+        strip.innerHTML = '<span class="text-xs text-stone-400 italic">No style tags yet — run library scan with style classification.</span>';
+        return;
+      }
+      strip.innerHTML = '';
+      for (const t of tags) {
+        const isActive = ACTIVE.has(t.tag);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.tag = t.tag;
+        const color = t.color || 'stone';
+        btn.className = isActive
+          ? `text-[11px] px-2 py-0.5 rounded border bg-${color}-700 text-white border-${color}-700`
+          : `text-[11px] px-2 py-0.5 rounded border bg-${color}-50 text-${color}-700 border-${color}-200 hover:bg-${color}-100`;
+        btn.textContent = `${t.tag} · ${t.count}`;
+        btn.addEventListener('click', () => toggleTag(t.tag));
+        strip.appendChild(btn);
+      }
+    }
+
+    function renderActive() {
+      const row = document.getElementById('library-active-filters');
+      const list = document.getElementById('library-active-filters-list');
+      if (!row || !list) return;
+      if (!ACTIVE.size) {
+        row.classList.add('hidden');
+        return;
+      }
+      row.classList.remove('hidden');
+      list.innerHTML = '';
+      for (const t of ACTIVE) {
+        const span = document.createElement('span');
+        span.className = 'inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-stone-900 text-white';
+        span.innerHTML = `${t} <button type="button" class="opacity-80 hover:opacity-100" aria-label="remove">×</button>`;
+        span.querySelector('button').addEventListener('click', () => toggleTag(t));
+        list.appendChild(span);
+      }
+    }
+
+    function toggleTag(tag) {
+      if (ACTIVE.has(tag)) ACTIVE.delete(tag); else ACTIVE.add(tag);
+      window._libraryRefresh();
+    }
+
+    window.libraryClearTags = function () {
+      ACTIVE.clear();
+      window._libraryRefresh();
+    };
+
+    window._libraryRefresh = function () {
+      // Re-render chips with updated active state, the active-filters row,
+      // and the grid contents.
+      fetch('/api/library/tags')
+        .then(r => r.json())
+        .then(d => renderChips(d.tags || []))
+        .catch(() => {});
+      renderActive();
+      refreshGrid();
+    };
+
+    // Initial load.
+    fetch('/api/library/tags')
+      .then(r => r.json())
+      .then(d => renderChips(d.tags || []))
+      .catch(() => {
+        const strip = document.getElementById('library-tag-strip');
+        if (strip) strip.innerHTML = '<span class="text-xs text-stone-400 italic">tags unavailable</span>';
+      });
+  })();
+
+  async function copyAssetId(id) {
+    try {
+      await navigator.clipboard.writeText(id);
+      const t = document.createElement('div');
+      t.textContent = '✓ Copied: ' + id;
+      t.className = 'fixed bottom-4 right-4 bg-emerald-700 text-white px-3 py-1.5 rounded shadow text-sm';
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 1800);
+    } catch (e) {
+      alert('Asset ID: ' + id);
+    }
+  }
+</script>
+
+{% endif %}
+
+{% endblock %}

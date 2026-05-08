@@ -1,0 +1,68 @@
+{
+  "title": "Incorporate in DIFC: the Series A-ready path with bankable velocity",
+  "subtitle": "Founder decision memo · 12-min walkthrough · Jurisdiction lock-in required this week",
+  "core_message": "DIFC is the right holding jurisdiction: it preserves Series A optionality, unblocks GCC enterprise invoicing fastest, and the cost premium over ADGM is immaterial against a $1.5M seed.",
+  "narrative_arc": "Open with the recommendation and the criteria that drive it, then run the three options through those criteria to show DIFC wins on the dimensions that matter most (Series A, banking, enterprise credibility) while ADGM is close and Mainland is structurally disqualified. Resolve the four open questions (UK-director tax, DTT, substance, banking) so no blockers remain. Close with a 12-week setup plan and the risks the founder is accepting.",
+  "slides": [
+    {
+      "layout": "title",
+      "title": "Incorporate in DIFC: the Series A-ready path with bankable velocity",
+      "purpose": "Sets the answer up front so the rest of the deck defends a known position.",
+      "rationale": "Title layout signals this is a decision memo, not exploration."
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "Pick DIFC; ADGM is a credible runner-up; Mainland is out",
+      "purpose": "Commits to the recommendation in one slide so the founder can interrupt early if they disagree with the conclusion.",
+      "rationale": "Key_takeaway forces pyramid-principle commitment before the supporting analysis."
+    },
+    {
+      "layout": "bullet_list",
+      "title": "Three founder priorities and four open questions define the decision lens",
+      "purpose": "Establishes the MECE criteria — Series A optionality, GCC invoicing friction, compliance overhead, plus the open risks — that every option will be scored against.",
+      "rationale": "Bullet_list is the cleanest way to fix the evaluation frame the audience must hold in mind for the next four slides."
+    },
+    {
+      "layout": "content",
+      "title": "On paper the three options look close; the criteria pull them apart",
+      "purpose": "Lays out the side-by-side of ADGM vs DIFC vs Mainland on cost, legal framework, tax, and sponsor requirement so the differentiating factors are visible.",
+      "rationale": "Content layout supports a comparison matrix without forcing a binary two-column framing."
+    },
+    {
+      "layout": "two_column",
+      "title": "DIFC wins on Series A optionality and banking velocity",
+      "purpose": "Shows DIFC's two decisive advantages — VC-familiar common-law track record and faster banking onboarding — directly against ADGM's equivalent on each.",
+      "rationale": "Two_column is the right shape because this is a genuine head-to-head between the only two viable options."
+    },
+    {
+      "layout": "content",
+      "title": "ADGM loses by ~$7K/year and a banking quarter, not by quality",
+      "purpose": "Honestly characterises the runner-up so the founder understands the cost of being wrong, and what would make them switch back.",
+      "rationale": "Content layout suits a nuanced 'why-not' that needs more than bullets."
+    },
+    {
+      "layout": "content",
+      "title": "Mainland is disqualified by sponsor exposure and civil-law friction at Series A",
+      "purpose": "Closes off the third option cleanly so it cannot resurface mid-execution.",
+      "rationale": "Content layout lets the elimination logic land with the two or three structural reasons that matter."
+    },
+    {
+      "layout": "bullet_list",
+      "title": "The four open questions all resolve in DIFC's favour",
+      "purpose": "Walks through UK-resident director exposure, UK–UAE DTT coverage, economic substance compliance, and banking timeline so no blocker is left unaddressed.",
+      "rationale": "Bullet_list maps one-to-one against the four questions raised in the brief."
+    },
+    {
+      "layout": "content",
+      "title": "12-week setup: incorporate by week 4, banked by week 9, invoicing by week 12",
+      "purpose": "Translates the decision into a sequenced execution plan aligned to the 6-week seed close.",
+      "rationale": "Content layout accommodates a phased timeline with parallel workstreams."
+    },
+    {
+      "layout": "closing",
+      "title": "Decision: confirm DIFC this week so incorporation starts before seed close",
+      "purpose": "Lands the explicit ask, names the risks the founder is accepting, and triggers the next action.",
+      "rationale": "Closing layout signals the walkthrough ends in a decision, not a discussion."
+    }
+  ]
+}

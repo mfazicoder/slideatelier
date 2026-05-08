@@ -1,0 +1,98 @@
+{
+  "title": "Incorporate in DIFC: the Series A-ready path with bankable velocity",
+  "subtitle": "Founder & board working session · Jurisdiction decision required",
+  "core_message": "DIFC is the fastest credible incorporation path for a Series A-ready company because it pairs English-law certainty with banking and investor velocity competitors can't match.",
+  "narrative_arc": "We open by framing the jurisdiction choice as a Series A gating decision, then compare DIFC against the realistic alternatives on the criteria investors actually price in. We diagnose why DIFC uniquely clears the legal, banking, and talent hurdles at speed, quantify the timeline and cost, and close with a concrete incorporation plan and decision asks.",
+  "slides": [
+    {
+      "layout": "title",
+      "title": "Incorporate in DIFC: the Series A-ready path with bankable velocity",
+      "purpose": "Open the deck and signal that a jurisdiction recommendation — not an exploration — is being delivered.",
+      "rationale": "Title layout sets up a single-answer recommendation deck cleanly."
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "DIFC is the only jurisdiction that clears legal, banking, and investor tests before Series A",
+      "purpose": "State the core message up front so the rest of the deck functions as defense, per pyramid principle.",
+      "rationale": "Key_takeaway forces the answer to land before any analysis, anchoring the audience."
+    },
+    {
+      "layout": "content",
+      "title": "Jurisdiction choice now determines whether Series A closes on schedule",
+      "purpose": "Frame why this decision is urgent and what breaks if it's deferred or wrong.",
+      "rationale": "Content layout lets us tie the decision to a concrete fundraising consequence without comparison clutter."
+    },
+    {
+      "layout": "bullet_list",
+      "title": "Investors price four things into jurisdiction: law, banking, talent, exit optionality",
+      "purpose": "Establish the MECE evaluation criteria the rest of the deck will judge options against.",
+      "rationale": "Bullet_list cleanly enumerates the criteria that structure the comparison to follow."
+    },
+    {
+      "layout": "content",
+      "title": "Mainland UAE, ADGM, Cayman, and Delaware each fail at least one investor test",
+      "purpose": "Eliminate the realistic alternatives against the four criteria so DIFC's win is earned, not asserted.",
+      "rationale": "Content layout supports a comparison matrix across four options and four criteria in one view."
+    },
+    {
+      "layout": "two_column",
+      "title": "DIFC vs ADGM: similar on paper, decisive gap on banking and ecosystem density",
+      "purpose": "Resolve the closest competitor head-to-head, since ADGM is the default counter-proposal.",
+      "rationale": "Two_column is genuinely warranted here — a direct, like-for-like comparison between two finalists."
+    },
+    {
+      "layout": "section_divider",
+      "title": "Why DIFC wins on the criteria that gate Series A",
+      "purpose": "Transition from elimination to the affirmative case for DIFC.",
+      "rationale": "Section_divider marks the pivot from comparative analysis to focused defense of the recommendation."
+    },
+    {
+      "layout": "content",
+      "title": "English common law and DIFC Courts give investors the enforceability they require",
+      "purpose": "Defend DIFC on the legal/governance criterion most term sheets hinge on.",
+      "rationale": "Content layout suits a single-thread argument about legal framework and precedent."
+    },
+    {
+      "layout": "content",
+      "title": "DIFC banking partners onboard in weeks, not quarters — the real velocity unlock",
+      "purpose": "Defend DIFC on banking, the criterion where alternatives most visibly fail.",
+      "rationale": "Content layout lets us pair the timeline claim with the underlying mechanism in one slide."
+    },
+    {
+      "layout": "bullet_list",
+      "title": "Talent, visas, and ecosystem density compound into faster hiring and closing",
+      "purpose": "Defend DIFC on talent and exit optionality, completing the four-criterion case.",
+      "rationale": "Bullet_list fits a set of related but distinct ecosystem advantages without forcing a false hierarchy."
+    },
+    {
+      "layout": "content",
+      "title": "Total cost to incorporate and operate Year 1: bankable, predictable, Series A-defensible",
+      "purpose": "Neutralize the cost objection by quantifying setup, license, and operating spend against alternatives.",
+      "rationale": "Content layout accommodates the cost build-up and the comparison benchmark in one frame."
+    },
+    {
+      "layout": "bullet_list",
+      "title": "Incorporation in 6–8 weeks across five sequenced workstreams",
+      "purpose": "Show the execution plan is concrete and time-bound, converting recommendation into a runnable project.",
+      "rationale": "Bullet_list maps naturally to a sequenced workstream timeline."
+    },
+    {
+      "layout": "content",
+      "title": "Three risks — regulatory scope, substance requirements, redomicile cost — are mitigable",
+      "purpose": "Pre-empt the objections that typically derail jurisdiction decisions in board discussion.",
+      "rationale": "Content layout allows pairing each risk with its mitigation in a single readable view."
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "Approve DIFC incorporation now to keep Series A on the Q2 timeline",
+      "purpose": "Land the recommendation as a decision ask tied to the fundraising clock.",
+      "rationale": "Key_takeaway is reserved for the second narrative inflection: converting argument into decision."
+    },
+    {
+      "layout": "closing",
+      "title": "Decisions required: jurisdiction approval, budget authorization, counsel engagement",
+      "purpose": "Close with the explicit asks and next steps so the meeting ends with commitments, not discussion.",
+      "rationale": "Closing layout is purpose-built for crystallizing decisions and immediate next actions."
+    }
+  ]
+}

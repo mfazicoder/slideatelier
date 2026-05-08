@@ -1,0 +1,70 @@
+{# Asset-grid fragment.
+   Used by both the main /library page (via {% include "_library_grid.html" %})
+   and the /library/filter HTMX endpoint.
+
+   Required context:
+     assets        : list[LibraryAsset]
+     active_tags   : list[str]   (optional — used for empty-state hint)
+     selected_category : str | None
+#}
+
+{# Tailwind safelist — keep these literal class names visible to the CDN scanner
+   so dynamically-generated tag chips render with their colors:
+   bg-stone-50  bg-slate-50  bg-amber-50  bg-violet-50  bg-blue-50  bg-rose-50
+   text-stone-700 text-slate-700 text-amber-700 text-violet-700 text-blue-700 text-rose-700
+   border-stone-200 border-slate-200 border-amber-200 border-violet-200 border-blue-200 border-rose-200
+#}
+
+<div id="asset-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+  {% for a in assets %}
+  {% set _tags = a.style_tags if a.style_tags is defined else [] %}
+  <div
+    class="bg-white border border-stone-200 rounded-md overflow-hidden hover:shadow-md hover:border-amber-400 transition-all group cursor-pointer"
+    hx-get="/library/expand/{{ a.id|urlencode }}"
+    hx-target="body"
+    hx-swap="beforeend">
+    <div class="aspect-[16/9] bg-stone-100 relative">
+      {% if a.has_thumbnail %}
+        <img src="/thumbnails/{{ a.id|replace('/', '__') }}.png"
+             alt="{{ a.id }}"
+             loading="lazy"
+             class="w-full h-full object-contain">
+      {% else %}
+        <div class="absolute inset-0 flex items-center justify-center text-xs text-stone-400">
+          no thumbnail
+        </div>
+      {% endif %}
+      <span class="absolute top-2 left-2 bg-stone-900/80 text-white text-[10px] px-1.5 py-0.5 rounded">
+        {{ a.category }}
+      </span>
+    </div>
+    <div class="p-2">
+      <p class="text-[10px] text-stone-400 font-mono truncate">{{ a.id }}</p>
+      <p class="text-[11px] text-stone-600 mt-0.5 truncate">
+        {{ a.text_snippets[0] if a.text_snippets else '—' }}
+      </p>
+      {% if _tags %}
+      <div class="flex flex-wrap gap-1 mt-1.5">
+        {% for t in _tags %}
+        {% set color = t|tag_color %}
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-{{ color }}-50 text-{{ color }}-700 border border-{{ color }}-200">{{ t }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <p class="text-[10px] text-stone-400 mt-1">{{ a.shape_count }} shapes</p>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if not assets %}
+  <div class="col-span-full p-6 text-center text-sm text-stone-500 italic">
+    No assets match
+    {% if selected_category %}category “{{ selected_category }}”{% endif %}
+    {% if active_tags %}
+      {% if selected_category %}and{% endif %}
+      tags
+      {% for t in active_tags %}<code class="font-mono text-stone-700">{{ t }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    {% endif %}.
+  </div>
+  {% endif %}
+</div>

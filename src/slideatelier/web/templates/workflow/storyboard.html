@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Storyboard · slideAtelier{% endblock %}
+{% block content %}
+
+{% include "workflow/_stage_nav.html" %}
+
+<div class="max-w-4xl mx-auto">
+  <header class="mb-6 flex items-baseline justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-stone-900">Storyboard</h1>
+      <p class="text-sm text-stone-500">Edit the deck's argument structure before fleshing out body content.</p>
+    </div>
+    <div class="text-xs text-stone-400 font-mono">{{ job_id }}</div>
+  </header>
+
+  {% if not ready %}
+    {% include "workflow/_status.html" %}
+  {% else %}
+    {% include "workflow/_status.html" %}
+
+    <!-- Action bar (undo/redo + history modal opener + save indicator) -->
+    <div class="bg-white -mx-2 px-3 py-3 my-3 rounded-lg border border-stone-200 flex flex-wrap gap-3 items-center">
+      <div class="flex items-center gap-1">
+        <button type="button"
+                hx-post="/workflow/storyboard/{{ job_id }}/undo"
+                hx-swap="none"
+                class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100"
+                title="Undo last storyboard edit">↶ Undo</button>
+        <button type="button"
+                hx-post="/workflow/storyboard/{{ job_id }}/redo"
+                hx-swap="none"
+                class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100"
+                title="Redo">↷ Redo</button>
+      </div>
+      <button type="button"
+              hx-get="/workflow/{{ job_id }}/history"
+              hx-target="body"
+              hx-swap="beforeend"
+              class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100"
+              title="View full cross-stage history">⏱ History</button>
+
+      <!-- Persistent saved indicator (refreshes every 6s + on storyboard-saved events) -->
+      <div id="save-status"
+           hx-get="/workflow/{{ job_id }}/history-status?kind=storyboard"
+           hx-trigger="load, every 6s, storyboard-saved from:body"
+           hx-swap="innerHTML"
+           class="text-xs text-stone-500 flex items-center gap-2 ml-2"></div>
+    </div>
+
+    <form id="storyboard-form"
+          hx-post="/workflow/storyboard/{{ job_id }}/save"
+          hx-target="#save-feedback"
+          hx-swap="innerHTML"
+          class="mt-6 space-y-6">
+
+      <section class="bg-white rounded-lg border border-stone-200 p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Title</label>
+          <input type="text" name="title" value="{{ storyboard.title }}"
+                 class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Subtitle</label>
+          <input type="text" name="subtitle" value="{{ storyboard.subtitle }}"
+                 class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Core message</label>
+          <textarea name="core_message" rows="2"
+                    class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">{{ storyboard.core_message }}</textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Narrative arc</label>
+          <textarea name="narrative_arc" rows="3"
+                    class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">{{ storyboard.narrative_arc }}</textarea>
+        </div>
+      </section>
+
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold text-stone-900">Slides ({{ storyboard.slides|length }})</h2>
+        {% for slide in storyboard.slides %}
+          <div class="bg-white rounded-lg border border-stone-200 p-4 space-y-3"
+               id="slide-card-{{ loop.index0 }}">
+            <div class="flex items-center justify-between gap-3">
+              <div class="text-xs text-stone-400 font-mono">slide #{{ loop.index }}</div>
+              <button type="button"
+                      onclick="this.closest('[id^=slide-card-]').remove()"
+                      class="text-xs text-red-600 hover:underline">Delete</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-stone-600 mb-1">Layout</label>
+                <select name="slide_{{ loop.index0 }}_layout"
+                        class="w-full border border-stone-300 rounded-md px-2 py-1.5 text-sm bg-white">
+                  {% for l in layout_types %}
+                    <option value="{{ l }}" {% if l == slide.layout %}selected{% endif %}>{{ l }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-stone-600 mb-1">Title</label>
+                <input type="text" name="slide_{{ loop.index0 }}_title" value="{{ slide.title }}"
+                       class="w-full border border-stone-300 rounded-md px-2 py-1.5 text-sm">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-stone-600 mb-1">Purpose</label>
+              <textarea name="slide_{{ loop.index0 }}_purpose" rows="2"
+                        class="w-full border border-stone-300 rounded-md px-2 py-1.5 text-sm">{{ slide.purpose }}</textarea>
+            </div>
+            <input type="hidden" name="slide_{{ loop.index0 }}_rationale" value="{{ slide.rationale }}">
+          </div>
+        {% endfor %}
+      </section>
+
+      <div id="save-feedback"></div>
+
+      <div class="flex flex-wrap gap-3 pt-2">
+        <button type="submit"
+                class="bg-stone-900 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-stone-800">
+          Save edits
+        </button>
+        <button type="button"
+                hx-post="/workflow/storyboard/{{ job_id }}/expand"
+                hx-swap="none"
+                class="bg-amber-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-amber-700">
+          Expand to wireframe →
+        </button>
+        <a href="/workflow" class="ml-auto text-sm text-stone-500 hover:text-stone-800 self-center">
+          Start a new workflow
+        </a>
+      </div>
+    </form>
+  {% endif %}
+</div>
+
+{% endblock %}

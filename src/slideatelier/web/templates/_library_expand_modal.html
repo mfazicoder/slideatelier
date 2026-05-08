@@ -1,0 +1,207 @@
+{# Library expand modal — appended to <body> via HTMX (hx-swap="beforeend").
+
+   Required context:
+     asset            : LibraryAsset
+     asset_tags       : list[str]
+     workflows        : list[{job_id, title, slide_count}]
+     workflow_slides  : dict[job_id, list[{idx, title, layout}]]   (JSON-shaped)
+     asset_id_url     : URL-encoded asset id (safe to embed in form action)
+#}
+<div id="library-expand-modal"
+     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+     onclick="if(event.target === this) this.remove()">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[92vh] flex flex-col"
+       onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-stone-200 flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-[11px] uppercase tracking-wide text-stone-400">Library asset</p>
+        <h3 class="text-base font-semibold text-stone-900 font-mono truncate">{{ asset.id }}</h3>
+        <p class="text-xs text-stone-500 mt-0.5">
+          <span class="font-medium">{{ asset.category }}</span>
+          · {{ asset.shape_count }} shapes
+          · slide {{ asset.slide_index }} of <span class="font-mono">{{ asset.file_stem }}.pptx</span>
+        </p>
+      </div>
+      <button type="button"
+              onclick="document.getElementById('library-expand-modal').remove()"
+              class="text-stone-400 hover:text-stone-700 text-2xl leading-none px-2 shrink-0">×</button>
+    </div>
+
+    <!-- Body: 3x preview + side panel -->
+    <div class="flex-1 grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-0 overflow-hidden">
+
+      <!-- Preview column -->
+      <div class="overflow-y-auto p-5 bg-stone-50 border-r border-stone-200">
+        <div class="bg-white border border-stone-200 rounded shadow-sm overflow-hidden">
+          <div class="aspect-[16/9] bg-stone-100 flex items-center justify-center">
+            {% if asset.has_thumbnail %}
+              <img src="/thumbnails/{{ asset.id|replace('/', '__') }}.png"
+                   alt="{{ asset.id }}"
+                   class="w-full h-full object-contain">
+            {% else %}
+              <div class="text-sm text-stone-400 italic">No thumbnail available</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Style tags #}
+        {% if asset_tags %}
+        <div class="mt-4">
+          <p class="text-[11px] uppercase tracking-wide text-stone-500 mb-1.5">Style tags</p>
+          <div class="flex flex-wrap gap-1.5">
+            {% for t in asset_tags %}
+            {% set color = t|tag_color %}
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-{{ color }}-50 text-{{ color }}-700 border border-{{ color }}-200">{{ t }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {# Text snippets #}
+        {% if asset.text_snippets %}
+        <div class="mt-4">
+          <p class="text-[11px] uppercase tracking-wide text-stone-500 mb-1.5">Text on slide</p>
+          <ul class="text-xs text-stone-700 space-y-1">
+            {% for s in asset.text_snippets %}
+            <li class="truncate">“{{ s }}”</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Attach form column -->
+      <div class="overflow-y-auto p-5">
+        <h4 class="text-sm font-semibold text-stone-800">Attach to a slide</h4>
+        <p class="text-xs text-stone-500 mt-0.5">Pick a workflow and slide; the asset will be added as an extra.</p>
+
+        {% if workflows %}
+        <form id="library-attach-form" class="mt-4 space-y-3"
+              hx-post=""
+              hx-swap="none"
+              onsubmit="return prepLibraryAttach(this, event)">
+          <input type="hidden" name="type" value="library_asset">
+          <input type="hidden" name="asset_ref" value="{{ asset.id }}">
+
+          <label class="block">
+            <span class="text-[11px] uppercase tracking-wide text-stone-500">Workflow</span>
+            <select name="job_id"
+                    class="mt-1 w-full text-sm border border-stone-300 rounded px-2 py-1.5"
+                    onchange="updateLibrarySlideOptions(this.value)">
+              {% for wf in workflows %}
+                <option value="{{ wf.job_id }}">{{ wf.title }} · {{ wf.slide_count }} slides</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="text-[11px] uppercase tracking-wide text-stone-500">Slide</span>
+            <select name="slide_idx" id="library-attach-slide-select"
+                    class="mt-1 w-full text-sm border border-stone-300 rounded px-2 py-1.5">
+              <!-- Populated by updateLibrarySlideOptions -->
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="text-[11px] uppercase tracking-wide text-stone-500">Position</span>
+            <select name="position"
+                    class="mt-1 w-full text-sm border border-stone-300 rounded px-2 py-1.5">
+              <option value="right" selected>right</option>
+              <option value="below">below</option>
+              <option value="left">left</option>
+              <option value="inline">inline</option>
+            </select>
+          </label>
+
+          <button type="submit"
+                  class="w-full mt-2 bg-stone-900 hover:bg-stone-800 text-white text-sm font-medium px-3 py-2 rounded">
+            Attach to selected slide
+          </button>
+          <p id="library-attach-status" class="text-xs text-stone-500 min-h-[1em]"></p>
+        </form>
+        {% else %}
+        <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+          No workflows with decks yet. Generate or open a workflow first, then come back to attach this asset.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-3 border-t border-stone-200 flex justify-end">
+      <button type="button"
+              onclick="document.getElementById('library-expand-modal').remove()"
+              class="text-sm px-3 py-1.5 rounded border border-stone-300 hover:bg-stone-100">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const SLIDES = {{ workflow_slides|tojson }};
+    window.updateLibrarySlideOptions = function (jobId) {
+      const sel = document.getElementById('library-attach-slide-select');
+      if (!sel) return;
+      sel.innerHTML = '';
+      const slides = SLIDES[jobId] || [];
+      if (!slides.length) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '(no slides)';
+        sel.appendChild(opt);
+        return;
+      }
+      for (const s of slides) {
+        const opt = document.createElement('option');
+        opt.value = String(s.idx);
+        opt.textContent = `${s.idx + 1}. ${s.title} (${s.layout})`;
+        sel.appendChild(opt);
+      }
+    };
+    // Initialise with the first workflow's slides.
+    const form = document.getElementById('library-attach-form');
+    if (form) {
+      const sel = form.querySelector('select[name="job_id"]');
+      if (sel && sel.value) updateLibrarySlideOptions(sel.value);
+    }
+
+    window.prepLibraryAttach = function (form, ev) {
+      ev.preventDefault();
+      const jobId = form.querySelector('select[name="job_id"]').value;
+      const slideIdx = form.querySelector('select[name="slide_idx"]').value;
+      const status = document.getElementById('library-attach-status');
+      if (!jobId || slideIdx === '') {
+        if (status) status.textContent = 'Pick a workflow and slide first.';
+        return false;
+      }
+      const url = `/workflow/wireframe/${encodeURIComponent(jobId)}/attach-extra/${encodeURIComponent(slideIdx)}`;
+      const fd = new FormData(form);
+      // job_id and slide_idx travel via the URL, not the body.
+      fd.delete('job_id');
+      fd.delete('slide_idx');
+      if (status) status.textContent = 'Attaching...';
+      fetch(url, { method: 'POST', body: fd })
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        })
+        .then(() => {
+          if (status) {
+            status.textContent = '✓ Attached. You can keep browsing the library.';
+            status.className = 'text-xs text-emerald-700 min-h-[1em]';
+          }
+        })
+        .catch(err => {
+          if (status) {
+            status.textContent = 'Failed: ' + err.message;
+            status.className = 'text-xs text-red-700 min-h-[1em]';
+          }
+        });
+      return false;
+    };
+  })();
+</script>

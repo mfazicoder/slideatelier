@@ -1,0 +1,13 @@
+A founder is launching a B2B SaaS company targeting Gulf-region enterprise customers (initial revenue target: $4M ARR by end of year two). They're deciding between three jurisdiction options for the holding entity:
+
+1. ADGM (Abu Dhabi Global Market) — common-law framework, 0% corporate tax up to AED 375K, English courts, $25K setup + $15K annual.
+2. DIFC (Dubai International Financial Centre) — common-law, similar tax position, more mature ecosystem, $30K setup + $22K annual, more fintech-aligned.
+3. Mainland Dubai (DED) — civil-law, requires local sponsor under most categories despite recent reforms, broader trade rights, $12K setup + $9K annual.
+
+Founder priorities: (a) optionality on a future Series A, (b) ability to invoice GCC enterprise clients without VAT friction, (c) low ongoing compliance overhead. Founder will personally be UK tax-resident for the first 18 months.
+
+Current capital: $1.5M seed already in escrow, expected close in 6 weeks. First two hires (CTO, founding sales) will be UAE-based. No physical office needed for year one.
+
+Key open questions: corporate tax exposure on UK-resident director, double-tax treaty considerations, banking access (ADGM banks have been slow lately), substance requirements under UAE economic substance rules.
+
+Decision required: pick a single jurisdiction and outline the 12-week setup plan.

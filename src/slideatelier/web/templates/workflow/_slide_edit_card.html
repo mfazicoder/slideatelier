@@ -1,0 +1,882 @@
+{# WYSIWYG editable slide card. Looks like a 16:9 slide rendered in the
+   chosen template's colors/fonts. Title/strap/body inputs are styled as the
+   final text appearance — they look like text but ARE inputs. On focus they
+   show a subtle ring; on blur they auto-save via HTMX.
+
+   Required context: job_id, slide_idx, slide (normalized dict), layout_types, saved (bool), tpl (Template).
+#}
+
+{# Macro that wraps every text block (title, strap, body, body_left, body_right)
+   in a positioned container so the user can lift the block out of layout flow
+   and drag/resize it freely, the same way diagram extras work.
+
+   - When `slide.block_bbox[name]` is unset: wrap renders in normal flex flow
+     (so the layout's default position holds). A hover-only "📐 free position"
+     button lets the user opt into freeform positioning.
+   - When `slide.block_bbox[name]` is set: wrap becomes `position:absolute`
+     with the bbox style (0..1 normalized to %), and shows drag/resize handles
+     plus a reset button. JS at the bottom of this template wires the
+     interactions and posts to /update-block/<idx>/<name>.
+
+   Renderer integration with .pptx is not yet wired — block_bbox is currently
+   wireframe-only. Hi-fi export still uses layout-default positions for now.
+#}
+{# `block_flow_wrap` — wraps an in-flow input/textarea so a "📐 free position"
+   button can be positioned next to it. The wrapper is the offsetParent for
+   the button. Caller emits the input as the body of the call.
+   When `slide.block_bbox[name]` IS set, the caller-side `{% if %}` skips
+   rendering this entirely (the overlay below handles it). #}
+{%- macro block_flow_wrap(name, slide_idx, job_id, extra_classes='') -%}
+  <div class="relative {{ extra_classes }}" data-block-flow="{{ name }}">
+    {{ caller() }}
+    <button type="button"
+            class="block-free absolute top-0 right-0 inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/90 border border-blue-300 rounded-bl shadow-sm text-[9px] text-blue-700 hover:bg-blue-50 opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity z-10"
+            data-block="{{ name }}" data-job-id="{{ job_id }}" data-slide-idx="{{ slide_idx }}"
+            title="Lift this block out of layout flow so you can drag &amp; resize it freely">📐 free</button>
+  </div>
+{%- endmacro -%}
+
+{# `block_overlay` — renders an absolute-positioned, draggable+resizable
+   freeform overlay for a block whose bbox is set. Same drag/resize/reset UX
+   as the diagram-extras overlay; JS at the bottom of this template wires
+   pointer events and posts to /update-block/<idx>/<name>.
+
+   `default_style` is a CSS string carrying the layout's default typography
+   (font-family/color/size/etc.). `block_style` is a sparse dict of overrides
+   read from `slide.block_style[name]` — when present, the macro emits a
+   second style string layering the overrides on top, AND surfaces a hover
+   typography toolbar so the user can edit them. #}
+{%- macro block_overlay(name, slide_idx, job_id, bb, kind, value, placeholder, default_style, block_style=None) -%}
+  {%- set bs = block_style or {} -%}
+  {%- set override_css = '' -%}
+  {%- if bs.get('font_family') -%}{%- set override_css = override_css ~ "font-family: '" ~ bs.font_family ~ "', sans-serif !important;" -%}{%- endif -%}
+  {%- if bs.get('font_size') -%}{%- set override_css = override_css ~ "font-size: " ~ bs.font_size ~ "px !important;" -%}{%- endif -%}
+  {%- if bs.get('color') -%}{%- set override_css = override_css ~ "color: " ~ bs.color ~ " !important;" -%}{%- endif -%}
+  {%- if bs.get('bold') -%}{%- set override_css = override_css ~ "font-weight: 700 !important;" -%}{%- endif -%}
+  {%- if bs.get('italic') -%}{%- set override_css = override_css ~ "font-style: italic !important;" -%}{%- endif -%}
+  {%- if bs.get('align') -%}{%- set override_css = override_css ~ "text-align: " ~ bs.align ~ " !important;" -%}{%- endif -%}
+  {%- set combined_style = default_style ~ override_css -%}
+  <div class="block-wrap group absolute z-[8] has-bbox bg-white/40 ring-1 ring-blue-300/60 rounded p-1"
+       style="left:{{ bb.left * 100 }}%; top:{{ bb.top * 100 }}%; width:{{ bb.width * 100 }}%; height:{{ bb.height * 100 }}%;"
+       data-block="{{ name }}"
+       data-job-id="{{ job_id }}"
+       data-slide-idx="{{ slide_idx }}"
+       data-has-bbox="1">
+    {%- if kind == 'input' -%}
+      <input type="text" name="{{ name }}" value="{{ value }}"
+             placeholder="{{ placeholder }}"
+             spellcheck="false"
+             class="w-full h-full bg-transparent border-0 outline-none focus:bg-white/70 rounded px-2 py-1"
+             style="{{ combined_style }}">
+    {%- else -%}
+      <textarea name="{{ name }}" placeholder="{{ placeholder }}"
+                class="w-full h-full bg-transparent border-0 outline-none focus:bg-white/70 rounded px-2 py-1 resize-none"
+                style="{{ combined_style }}">{{ value }}</textarea>
+    {%- endif -%}
+    <span class="block-drag-handle absolute top-0 left-0 right-0 h-2.5 cursor-move hidden group-hover:block z-20" title="Drag to move"></span>
+
+    {# Typography toolbar — hidden until the wrap is hovered. Posts to
+       /update-block-style/<idx>/<name>; HTMX swap re-renders the card. #}
+    <div class="block-style-toolbar absolute -bottom-9 left-0 hidden group-hover:flex items-center gap-1 bg-white border border-stone-300 rounded shadow-md px-1.5 py-1 text-[10px] z-30 whitespace-nowrap"
+         data-block="{{ name }}" data-job-id="{{ job_id }}" data-slide-idx="{{ slide_idx }}"
+         onmousedown="event.stopPropagation()">
+      <select class="bs-font-family bg-transparent border border-stone-200 rounded px-1 py-0.5 text-[10px] focus:outline-none cursor-pointer" title="Font family">
+        <option value="">font…</option>
+        {%- for fam in ['Inter','DM Sans','IBM Plex Sans','JetBrains Mono','Fraunces','Montserrat','Merriweather','Roboto','Lato','Source Sans Pro','Calibri','Georgia','Arial','Helvetica','Times New Roman'] -%}
+          <option value="{{ fam }}" {% if bs.get('font_family') == fam %}selected{% endif %}>{{ fam }}</option>
+        {%- endfor -%}
+      </select>
+      <input type="number" class="bs-font-size w-12 border border-stone-200 rounded px-1 py-0.5 text-[10px] focus:outline-none"
+             min="8" max="96" step="1" placeholder="size" value="{{ bs.font_size or '' }}" title="Font size (px)">
+      <input type="color" class="bs-color w-5 h-5 border-0 bg-transparent p-0 cursor-pointer"
+             value="{{ bs.color or '#1f3a5f' }}" title="Text color">
+      <button type="button" class="bs-bold w-5 h-5 border rounded text-[11px] {% if bs.get('bold') %}bg-stone-200 border-stone-400 font-bold{% else %}bg-white border-stone-200{% endif %}" title="Bold">B</button>
+      <button type="button" class="bs-italic w-5 h-5 border rounded text-[11px] italic {% if bs.get('italic') %}bg-stone-200 border-stone-400{% else %}bg-white border-stone-200{% endif %}" title="Italic">I</button>
+      <button type="button" class="bs-align w-5 h-5 border rounded text-[10px] bg-white border-stone-200 hover:bg-stone-100" data-current="{{ bs.align or 'left' }}" title="Cycle align: left → center → right → justify">{% if bs.get('align') == 'center' %}⬆{% elif bs.get('align') == 'right' %}➡{% elif bs.get('align') == 'justify' %}⬚{% else %}⬅{% endif %}</button>
+      <button type="button" class="bs-clear-style border border-stone-200 rounded px-1 py-0.5 text-stone-500 hover:text-red-700 hover:bg-red-50" title="Clear all typography overrides">×</button>
+    </div>
+
+    <button type="button" class="block-reset absolute -top-2 -right-2 w-5 h-5 bg-white border border-stone-300 rounded shadow-sm text-[11px] hidden group-hover:flex items-center justify-center text-stone-500 hover:text-red-700 z-30"
+            data-block="{{ name }}" data-job-id="{{ job_id }}" data-slide-idx="{{ slide_idx }}"
+            title="Reset to layout default position">↺</button>
+    <div class="block-handle absolute -top-1 -left-1 w-3 h-3 bg-blue-500 border border-white rounded-sm hidden group-hover:block cursor-nwse-resize z-30" data-corner="nw"></div>
+    <div class="block-handle absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-sm hidden group-hover:block cursor-nesw-resize z-30" data-corner="ne"></div>
+    <div class="block-handle absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 border border-white rounded-sm hidden group-hover:block cursor-nesw-resize z-30" data-corner="sw"></div>
+    <div class="block-handle absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-sm hidden group-hover:block cursor-nwse-resize z-30" data-corner="se"></div>
+  </div>
+{%- endmacro -%}
+
+{%- set body_text = (slide.body or []) | join('\n') -%}
+{%- set body_left_text = (slide.body_left or []) | join('\n') -%}
+{%- set body_right_text = (slide.body_right or []) | join('\n') -%}
+{%- set primary = tpl.colors.primary if tpl else '#1F3A5F' -%}
+{%- set accent = tpl.colors.accent if tpl else '#C86E3C' -%}
+{%- set text_color = tpl.colors.text if tpl else '#222222' -%}
+{%- set muted = tpl.colors.muted if tpl else '#6B6B6B' -%}
+{%- set background = tpl.colors.background if tpl else '#FFFFFF' -%}
+{%- set heading_font = tpl.fonts.heading if tpl else 'Calibri' -%}
+{%- set body_font = tpl.fonts.body if tpl else 'Calibri' -%}
+<article id="slide-card-{{ slide_idx }}"
+         data-slide-card="{{ slide_idx }}"
+         class="bg-white rounded-lg border border-stone-200 ring-1 ring-stone-200/50 shadow-sm overflow-hidden">
+
+  {# Toolbar: drag handle, slide number, layout select with icon, controls #}
+  <div class="flex items-center justify-between gap-3 px-3 py-2 bg-stone-50 border-b border-stone-200">
+    <div class="flex items-center gap-2">
+      <span class="drag-handle cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-700 select-none px-1" title="Drag to reorder">
+        ⋮⋮
+      </span>
+      <span class="text-xs font-mono text-stone-400">#{{ slide_idx + 1 }}</span>
+      {% if saved %}
+        <span class="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">✓ saved</span>
+      {% endif %}
+      <span class="htmx-indicator text-[10px] text-stone-500">saving…</span>
+    </div>
+    <form class="flex items-center gap-2"
+          hx-post="/workflow/wireframe/{{ job_id }}/save-slide/{{ slide_idx }}"
+          hx-target="closest [data-slide-card]"
+          hx-swap="outerHTML"
+          hx-trigger="change from:select[name='layout'], blur changed from:input[name='title'], blur changed from:input[name='strap'], blur changed from:textarea[name='body'], blur changed from:textarea[name='body_left'], blur changed from:textarea[name='body_right'], blur changed from:textarea[name='speaker_notes']"
+          hx-include="closest [data-slide-card]">
+      <div class="w-12 aspect-[16/9] text-stone-700 flex-shrink-0 bg-white rounded p-0.5 border border-stone-200">
+        {% with layout=slide.layout %}{% include "workflow/_layout_icon.html" %}{% endwith %}
+      </div>
+      <select name="layout"
+              class="text-xs border border-stone-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-stone-400">
+        {% for lt in layout_types %}
+          <option value="{{ lt }}" {% if lt == slide.layout %}selected{% endif %}>{{ lt }}</option>
+        {% endfor %}
+      </select>
+      <button type="button"
+              hx-post="/workflow/wireframe/{{ job_id }}/delete-slide/{{ slide_idx }}"
+              hx-target="closest [data-slide-card]"
+              hx-swap="outerHTML"
+              hx-confirm="Delete this slide? This cannot be undone."
+              class="text-xs px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded">
+        delete
+      </button>
+    </form>
+  </div>
+
+  {# WYSIWYG slide preview — 16:9 aspect, template colors/fonts, inline-edit text #}
+  <div class="p-3 bg-stone-100">
+    <form hx-post="/workflow/wireframe/{{ job_id }}/save-slide/{{ slide_idx }}"
+          hx-target="closest [data-slide-card]"
+          hx-swap="outerHTML"
+          hx-trigger="blur changed from:input[name='title'], blur changed from:input[name='strap'], blur changed from:textarea[name='body'], blur changed from:textarea[name='body_left'], blur changed from:textarea[name='body_right']">
+      {# Hidden layout input so this form has all fields the save endpoint expects #}
+      <input type="hidden" name="layout" value="{{ slide.layout }}">
+
+      {# Compute extra positions once so we can both reflow the text area AND render overlays. #}
+      {% set right_extras = (slide.extras or []) | selectattr('position', 'equalto', 'right') | list %}
+      {% set left_extras = (slide.extras or []) | selectattr('position', 'equalto', 'left') | list %}
+      {% set below_extras = (slide.extras or []) | selectattr('position', 'equalto', 'below') | list %}
+      {% set inline_extras = (slide.extras or []) | selectattr('position', 'equalto', 'inline') | list %}
+      {# bb_map: which text blocks are lifted into freeform overlays. The flex
+         containers below skip in-flow rendering for any block in bb_map; the
+         section after the padding wrapper renders each as an absolute overlay. #}
+      {% set bb_map = slide.block_bbox or {} %}
+
+      <div class="aspect-[16/9] w-full rounded-md shadow-sm relative overflow-hidden"
+           data-slide-preview="{{ slide_idx }}"
+           style="background: {{ background }}; font-family: 'DM Sans', sans-serif;">
+
+        {# Padding wrapper that reserves space for visible extras so text doesn't overlap them. #}
+        <div class="absolute inset-0 {% if right_extras %}pr-[40%]{% endif %}{% if left_extras %} pl-[40%]{% endif %}{% if below_extras %} pb-[34%]{% endif %}">
+
+        {% if slide.layout == "title" %}
+          <div class="h-full flex flex-col justify-center px-[7%]">
+            {% if 'title' not in bb_map %}
+              {% call block_flow_wrap('title', slide_idx, job_id) %}
+                <input type="text" name="title" value="{{ slide.title }}"
+                       placeholder="Deck title (state the answer, not the topic)"
+                       spellcheck="false"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="font-family: 'DM Sans', sans-serif; color: {{ primary }}; font-weight: 700; font-size: clamp(14px, 2.6vw, 36px); line-height: 1.15;">
+              {% endcall %}
+            {% endif %}
+            {% if 'strap' not in bb_map %}
+              {% call block_flow_wrap('strap', slide_idx, job_id, 'mt-2') %}
+                <input type="text" name="strap" value="{{ slide.strap or '' }}"
+                       placeholder="Optional subtitle / context line"
+                       spellcheck="false"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="color: {{ muted }}; font-size: clamp(10px, 1.3vw, 18px);">
+              {% endcall %}
+            {% endif %}
+          </div>
+
+        {% elif slide.layout == "section_divider" %}
+          <div class="h-full flex flex-col justify-center px-[6%]">
+            {% if 'title' not in bb_map %}
+              {% call block_flow_wrap('title', slide_idx, job_id) %}
+                <input type="text" name="title" value="{{ slide.title }}"
+                       placeholder="Section thesis (specific, insight-led)"
+                       spellcheck="false"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="font-family: 'DM Sans', sans-serif; color: {{ primary }}; font-weight: 700; font-size: clamp(13px, 2.2vw, 30px); line-height: 1.2;">
+              {% endcall %}
+            {% endif %}
+            {% if 'strap' not in bb_map %}
+              {% call block_flow_wrap('strap', slide_idx, job_id, 'mt-2') %}
+                <input type="text" name="strap" value="{{ slide.strap or '' }}"
+                       placeholder="Optional context"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="color: {{ muted }}; font-size: clamp(10px, 1.2vw, 16px);">
+              {% endcall %}
+            {% endif %}
+          </div>
+
+        {% elif slide.layout == "key_takeaway" %}
+          <div class="h-full flex flex-col justify-center px-[8%] text-center">
+            {% if 'title' not in bb_map %}
+              {% call block_flow_wrap('title', slide_idx, job_id) %}
+                <input type="text" name="title" value="{{ slide.title }}"
+                       placeholder="The single most important conclusion"
+                       spellcheck="false"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 text-center transition-colors"
+                       style="font-family: 'DM Sans', sans-serif; color: {{ primary }}; font-weight: 700; font-size: clamp(12px, 2vw, 26px); line-height: 1.25;">
+              {% endcall %}
+            {% endif %}
+            {% if 'strap' not in bb_map %}
+              {% call block_flow_wrap('strap', slide_idx, job_id, 'mt-2') %}
+                <input type="text" name="strap" value="{{ slide.strap or '' }}"
+                       placeholder="Optional supporting line"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 text-center transition-colors"
+                       style="color: {{ muted }}; font-size: clamp(9px, 1.1vw, 14px);">
+              {% endcall %}
+            {% endif %}
+            {% if 'body' not in bb_map %}
+              {% call block_flow_wrap('body', slide_idx, job_id, 'mt-3') %}
+                <textarea name="body" rows="1" placeholder="Evidence anchor (one short line)"
+                          class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 text-center resize-none transition-colors"
+                          style="color: {{ muted }}; font-size: clamp(9px, 1.1vw, 14px);">{{ body_text }}</textarea>
+              {% endcall %}
+            {% endif %}
+          </div>
+
+        {% elif slide.layout == "two_column" %}
+          <div class="h-full flex flex-col px-[5%] py-[4%]">
+            {% if 'title' not in bb_map %}
+              {% call block_flow_wrap('title', slide_idx, job_id) %}
+                <input type="text" name="title" value="{{ slide.title }}"
+                       placeholder="Comparison takeaway"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="font-family: 'DM Sans', sans-serif; color: {{ primary }}; font-weight: 700; font-size: clamp(11px, 1.5vw, 20px);">
+              {% endcall %}
+            {% endif %}
+            {% if 'strap' not in bb_map %}
+              {% call block_flow_wrap('strap', slide_idx, job_id, 'mt-1') %}
+                <input type="text" name="strap" value="{{ slide.strap or '' }}"
+                       placeholder="Optional strapline"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="color: {{ muted }}; font-size: clamp(9px, 1.1vw, 14px);">
+              {% endcall %}
+            {% endif %}
+            <div class="flex-1 grid grid-cols-2 gap-3 mt-3 min-h-0">
+              {% if 'body_left' not in bb_map %}
+                {% call block_flow_wrap('body_left', slide_idx, job_id, 'h-full') %}
+                  <textarea name="body_left" placeholder="Left column — one bullet per line"
+                            class="w-full h-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 resize-none font-mono transition-colors"
+                            style="color: {{ text_color }}; font-size: clamp(8px, 0.95vw, 12px); line-height: 1.5;">{{ body_left_text }}</textarea>
+                {% endcall %}
+              {% endif %}
+              {% if 'body_right' not in bb_map %}
+                {% call block_flow_wrap('body_right', slide_idx, job_id, 'h-full') %}
+                  <textarea name="body_right" placeholder="Right column — one bullet per line"
+                            class="w-full h-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 resize-none font-mono transition-colors"
+                            style="color: {{ text_color }}; font-size: clamp(8px, 0.95vw, 12px); line-height: 1.5;">{{ body_right_text }}</textarea>
+                {% endcall %}
+              {% endif %}
+            </div>
+          </div>
+
+        {% else %}
+          {# content / bullet_list / closing #}
+          <div class="h-full flex flex-col px-[5%] py-[4%]">
+            {% if 'title' not in bb_map %}
+              {% call block_flow_wrap('title', slide_idx, job_id) %}
+                <input type="text" name="title" value="{{ slide.title }}"
+                       placeholder="State the takeaway, not the topic"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="font-family: 'DM Sans', sans-serif; color: {{ primary }}; font-weight: 700; font-size: clamp(11px, 1.6vw, 22px); line-height: 1.2;">
+              {% endcall %}
+            {% endif %}
+            {% if 'strap' not in bb_map %}
+              {% call block_flow_wrap('strap', slide_idx, job_id, 'mt-1') %}
+                <input type="text" name="strap" value="{{ slide.strap or '' }}"
+                       placeholder="Optional strapline"
+                       class="w-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-1 transition-colors"
+                       style="color: {{ muted }}; font-size: clamp(9px, 1.1vw, 14px);">
+              {% endcall %}
+            {% endif %}
+            {% if 'body' not in bb_map %}
+              {% call block_flow_wrap('body', slide_idx, job_id, 'flex-1 min-h-0 mt-2') %}
+                <textarea name="body" placeholder="One bullet per line. 3–5 max. Each ≤14 words."
+                          class="w-full h-full bg-transparent border-0 outline-none focus:bg-white/60 rounded px-2 py-2 resize-none transition-colors"
+                          style="font-family: '{{ body_font }}', sans-serif; color: {{ text_color }}; font-size: clamp(9px, 1.1vw, 14px); line-height: 1.7;">{{ body_text }}</textarea>
+              {% endcall %}
+            {% endif %}
+          </div>
+        {% endif %}
+
+        </div>{# close padding wrapper #}
+
+        {# Freeform text-block overlays. For every block whose bbox is set,
+           render an absolute-positioned, draggable+resizable overlay using
+           the `block_overlay` macro. The flex container above suppresses
+           the corresponding in-flow input so we don't render the block twice. #}
+        {%- set _title_style = "font-family: 'DM Sans', sans-serif; color: " ~ primary ~ "; font-weight: 700; font-size: clamp(11px, 1.6vw, 22px); line-height: 1.2;" -%}
+        {%- set _strap_style = "color: " ~ muted ~ "; font-size: clamp(9px, 1.1vw, 14px);" -%}
+        {%- set _body_style  = "font-family: '" ~ body_font ~ "', sans-serif; color: " ~ text_color ~ "; font-size: clamp(8px, 1vw, 13px); line-height: 1.5;" -%}
+        {%- set _col_style   = "color: " ~ text_color ~ "; font-size: clamp(8px, 0.95vw, 12px); line-height: 1.5;" -%}
+        {%- set bs_map = slide.block_style or {} -%}
+        {% if bb_map.get('title') %}
+          {{ block_overlay('title', slide_idx, job_id, bb_map.title, 'input', slide.title, 'Slide title', _title_style, bs_map.get('title')) }}
+        {% endif %}
+        {% if bb_map.get('strap') %}
+          {{ block_overlay('strap', slide_idx, job_id, bb_map.strap, 'input', slide.strap or '', 'Optional strapline', _strap_style, bs_map.get('strap')) }}
+        {% endif %}
+        {% if bb_map.get('body') %}
+          {{ block_overlay('body', slide_idx, job_id, bb_map.body, 'textarea', body_text, 'One bullet per line.', _body_style, bs_map.get('body')) }}
+        {% endif %}
+        {% if bb_map.get('body_left') %}
+          {{ block_overlay('body_left', slide_idx, job_id, bb_map.body_left, 'textarea', body_left_text, 'Left column — one bullet per line', _col_style, bs_map.get('body_left')) }}
+        {% endif %}
+        {% if bb_map.get('body_right') %}
+          {{ block_overlay('body_right', slide_idx, job_id, bb_map.body_right, 'textarea', body_right_text, 'Right column — one bullet per line', _col_style, bs_map.get('body_right')) }}
+        {% endif %}
+
+        {# Visual extras overlays — show the asset thumbnail at its rendered
+           position. Each overlay is draggable, resizable (4 corners), and
+           recolorable. The JS at the bottom of this template wires up
+           pointer events and posts to /update-extra on mouseup/change. #}
+        {% for ex in (slide.extras or []) %}
+          {% if ex.type == "library_asset" %}
+            {% set ref = ex.config.get('asset_ref', '') %}
+            {% set thumb_url = "/thumbnails/" ~ (ref|replace('/', '__')) ~ ".png" %}
+            {% set bbox = ex.config.get('bbox') %}
+            {% set color_override = ex.config.get('color_override') or '' %}
+            {% if bbox %}
+              {% set style_pos = 'left:' ~ (bbox.left * 100) ~ '%; top:' ~ (bbox.top * 100) ~ '%; width:' ~ (bbox.width * 100) ~ '%; height:' ~ (bbox.height * 100) ~ '%;' %}
+            {% elif ex.position == "right" %}
+              {% set style_pos = 'right:0; top:0; height:100%; width:40%;' %}
+            {% elif ex.position == "left" %}
+              {% set style_pos = 'left:0; top:0; height:100%; width:40%;' %}
+            {% elif ex.position == "below" %}
+              {% set style_pos = 'left:0; right:0; bottom:0; height:34%; width:100%;' %}
+            {% else %}
+              {% set style_pos = 'left:25%; top:25%; width:50%; height:50%;' %}
+            {% endif %}
+            <div class="extra-overlay group absolute flex items-center justify-center p-2 border border-stone-300/40 bg-white/30 backdrop-blur-[1px] cursor-move hover:ring-2 hover:ring-amber-400/70"
+                 style="{{ style_pos }}"
+                 data-job-id="{{ job_id }}"
+                 data-slide-idx="{{ slide_idx }}"
+                 data-extra-idx="{{ loop.index0 }}"
+                 data-position="{{ ex.position }}"
+                 data-has-bbox="{% if bbox %}1{% else %}0{% endif %}">
+              <img src="{{ thumb_url }}" alt="{{ ref }}"
+                   class="max-w-full max-h-full object-contain pointer-events-none select-none"
+                   {% if color_override %}style="filter: drop-shadow(0 0 0 {{ color_override }});"{% endif %}
+                   loading="lazy" draggable="false">
+
+              {# Hover-only top-right control bar: position dropdown + color picker #}
+              <div class="extra-controls absolute top-1 right-1 hidden group-hover:flex items-center gap-1 bg-white/90 border border-stone-300 rounded shadow-sm px-1 py-0.5 text-[10px] z-10"
+                   onmousedown="event.stopPropagation()">
+                <select class="extra-position-select bg-transparent border-0 text-[10px] focus:outline-none cursor-pointer">
+                  <option value="right" {% if ex.position == 'right' and not bbox %}selected{% endif %}>right</option>
+                  <option value="left" {% if ex.position == 'left' and not bbox %}selected{% endif %}>left</option>
+                  <option value="below" {% if ex.position == 'below' and not bbox %}selected{% endif %}>below</option>
+                  <option value="inline" {% if ex.position == 'inline' and not bbox %}selected{% endif %}>inline</option>
+                  {% if bbox %}<option value="freeform" selected>freeform</option>{% endif %}
+                </select>
+                <input type="color" class="extra-color-picker w-5 h-5 border-0 bg-transparent p-0 cursor-pointer"
+                       value="{{ color_override or '#1f3a5f' }}"
+                       title="Recolor dominant fill">
+                {% if color_override %}
+                  <button type="button" class="extra-color-clear text-stone-500 hover:text-red-700 leading-none px-0.5"
+                          title="Clear color override">×</button>
+                {% endif %}
+              </div>
+
+              {# 4 corner resize handles. cursor- classes hint the resize axis. #}
+              <div class="extra-handle absolute -top-1 -left-1 w-3 h-3 bg-amber-500 border border-white rounded-sm hidden group-hover:block cursor-nwse-resize" data-corner="nw"></div>
+              <div class="extra-handle absolute -top-1 -right-1 w-3 h-3 bg-amber-500 border border-white rounded-sm hidden group-hover:block cursor-nesw-resize" data-corner="ne"></div>
+              <div class="extra-handle absolute -bottom-1 -left-1 w-3 h-3 bg-amber-500 border border-white rounded-sm hidden group-hover:block cursor-nesw-resize" data-corner="sw"></div>
+              <div class="extra-handle absolute -bottom-1 -right-1 w-3 h-3 bg-amber-500 border border-white rounded-sm hidden group-hover:block cursor-nwse-resize" data-corner="se"></div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        {# Layout label badge in corner of preview #}
+        <div class="absolute top-1.5 right-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/5 z-10" style="color: {{ muted }};">
+          {{ slide.layout }}
+        </div>
+      </div>
+
+      {# Hidden-input fallbacks for fields the current layout doesn't render
+         in flow AND are not lifted into a freeform overlay (the overlay
+         textarea/input would carry name="..." itself, so we'd duplicate the
+         field). Without these, layout-switch would wipe content. #}
+      {% if slide.layout != "two_column" %}
+        {% if 'body_left' not in bb_map %}
+          <input type="hidden" name="body_left" value="{{ body_left_text }}">
+        {% endif %}
+        {% if 'body_right' not in bb_map %}
+          <input type="hidden" name="body_right" value="{{ body_right_text }}">
+        {% endif %}
+      {% endif %}
+      {% if slide.layout in ["title", "section_divider", "two_column"] and 'body' not in bb_map %}
+        <input type="hidden" name="body" value="{{ body_text }}">
+      {% endif %}
+    </form>
+
+    {# Hidden-content badges. Layouts only render certain body slots:
+         title / section_divider          → none of {body, body_left, body_right}
+         content / bullet_list /
+           closing / key_takeaway         → body
+         two_column                       → body_left, body_right
+       If a slide has content in a slot the current layout does NOT render,
+       show a badge so the user knows nothing was silently lost. The data is
+       preserved via hidden inputs and re-appears when they switch back.
+       Layout switches between content↔two_column ALSO smart-redistribute on
+       save (server-side, in /save-slide) so no badge is needed in the common
+       case — this is just the safety net for layouts with no body slot. #}
+    {%- set _hidden = [] -%}
+    {%- if slide.layout in ["title", "section_divider"] -%}
+      {%- if slide.body and slide.body | length > 0 -%}{% set _ = _hidden.append(("body", slide.body | length)) %}{%- endif -%}
+      {%- if slide.body_left and slide.body_left | length > 0 -%}{% set _ = _hidden.append(("body_left", slide.body_left | length)) %}{%- endif -%}
+      {%- if slide.body_right and slide.body_right | length > 0 -%}{% set _ = _hidden.append(("body_right", slide.body_right | length)) %}{%- endif -%}
+    {%- elif slide.layout in ["content", "bullet_list", "closing", "key_takeaway"] -%}
+      {%- if slide.body_left and slide.body_left | length > 0 -%}{% set _ = _hidden.append(("body_left", slide.body_left | length)) %}{%- endif -%}
+      {%- if slide.body_right and slide.body_right | length > 0 -%}{% set _ = _hidden.append(("body_right", slide.body_right | length)) %}{%- endif -%}
+    {%- elif slide.layout == "two_column" -%}
+      {%- if slide.body and slide.body | length > 0 -%}{% set _ = _hidden.append(("body", slide.body | length)) %}{%- endif -%}
+    {%- endif -%}
+    {% if _hidden %}
+      <div class="mt-2 flex items-center gap-2 flex-wrap text-[11px] text-stone-700">
+        <span class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-800 rounded-full px-2 py-0.5"
+              title="This content is preserved in the slide data but the current layout doesn't render it. Switch layout (or use 'free position' on a block) to bring it back into view. Nothing has been deleted.">
+          📎 hidden content preserved:
+          {% for name, n in _hidden %}{{ name }} ({{ n }} line{% if n != 1 %}s{% endif %}){% if not loop.last %}, {% endif %}{% endfor %}
+        </span>
+      </div>
+    {% endif %}
+
+    {# Attached extras (growable add-ons): library assets, charts, matrices.
+       Each chip is removable. New extras attach via the library picker modal. #}
+    <div class="mt-2 flex items-center gap-2 flex-wrap">
+      {% if slide.extras %}
+        {% for ex in slide.extras %}
+          <div class="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full pl-2 pr-1 py-0.5 text-[11px]">
+            {% if ex.type == "library_asset" %}
+              {% set ref = ex.config.get('asset_ref', '') %}
+              {% set parts = ref.split('/') %}
+              <span class="text-amber-900">📐 {{ parts[0] | replace('-powerpoint','') | replace('-',' ') }}{% if parts|length > 1 %} · {{ parts[1] | replace('-',' ') }}{% endif %}</span>
+              <span class="text-amber-600 font-mono">@{{ ex.position }}</span>
+            {% else %}
+              <span class="text-amber-900">{{ ex.type }} @{{ ex.position }}</span>
+            {% endif %}
+            <button type="button"
+                    hx-post="/workflow/wireframe/{{ job_id }}/remove-extra/{{ slide_idx }}/{{ loop.index0 }}"
+                    hx-target="closest [data-slide-card]"
+                    hx-swap="outerHTML"
+                    class="text-amber-700 hover:text-amber-900 hover:bg-amber-100 rounded-full w-4 h-4 leading-none text-[11px]"
+                    title="Remove">×</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      <button type="button"
+              data-job-id="{{ job_id }}"
+              data-slide-idx="{{ slide_idx }}"
+              onclick="window.openLibraryPicker(this.dataset.jobId, this.dataset.slideIdx); return false;"
+              class="inline-flex items-center gap-1 text-[11px] text-stone-600 hover:text-stone-900 px-2 py-0.5 border border-dashed border-stone-300 hover:border-stone-500 rounded-full">
+        + Attach diagram
+      </button>
+    </div>
+
+    {# Speaker notes + rationale — collapsed below the slide preview #}
+    <details class="mt-2 text-xs">
+      <summary class="text-stone-500 cursor-pointer hover:text-stone-800">Speaker notes & rationale</summary>
+      <form class="mt-2 space-y-2"
+            hx-post="/workflow/wireframe/{{ job_id }}/save-slide/{{ slide_idx }}"
+            hx-target="closest [data-slide-card]"
+            hx-swap="outerHTML"
+            hx-trigger="blur changed from:textarea[name='speaker_notes']"
+            hx-include="closest [data-slide-card]">
+        <input type="hidden" name="layout" value="{{ slide.layout }}">
+        <input type="hidden" name="title" value="{{ slide.title }}">
+        <input type="hidden" name="strap" value="{{ slide.strap or '' }}">
+        <input type="hidden" name="body" value="{{ body_text }}">
+        <input type="hidden" name="body_left" value="{{ body_left_text }}">
+        <input type="hidden" name="body_right" value="{{ body_right_text }}">
+        <textarea name="speaker_notes" rows="3" placeholder="Notes for the presenter"
+                  class="w-full text-xs text-stone-700 border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-stone-400">{{ slide.speaker_notes or '' }}</textarea>
+        {% if slide.rationale %}
+          <p class="text-[10px] text-stone-400 italic">Rationale: {{ slide.rationale }}</p>
+        {% endif %}
+      </form>
+    </details>
+  </div>
+
+  {# Inline script — wires up drag, resize, and color picker for the extras
+     overlays in THIS card. Idempotent: each pointerdown on an overlay or
+     handle attaches its own listeners. Re-runs on every HTMX swap because
+     the script lives inside the swapped <article>. #}
+  <script>
+    (function() {
+      const card = document.getElementById('slide-card-{{ slide_idx }}');
+      if (!card) return;
+      // IMPORTANT: select the slide preview canvas explicitly via data attr.
+      // The toolbar contains a tiny `w-12 aspect-[16/9]` layout-icon wrapper that
+      // appears EARLIER in the DOM, so a `.aspect-[16/9]` selector resolves to
+      // that ~48px box instead of the real preview, and drag math produces
+      // off-the-canvas bbox values that the server clamps to {1,1,1,1}, putting
+      // the overlay at left:100%; top:100% (i.e. invisible).
+      const slidePreview = card.querySelector('[data-slide-preview]');
+      if (!slidePreview) return;
+
+      function postUpdate(overlay, fields) {
+        const { jobId, slideIdx, extraIdx } = overlay.dataset;
+        const fd = new FormData();
+        for (const k in fields) fd.append(k, fields[k]);
+        const url = `/workflow/wireframe/${jobId}/update-extra/${slideIdx}/${extraIdx}`;
+        // Use HTMX so the card re-renders consistently with other endpoints.
+        if (window.htmx) {
+          window.htmx.ajax('POST', url, {
+            target: `#slide-card-${slideIdx}`,
+            swap: 'outerHTML',
+            values: fields,
+          });
+        } else {
+          fetch(url, { method: 'POST', body: fd });
+        }
+      }
+
+      function bboxFromOverlay(overlay) {
+        const previewRect = slidePreview.getBoundingClientRect();
+        const r = overlay.getBoundingClientRect();
+        return {
+          left:   Math.max(0, Math.min(1, (r.left - previewRect.left) / previewRect.width)),
+          top:    Math.max(0, Math.min(1, (r.top  - previewRect.top ) / previewRect.height)),
+          width:  Math.max(0.02, Math.min(1, r.width  / previewRect.width)),
+          height: Math.max(0.02, Math.min(1, r.height / previewRect.height)),
+        };
+      }
+
+      card.querySelectorAll('.extra-overlay').forEach(function(overlay) {
+        // ---- DRAG ----
+        overlay.addEventListener('pointerdown', function(ev) {
+          // Skip when the press originated from a handle, the controls bar,
+          // or any interactive child (select, input, button).
+          const t = ev.target;
+          if (t.classList && t.classList.contains('extra-handle')) return;
+          if (t.closest && t.closest('.extra-controls')) return;
+          if (t.tagName === 'SELECT' || t.tagName === 'INPUT' || t.tagName === 'BUTTON') return;
+          ev.preventDefault();
+          const previewRect = slidePreview.getBoundingClientRect();
+          const startX = ev.clientX, startY = ev.clientY;
+          const startLeft = overlay.offsetLeft;
+          const startTop = overlay.offsetTop;
+          overlay.setPointerCapture(ev.pointerId);
+
+          function onMove(mev) {
+            const dx = mev.clientX - startX;
+            const dy = mev.clientY - startY;
+            const newLeft = Math.max(0, Math.min(previewRect.width  - overlay.offsetWidth,  startLeft + dx));
+            const newTop  = Math.max(0, Math.min(previewRect.height - overlay.offsetHeight, startTop  + dy));
+            overlay.style.left = (newLeft / previewRect.width  * 100) + '%';
+            overlay.style.top  = (newTop  / previewRect.height * 100) + '%';
+            overlay.style.right = '';
+            overlay.style.bottom = '';
+          }
+          function onUp(uev) {
+            overlay.removeEventListener('pointermove', onMove);
+            overlay.removeEventListener('pointerup', onUp);
+            overlay.releasePointerCapture(ev.pointerId);
+            postUpdate(overlay, { bbox: JSON.stringify(bboxFromOverlay(overlay)) });
+          }
+          overlay.addEventListener('pointermove', onMove);
+          overlay.addEventListener('pointerup', onUp);
+        });
+
+        // ---- RESIZE (4 corners) ----
+        overlay.querySelectorAll('.extra-handle').forEach(function(handle) {
+          handle.addEventListener('pointerdown', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const previewRect = slidePreview.getBoundingClientRect();
+            const startX = ev.clientX, startY = ev.clientY;
+            const startLeft   = overlay.offsetLeft;
+            const startTop    = overlay.offsetTop;
+            const startWidth  = overlay.offsetWidth;
+            const startHeight = overlay.offsetHeight;
+            const corner = handle.dataset.corner;  // nw / ne / sw / se
+            handle.setPointerCapture(ev.pointerId);
+
+            function onMove(mev) {
+              const dx = mev.clientX - startX;
+              const dy = mev.clientY - startY;
+              let newLeft = startLeft, newTop = startTop, newW = startWidth, newH = startHeight;
+              if (corner === 'nw') {
+                newLeft = startLeft + dx; newTop = startTop + dy;
+                newW = startWidth - dx;   newH = startHeight - dy;
+              } else if (corner === 'ne') {
+                newTop = startTop + dy;
+                newW = startWidth + dx;   newH = startHeight - dy;
+              } else if (corner === 'sw') {
+                newLeft = startLeft + dx;
+                newW = startWidth - dx;   newH = startHeight + dy;
+              } else { // se
+                newW = startWidth + dx;   newH = startHeight + dy;
+              }
+              // Min size to avoid collapse to zero
+              if (newW < 20) { newW = 20; if (corner === 'nw' || corner === 'sw') newLeft = startLeft + startWidth - 20; }
+              if (newH < 20) { newH = 20; if (corner === 'nw' || corner === 'ne') newTop  = startTop  + startHeight - 20; }
+              overlay.style.left   = (newLeft / previewRect.width  * 100) + '%';
+              overlay.style.top    = (newTop  / previewRect.height * 100) + '%';
+              overlay.style.width  = (newW    / previewRect.width  * 100) + '%';
+              overlay.style.height = (newH    / previewRect.height * 100) + '%';
+              overlay.style.right = '';
+              overlay.style.bottom = '';
+            }
+            function onUp() {
+              handle.removeEventListener('pointermove', onMove);
+              handle.removeEventListener('pointerup', onUp);
+              handle.releasePointerCapture(ev.pointerId);
+              postUpdate(overlay, { bbox: JSON.stringify(bboxFromOverlay(overlay)) });
+            }
+            handle.addEventListener('pointermove', onMove);
+            handle.addEventListener('pointerup', onUp);
+          });
+        });
+
+        // ---- POSITION DROPDOWN ----
+        const posSelect = overlay.querySelector('.extra-position-select');
+        if (posSelect) {
+          posSelect.addEventListener('change', function() {
+            const v = posSelect.value;
+            if (v === 'freeform') return;  // freeform is just the visual marker for "bbox set"
+            // Switching to a named position clears bbox so the renderer uses the position default.
+            postUpdate(overlay, { position: v, bbox: '' });
+          });
+        }
+
+        // ---- COLOR PICKER ----
+        const picker = overlay.querySelector('.extra-color-picker');
+        if (picker) {
+          picker.addEventListener('change', function() {
+            postUpdate(overlay, { color_override: picker.value });
+          });
+        }
+        const clearBtn = overlay.querySelector('.extra-color-clear');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            postUpdate(overlay, { color_override: '' });
+          });
+        }
+      });
+
+      // ===========================================================
+      // Freeform text-block manipulation (Sprint Y v1: body only)
+      //
+      //  - "📐 free position" button (in the layout's flex flow): captures the
+      //    block's current rect → POSTs /update-block/<name> with bbox →
+      //    server persists block_bbox[name] → re-render lifts the block to an
+      //    absolute-positioned overlay.
+      //  - .block-wrap[data-has-bbox="1"]: top-edge drag handle, 4 corner
+      //    resize handles, ↺ reset button. Same UX as diagram extras above.
+      // ===========================================================
+
+      function postBlockUpdate(jobId, slideIdx, blockName, fields) {
+        const url = `/workflow/wireframe/${jobId}/update-block/${slideIdx}/${blockName}`;
+        if (window.htmx) {
+          window.htmx.ajax('POST', url, {
+            target: `#slide-card-${slideIdx}`,
+            swap: 'outerHTML',
+            values: fields,
+          });
+        } else {
+          const fd = new FormData();
+          for (const k in fields) fd.append(k, fields[k]);
+          fetch(url, { method: 'POST', body: fd });
+        }
+      }
+
+      function bboxFromElement(el) {
+        const previewRect = slidePreview.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        return {
+          left:   Math.max(0, Math.min(1, (r.left - previewRect.left) / previewRect.width)),
+          top:    Math.max(0, Math.min(1, (r.top  - previewRect.top ) / previewRect.height)),
+          width:  Math.max(0.05, Math.min(1, r.width  / previewRect.width)),
+          height: Math.max(0.05, Math.min(1, r.height / previewRect.height)),
+        };
+      }
+
+      // ---- FREE-POSITION button (in flex flow) ----
+      card.querySelectorAll('.block-free').forEach(function(btn) {
+        btn.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const { jobId, slideIdx: si, block } = btn.dataset;
+          // The button sits inside the layout's flex container next to the
+          // input/textarea it represents. Find that input by name="<block>".
+          const flexParent = btn.parentElement;
+          const target = flexParent ? flexParent.querySelector(`[name="${block}"]`) : null;
+          if (!target) return;
+          const bbox = bboxFromElement(target);
+          postBlockUpdate(jobId, si, block, { bbox: JSON.stringify(bbox) });
+        });
+      });
+
+      // ---- BLOCK overlay drag/resize/reset ----
+      card.querySelectorAll('.block-wrap[data-has-bbox="1"]').forEach(function(wrap) {
+        const { jobId, slideIdx: si, block } = wrap.dataset;
+
+        // Drag (top-edge handle, doesn't conflict with text editing inside).
+        const handle = wrap.querySelector('.block-drag-handle');
+        if (handle) {
+          handle.addEventListener('pointerdown', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const previewRect = slidePreview.getBoundingClientRect();
+            const startX = ev.clientX, startY = ev.clientY;
+            const startLeft = wrap.offsetLeft;
+            const startTop  = wrap.offsetTop;
+            handle.setPointerCapture(ev.pointerId);
+            function onMove(mev) {
+              const dx = mev.clientX - startX;
+              const dy = mev.clientY - startY;
+              const newLeft = Math.max(0, Math.min(previewRect.width  - wrap.offsetWidth,  startLeft + dx));
+              const newTop  = Math.max(0, Math.min(previewRect.height - wrap.offsetHeight, startTop  + dy));
+              wrap.style.left = (newLeft / previewRect.width  * 100) + '%';
+              wrap.style.top  = (newTop  / previewRect.height * 100) + '%';
+            }
+            function onUp() {
+              handle.removeEventListener('pointermove', onMove);
+              handle.removeEventListener('pointerup', onUp);
+              handle.releasePointerCapture(ev.pointerId);
+              postBlockUpdate(jobId, si, block, { bbox: JSON.stringify(bboxFromElement(wrap)) });
+            }
+            handle.addEventListener('pointermove', onMove);
+            handle.addEventListener('pointerup', onUp);
+          });
+        }
+
+        // Resize (4 corners).
+        wrap.querySelectorAll('.block-handle').forEach(function(rh) {
+          rh.addEventListener('pointerdown', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const previewRect = slidePreview.getBoundingClientRect();
+            const startX = ev.clientX, startY = ev.clientY;
+            const startLeft   = wrap.offsetLeft;
+            const startTop    = wrap.offsetTop;
+            const startWidth  = wrap.offsetWidth;
+            const startHeight = wrap.offsetHeight;
+            const corner = rh.dataset.corner;
+            rh.setPointerCapture(ev.pointerId);
+            function onMove(mev) {
+              const dx = mev.clientX - startX;
+              const dy = mev.clientY - startY;
+              let newLeft = startLeft, newTop = startTop, newW = startWidth, newH = startHeight;
+              if (corner === 'nw') {
+                newLeft = startLeft + dx; newTop = startTop + dy;
+                newW = startWidth - dx;   newH = startHeight - dy;
+              } else if (corner === 'ne') {
+                newTop = startTop + dy;
+                newW = startWidth + dx;   newH = startHeight - dy;
+              } else if (corner === 'sw') {
+                newLeft = startLeft + dx;
+                newW = startWidth - dx;   newH = startHeight + dy;
+              } else { // se
+                newW = startWidth + dx;   newH = startHeight + dy;
+              }
+              if (newW < 30) { newW = 30; if (corner === 'nw' || corner === 'sw') newLeft = startLeft + startWidth - 30; }
+              if (newH < 20) { newH = 20; if (corner === 'nw' || corner === 'ne') newTop  = startTop  + startHeight - 20; }
+              wrap.style.left   = (newLeft / previewRect.width  * 100) + '%';
+              wrap.style.top    = (newTop  / previewRect.height * 100) + '%';
+              wrap.style.width  = (newW    / previewRect.width  * 100) + '%';
+              wrap.style.height = (newH    / previewRect.height * 100) + '%';
+            }
+            function onUp() {
+              rh.removeEventListener('pointermove', onMove);
+              rh.removeEventListener('pointerup', onUp);
+              rh.releasePointerCapture(ev.pointerId);
+              postBlockUpdate(jobId, si, block, { bbox: JSON.stringify(bboxFromElement(wrap)) });
+            }
+            rh.addEventListener('pointermove', onMove);
+            rh.addEventListener('pointerup', onUp);
+          });
+        });
+
+        // Reset (revert to layout default).
+        const resetBtn = wrap.querySelector('.block-reset');
+        if (resetBtn) {
+          resetBtn.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            postBlockUpdate(jobId, si, block, { bbox: '' });
+          });
+        }
+
+        // ---- Typography toolbar ----
+        function postBlockStyle(fields) {
+          const url = `/workflow/wireframe/${jobId}/update-block-style/${si}/${block}`;
+          if (window.htmx) {
+            window.htmx.ajax('POST', url, {
+              target: `#slide-card-${si}`,
+              swap: 'outerHTML',
+              values: fields,
+            });
+          } else {
+            const fd = new FormData();
+            for (const k in fields) fd.append(k, fields[k]);
+            fetch(url, { method: 'POST', body: fd });
+          }
+        }
+        const toolbar = wrap.querySelector('.block-style-toolbar');
+        if (toolbar) {
+          const ff = toolbar.querySelector('.bs-font-family');
+          if (ff) ff.addEventListener('change', () => postBlockStyle({ font_family: ff.value }));
+          const fs = toolbar.querySelector('.bs-font-size');
+          if (fs) fs.addEventListener('change', () => postBlockStyle({ font_size: fs.value }));
+          const cl = toolbar.querySelector('.bs-color');
+          if (cl) cl.addEventListener('change', () => postBlockStyle({ color: cl.value }));
+          const bd = toolbar.querySelector('.bs-bold');
+          if (bd) bd.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            // Toggle by reading the current visual state (bg-stone-200 = on).
+            const isOn = bd.classList.contains('bg-stone-200');
+            postBlockStyle({ bold: isOn ? '0' : '1' });
+          });
+          const it = toolbar.querySelector('.bs-italic');
+          if (it) it.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            const isOn = it.classList.contains('bg-stone-200');
+            postBlockStyle({ italic: isOn ? '0' : '1' });
+          });
+          const al = toolbar.querySelector('.bs-align');
+          if (al) al.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            const cur = al.dataset.current || 'left';
+            const next = { left: 'center', center: 'right', right: 'justify', justify: 'left' }[cur];
+            postBlockStyle({ align: next });
+          });
+          const cs = toolbar.querySelector('.bs-clear-style');
+          if (cs) cs.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            // Empty-string ALL keys to clear every override.
+            postBlockStyle({
+              font_family: '', font_size: '', color: '',
+              bold: '', italic: '', align: '',
+            });
+          });
+        }
+      });
+    })();
+  </script>
+</article>

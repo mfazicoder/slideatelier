@@ -1,0 +1,51 @@
+{# Non-editable fallback variant of _slide_edit_card.html. Same context shape:
+   slide_idx, slide. Used when editing is unavailable (e.g. deck.json missing
+   or job in a state where edits would be lost). #}
+<article data-slide-card="{{ slide_idx }}"
+         class="bg-white rounded-lg border border-stone-200 ring-1 ring-stone-200/50 p-5 shadow-sm opacity-90">
+  <div class="flex items-center justify-between gap-3 mb-2">
+    <div class="flex items-center gap-2">
+      <span class="text-xs px-2 py-0.5 bg-stone-100 text-stone-700 rounded font-mono">
+        {{ slide.layout }}
+      </span>
+      <span class="text-xs font-mono text-stone-400">slide #{{ slide_idx + 1 }}</span>
+      <span class="text-xs text-stone-400 italic">read-only</span>
+    </div>
+  </div>
+
+  <h3 class="text-base font-semibold text-stone-900 mb-3">{{ slide.title }}</h3>
+
+  {% if slide.layout == "two_column" %}
+    <div class="grid grid-cols-2 gap-4 text-sm">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Left</div>
+        <ul class="list-disc pl-5 space-y-1 text-stone-700">
+          {% for item in (slide.body_left or []) %}<li>{{ item }}</li>{% endfor %}
+        </ul>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wide text-stone-500 mb-1">Right</div>
+        <ul class="list-disc pl-5 space-y-1 text-stone-700">
+          {% for item in (slide.body_right or []) %}<li>{{ item }}</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  {% elif slide.body %}
+    <ul class="list-disc pl-5 space-y-1 text-sm text-stone-700">
+      {% for item in slide.body %}<li>{{ item }}</li>{% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-sm text-stone-400 italic">No body content for this layout.</p>
+  {% endif %}
+
+  {% if slide.speaker_notes %}
+    <details class="mt-3">
+      <summary class="text-xs text-stone-500 cursor-pointer hover:text-stone-800">Speaker notes</summary>
+      <p class="mt-2 text-sm text-stone-600 whitespace-pre-wrap">{{ slide.speaker_notes }}</p>
+    </details>
+  {% endif %}
+
+  {% if slide.rationale %}
+    <p class="mt-3 text-xs text-stone-400 italic">{{ slide.rationale }}</p>
+  {% endif %}
+</article>

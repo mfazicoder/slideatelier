@@ -1,0 +1,58 @@
+{# Tiny schematic SVG showing the structural shape of a slide layout.
+   Usage:  {% with layout="content" %}{% include "workflow/_layout_icon.html" %}{% endwith %}
+   Or pass layout via parent context.
+   Renders a 32×18 viewBox SVG sized to whatever its parent allows.
+#}
+<svg viewBox="0 0 32 18" preserveAspectRatio="xMidYMid meet" class="block w-full h-full" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect x="0" y="0" width="32" height="18" rx="1" fill="white" stroke="currentColor" stroke-width="0.4" stroke-opacity="0.4"/>
+  {%- if layout == "title" -%}
+    {# Title slide: centered headline + subline #}
+    <rect x="6" y="6" width="20" height="2.5" rx="0.4" fill="currentColor"/>
+    <rect x="9" y="10" width="14" height="1.5" rx="0.3" fill="currentColor" opacity="0.5"/>
+  {%- elif layout == "section_divider" -%}
+    {# Section divider: single big bar centered #}
+    <rect x="5" y="7" width="22" height="3" rx="0.4" fill="currentColor"/>
+  {%- elif layout == "two_column" -%}
+    {# Title bar + two side-by-side blocks #}
+    <rect x="2" y="2" width="12" height="1.6" rx="0.3" fill="currentColor"/>
+    <rect x="2" y="6" width="13" height="10" rx="0.4" fill="currentColor" opacity="0.18"/>
+    <rect x="17" y="6" width="13" height="10" rx="0.4" fill="currentColor" opacity="0.18"/>
+    <rect x="3.5" y="7.5" width="8" height="1" fill="currentColor" opacity="0.6"/>
+    <rect x="3.5" y="9.5" width="6" height="1" fill="currentColor" opacity="0.5"/>
+    <rect x="3.5" y="11.5" width="9" height="1" fill="currentColor" opacity="0.5"/>
+    <rect x="18.5" y="7.5" width="8" height="1" fill="currentColor" opacity="0.6"/>
+    <rect x="18.5" y="9.5" width="6" height="1" fill="currentColor" opacity="0.5"/>
+    <rect x="18.5" y="11.5" width="9" height="1" fill="currentColor" opacity="0.5"/>
+  {%- elif layout == "key_takeaway" -%}
+    {# Big centered emphasis + tiny supporting line #}
+    <rect x="4" y="6" width="24" height="3.5" rx="0.4" fill="currentColor"/>
+    <rect x="10" y="12" width="12" height="1.2" rx="0.3" fill="currentColor" opacity="0.45"/>
+  {%- elif layout == "closing" -%}
+    {# Title + 3 arrow rows (call-to-action chevrons) #}
+    <rect x="2" y="2" width="14" height="1.6" rx="0.3" fill="currentColor"/>
+    <polygon points="2.5,7 4.5,7 5.5,8 4.5,9 2.5,9" fill="currentColor" opacity="0.6"/>
+    <rect x="6" y="7.5" width="22" height="1" fill="currentColor" opacity="0.5"/>
+    <polygon points="2.5,11 4.5,11 5.5,12 4.5,13 2.5,13" fill="currentColor" opacity="0.6"/>
+    <rect x="6" y="11.5" width="22" height="1" fill="currentColor" opacity="0.5"/>
+    <polygon points="2.5,15 4.5,15 5.5,16 4.5,17 2.5,17" fill="currentColor" opacity="0.6"/>
+    <rect x="6" y="15.5" width="20" height="1" fill="currentColor" opacity="0.5"/>
+  {%- elif layout == "bullet_list" -%}
+    {# Title + bulleted list with explicit bullet dots #}
+    <rect x="2" y="2" width="14" height="1.6" rx="0.3" fill="currentColor"/>
+    <circle cx="3" cy="7" r="0.7" fill="currentColor" opacity="0.7"/>
+    <rect x="5" y="6.5" width="22" height="1" fill="currentColor" opacity="0.5"/>
+    <circle cx="3" cy="10" r="0.7" fill="currentColor" opacity="0.7"/>
+    <rect x="5" y="9.5" width="20" height="1" fill="currentColor" opacity="0.5"/>
+    <circle cx="3" cy="13" r="0.7" fill="currentColor" opacity="0.7"/>
+    <rect x="5" y="12.5" width="22" height="1" fill="currentColor" opacity="0.5"/>
+    <circle cx="3" cy="16" r="0.7" fill="currentColor" opacity="0.7"/>
+    <rect x="5" y="15.5" width="18" height="1" fill="currentColor" opacity="0.5"/>
+  {%- else -%}
+    {# Default = content: title bar + 3 stacked content lines #}
+    <rect x="2" y="2" width="14" height="1.6" rx="0.3" fill="currentColor"/>
+    <rect x="2" y="6" width="28" height="1" fill="currentColor" opacity="0.55"/>
+    <rect x="2" y="9" width="24" height="1" fill="currentColor" opacity="0.5"/>
+    <rect x="2" y="12" width="26" height="1" fill="currentColor" opacity="0.5"/>
+    <rect x="2" y="15" width="20" height="1" fill="currentColor" opacity="0.45"/>
+  {%- endif -%}
+</svg>

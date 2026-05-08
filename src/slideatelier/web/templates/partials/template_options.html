@@ -1,0 +1,6 @@
+{% for t in templates_list %}
+  <option value="{{ t.name }}"
+    {% if (selected and selected == t.name) or (not selected and t.is_default) %}selected{% endif %}>
+    {{ t.name }} — {{ t.display_name }}{% if t.mode == "master" %} (master){% endif %}
+  </option>
+{% endfor %}

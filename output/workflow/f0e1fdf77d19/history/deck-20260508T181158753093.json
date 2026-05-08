@@ -1,0 +1,373 @@
+{
+  "title": "Incorporate in DIFC: the Series A-ready path with bankable velocity",
+  "subtitle": "Founder & board working session \u00b7 Jurisdiction decision required",
+  "core_message": "DIFC is the fastest credible incorporation path for a Series A-ready company because it pairs English-law certainty with banking and investor velocity competitors can't match.",
+  "narrative_arc": "We open by framing the jurisdiction choice as a Series A gating decision, then compare DIFC against the realistic alternatives on the criteria investors actually price in. We diagnose why DIFC uniquely clears the legal, banking, and talent hurdles at speed, quantify the timeline and cost, and close with a concrete incorporation plan and decision asks.",
+  "slides": [
+    {
+      "layout": "title",
+      "title": "Incorporate in DIFC: the Series A-ready path with bankable velocity",
+      "strap": "",
+      "body": [],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Set the tone: this is a recommendation meeting, not an options review. We've done the work and are asking the board to approve DIFC today so Series A stays on its Q2 close.",
+      "rationale": "Title slide opens the deck.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/7",
+            "bbox": {
+              "left": 0.0,
+              "top": 1.0,
+              "width": 1.0,
+              "height": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "DIFC is the only jurisdiction that clears legal, banking, and investor tests before Series A",
+      "strap": "",
+      "body": [
+        "Evidence: 4-criteria scorecard on slide 4, banking timeline on slide 8"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "State the answer first. Everything that follows is defense. If the board agrees here, the rest is confirmation; if they push back, we know exactly which criterion to argue.",
+      "rationale": "Pyramid principle \u2014 lead with the answer.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/13",
+            "bbox": {
+              "left": 0.0,
+              "top": 1.0,
+              "width": 1.0,
+              "height": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "content",
+      "title": "Jurisdiction choice now determines whether Series A closes on schedule",
+      "strap": "",
+      "body": [
+        "Lead investors require incorporated entity with banking before term sheet",
+        "Wrong jurisdiction adds 3\u20136 months and forces redomicile mid-round",
+        "Banking onboarding alone runs 4\u20139 months in mainland and offshore",
+        "Q2 Series A close requires entity operational by end of Q1",
+        "Deferring the decision past this month compresses every downstream workstream"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Frame urgency. The fundraise calendar is the binding constraint. Reference the lead investor's diligence checklist which explicitly requires bank account and cap table in jurisdiction before signing.",
+      "rationale": "Sets stakes before introducing evaluation criteria.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/11",
+            "bbox": {
+              "left": 0.0,
+              "top": 1.0,
+              "width": 1.0,
+              "height": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "bullet_list",
+      "title": "Investors price four things into jurisdiction: law, banking, talent, exit optionality",
+      "strap": "",
+      "body": [
+        "Law: English common law, enforceable courts, recognized share and SAFE structures",
+        "Banking: corporate account opened in weeks with multi-currency and SWIFT",
+        "Talent: employment visas, founder residency, access to senior operator pool",
+        "Exit optionality: clean redomicile path to Cayman or Delaware at Series B+"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "These are the four criteria every Series A diligence pack tests. We picked them from our lead investor's questionnaire and two recent comparable raises. The next slide judges every option against exactly these four.",
+      "rationale": "MECE criteria frame for the comparison that follows.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/7",
+            "bbox": {
+              "left": 0.0,
+              "top": 1.0,
+              "width": 1.0,
+              "height": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "content",
+      "title": "Mainland UAE, ADGM, Cayman, and Delaware each fail at least one investor test",
+      "strap": "",
+      "body": [
+        "Mainland UAE: civil law and 6\u20139 month banking \u2014 fails law and banking",
+        "ADGM: strong on law, thinner banking panel and ecosystem \u2014 fails banking velocity",
+        "Cayman: investor-familiar but no talent, no visas, no operating substance",
+        "Delaware: clean for US capital but no MENA banking or operating presence",
+        "Only DIFC scores green on all four criteria simultaneously"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Walk the scorecard. Anticipate the Cayman question \u2014 investors like it but we can't run the company from there. Anticipate Delaware \u2014 flips when we have a US lead, but our lead is regional plus US, so we'd still need a regional entity.",
+      "rationale": "Eliminates alternatives explicitly so DIFC's selection is earned.",
+      "asset_ref": null,
+      "extras": []
+    },
+    {
+      "layout": "content",
+      "title": "DIFC vs ADGM: similar on paper, decisive gap on banking and ecosystem density",
+      "strap": "",
+      "body": [],
+      "body_left": [
+        "Banking: 6 tier-1 partner banks, 2\u20134 week onboarding",
+        "Ecosystem: 5,500+ active firms, dense VC and law presence",
+        "Talent pool: deeper senior operator and fintech bench",
+        "Track record: home to most regional Series A+ companies"
+      ],
+      "body_right": [
+        "Banking: 3 partner banks, 8\u201312 week onboarding typical",
+        "Ecosystem: ~1,800 firms, growing but earlier stage",
+        "Talent pool: thinner outside financial services",
+        "Track record: fewer venture-backed comparables to date"
+      ],
+      "speaker_notes": "ADGM is the default counter-proposal and deserves a head-to-head. The legal frameworks are genuinely close. The decisive gap is operational: banking timelines and the density of advisors, hires, and co-investors physically present.",
+      "rationale": "Two-column is correct here \u2014 comparison IS the point.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/11",
+            "bbox": {
+              "left": 0.0,
+              "top": 1.0,
+              "width": 1.0,
+              "height": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "two_column",
+      "title": "Why DIFC wins on the criteria that gate Series A",
+      "strap": "",
+      "body": [],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Pivot from elimination to affirmative case. The next three slides defend DIFC on law, banking, and talent in order.",
+      "rationale": "Chapter break between elimination and affirmative case.",
+      "asset_ref": null,
+      "extras": []
+    },
+    {
+      "layout": "content",
+      "title": "English common law and DIFC Courts give investors the enforceability they require",
+      "strap": "",
+      "body": [
+        "DIFC operates standalone English common law jurisdiction since 2004",
+        "DIFC Courts staffed by senior UK and Commonwealth judges",
+        "Standard SHA, SAFE, and preferred share structures recognized natively",
+        "Judgments enforceable across UAE and 30+ reciprocal jurisdictions",
+        "Lead investor's counsel has signed off on DIFC governance precedent"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Term sheets hinge on enforceability of investor protections. DIFC removes that risk entirely \u2014 it's the same legal grammar a London or Singapore investor expects. Have the lead's counsel memo ready if asked.",
+      "rationale": "Defends the law criterion with specifics.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "inline",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/14",
+            "bbox": {
+              "left": 0.26889476837060705,
+              "top": 0.6600106496272631,
+              "width": 0.3455346445686901,
+              "height": 0.30389155129570466
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "two_column",
+      "title": "DIFC banking partners onboard in weeks, not quarters \u2014 the real velocity unlock",
+      "strap": "",
+      "body": [
+        "Emirates NBD, Mashreq, HSBC, Standard Chartered all onboard DIFC entities",
+        "Typical timeline 2\u20134 weeks vs 4\u20139 months in mainland",
+        "Multi-currency accounts, SWIFT, and USD wires available day one",
+        "DIFC license satisfies KYC source-of-funds review on first pass",
+        "Two portfolio companies completed onboarding in 18 and 22 days last quarter"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Banking is where alternatives visibly break. This is the slide that wins the room. Cite the two recent comparable timelines \u2014 both are reference-checkable.",
+      "rationale": "Defends the banking criterion, the most decisive one.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/12",
+            "bbox": {
+              "left": 0.0,
+              "top": 1.0,
+              "width": 1.0,
+              "height": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "bullet_list",
+      "title": "Talent, visas, and ecosystem density compound into faster hiring and closing",
+      "strap": "",
+      "body": [
+        "Founder and employee visas issued in 2\u20133 weeks under DIFC sponsorship",
+        "Senior operator pool concentrated in Gate District within 1km radius",
+        "Top-tier law, audit, and tax advisors all maintain DIFC offices",
+        "60+ active VCs and family offices headquartered or co-located on-site",
+        "Clean redomicile path to Cayman or Delaware preserved for Series B+"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Closes the four-criterion case. Density matters because it compounds: closing a hire, a co-investor, and a counsel meeting in the same building cuts weeks off every workstream.",
+      "rationale": "Defends talent and exit optionality together.",
+      "asset_ref": null,
+      "extras": []
+    },
+    {
+      "layout": "bullet_list",
+      "title": "Total cost to incorporate and operate Year 1: bankable, predictable, Series A-defensible",
+      "strap": "",
+      "body": [
+        "Incorporation and license: ~$25K one-time, all-in",
+        "Office (Innovation Hub co-working): ~$18K Year 1",
+        "Visas for 4 founders/employees: ~$12K",
+        "Legal, accounting, compliance retainer: ~$35K Year 1",
+        "Total Year 1: ~$90K \u2014 within board-approved formation budget"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Neutralizes the cost objection. DIFC has a reputation for being expensive; the Innovation License changes that math materially. Compare to ADGM (~$75K) and Cayman+regional combo (~$140K).",
+      "rationale": "Quantifies cost to defuse a predictable objection.",
+      "asset_ref": null,
+      "extras": []
+    },
+    {
+      "layout": "closing",
+      "title": "Incorporation in 6\u20138 weeks across five sequenced workstreams",
+      "strap": "",
+      "body": [
+        "Week 1\u20132: name reservation, license application, board resolutions",
+        "Week 2\u20134: lease Innovation Hub seat, file visa applications",
+        "Week 3\u20135: open bank accounts with two parallel partners",
+        "Week 4\u20136: transfer IP, sign founder agreements, issue cap table",
+        "Week 6\u20138: complete substance setup, finalize audit and tax registration"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Converts recommendation into a runnable project. Workstreams are parallelized \u2014 the 6\u20138 week range assumes counsel engaged within a week of board approval.",
+      "rationale": "Concrete, time-bound execution plan.",
+      "asset_ref": null,
+      "extras": []
+    },
+    {
+      "layout": "content",
+      "title": "Three risks \u2014 regulatory scope, substance requirements, redomicile cost \u2014 are mitigable",
+      "strap": "",
+      "body": [
+        "Regulatory scope: Innovation License covers our activity; legal opinion in hand",
+        "Substance: 1 director and lease satisfy economic substance rules",
+        "Redomicile cost at Series B: ~$40K, standard precedent and timeline",
+        "No risk identified is a deal-breaker on lead investor's diligence checklist",
+        "Mitigations cost <$10K incremental and are baked into Year 1 budget"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Pre-empt the standard objections. The substance question always comes up; the answer is that we genuinely operate from DIFC, so it's never been a stretch. Redomicile cost is real but small relative to a Series B round.",
+      "rationale": "Risk slide closes the loop on objections.",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/6",
+            "bbox": {
+              "left": 0.0,
+              "top": 1.0,
+              "width": 1.0,
+              "height": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "Approve DIFC incorporation now to keep Series A on the Q2 timeline",
+      "strap": "",
+      "body": [
+        "Every week of delay compresses banking and diligence runway by the same amount"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Land the ask tied to the fundraising clock. The board's mental model should be: approving today preserves the Q2 close; deferring two weeks puts it at risk.",
+      "rationale": "Second key takeaway lands the recommendation as a decision.",
+      "asset_ref": null,
+      "extras": []
+    },
+    {
+      "layout": "closing",
+      "title": "Decisions required: jurisdiction approval, budget authorization, counsel engagement",
+      "strap": "",
+      "body": [
+        "Approve DIFC as incorporation jurisdiction \u2014 board resolution today",
+        "Authorize $90K Year 1 formation and operating budget \u2014 CFO to release",
+        "Engage Clifford Chance DIFC as formation counsel \u2014 sign engagement this week",
+        "Appoint founder as filing director and authorized signatory \u2014 effective immediately",
+        "Reconvene in 4 weeks for banking and visa milestone review"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "End with explicit commitments, not discussion. Each ask has an owner and a timeline. If any item slips, flag it now so we can adjust the Series A calendar in the same meeting.",
+      "rationale": "Closing slide converts the deck into action items.",
+      "asset_ref": null,
+      "extras": []
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{# Inline-edit deck-meta field. Two modes (view + edit), same outer wrapper.
+   Required context: job_id, field, value, mode ("view"|"edit"), kind ("input"|"textarea"),
+                     placeholder, rows
+   The wrapper has data-field=<field> so styles/CSS hooks can target individual fields.
+#}
+{%- set view_url = "/workflow/wireframe/" ~ job_id ~ "/meta-view/" ~ field -%}
+{%- set edit_url = "/workflow/wireframe/" ~ job_id ~ "/meta-edit/" ~ field -%}
+{%- set save_url = "/workflow/wireframe/" ~ job_id ~ "/meta-save/" ~ field -%}
+
+{% if mode == "view" %}
+  {# READ-ONLY VIEW. Click anywhere to swap to edit. #}
+  <div data-meta-field="{{ field }}"
+       hx-get="{{ edit_url }}"
+       hx-trigger="click"
+       hx-swap="outerHTML"
+       class="group cursor-text rounded px-2 py-1 -mx-2 -my-1 transition-colors hover:bg-stone-100">
+    {% if value %}
+      {% if field == "title" %}
+        <div class="text-sm font-semibold leading-tight" style="color: {{ tpl.colors.primary if tpl else '#1F3A5F' }};">{{ value }}</div>
+      {% elif field == "subtitle" %}
+        <div class="text-xs text-stone-500 leading-tight">{{ value }}</div>
+      {% else %}
+        <div class="text-xs text-stone-700 leading-relaxed whitespace-pre-wrap">{{ value }}</div>
+      {% endif %}
+    {% else %}
+      <div class="text-xs text-stone-400 italic group-hover:text-stone-600">{{ placeholder }}</div>
+    {% endif %}
+  </div>
+
+{% else %}
+  {# EDIT VIEW. Save on blur, swap to view. Esc cancels (re-fetches view). #}
+  <div data-meta-field="{{ field }}">
+    <form
+          hx-post="{{ save_url }}"
+          hx-trigger="blur from:find {{ kind }} delay:50ms"
+          hx-target="closest [data-meta-field]"
+          hx-swap="outerHTML"
+          class="contents">
+      {% if kind == "input" %}
+        <input type="text"
+               name="value"
+               value="{{ value }}"
+               autofocus
+               placeholder="{{ placeholder }}"
+               hx-on:keydown="if (event.key === 'Escape') { htmx.ajax('GET', '{{ view_url }}', {target: this.closest('[data-meta-field]'), swap: 'outerHTML'}); event.preventDefault(); } else if (event.key === 'Enter') { this.blur(); event.preventDefault(); }"
+               class="w-full rounded border border-stone-300 bg-white px-2 py-1 {% if field == 'title' %}text-sm font-semibold{% else %}text-xs{% endif %} focus:outline-none focus:ring-2 focus:ring-amber-500"
+               {% if field == 'title' %}style="color: {{ tpl.colors.primary if tpl else '#1F3A5F' }};"{% endif %}>
+      {% else %}
+        <textarea name="value"
+                  id="meta-ta-{{ field }}"
+                  rows="2"
+                  autofocus
+                  placeholder="{{ placeholder }}"
+                  hx-on:keydown="if (event.key === 'Escape') { htmx.ajax('GET', '{{ view_url }}', {target: this.closest('[data-meta-field]'), swap: 'outerHTML'}); event.preventDefault(); }"
+                  style="resize: none; overflow: hidden; field-sizing: content;"
+                  class="w-full rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-amber-500">{{ value }}</textarea>
+        <script>
+          (function() {
+            var ta = document.getElementById('meta-ta-{{ field }}');
+            if (!ta) return;
+            function autoSize() {
+              ta.style.height = 'auto';
+              ta.style.height = (ta.scrollHeight + 2) + 'px';
+            }
+            autoSize();
+            ta.addEventListener('input', autoSize);
+            // Also size on focus / next paint, since the element may have been
+            // appended into a container whose layout isn't settled yet.
+            requestAnimationFrame(autoSize);
+          })();
+        </script>
+      {% endif %}
+    </form>
+    <div class="mt-1 text-[10px] text-stone-400">esc cancel · click outside to save</div>
+  </div>
+{% endif %}

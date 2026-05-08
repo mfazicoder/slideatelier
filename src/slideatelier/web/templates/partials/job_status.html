@@ -1,0 +1,47 @@
+{# Renders a single job's status. Polls itself every 2s while running/queued. #}
+{% if job.status == "queued" or job.status == "running" %}
+<div id="job-{{ job.id }}"
+     hx-get="/jobs/{{ job.id }}/fragment"
+     hx-trigger="every 2s"
+     hx-swap="outerHTML"
+     class="p-4 bg-amber-50 border border-amber-200 rounded">
+  <div class="flex items-center gap-3">
+    <span class="inline-block w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+    <div>
+      <p class="text-sm font-medium text-amber-900">
+        {% if job.status == "queued" %}Queued…{% else %}Working…{% endif %}
+      </p>
+      <p class="text-xs text-amber-700 mt-0.5">{{ job.progress_message or "Starting" }}</p>
+    </div>
+  </div>
+</div>
+
+{% elif job.status == "done" %}
+<div id="job-{{ job.id }}" class="p-4 bg-emerald-50 border border-emerald-200 rounded">
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <p class="text-sm font-medium text-emerald-900 flex items-center gap-2">
+        Deck generated
+        {% if job.cache_hit %}
+          <span class="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-normal">from cache</span>
+        {% elif job.duration_seconds is not none %}
+          <span class="text-xs px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded font-normal font-mono">{{ "%.1f"|format(job.duration_seconds) }}s</span>
+        {% endif %}
+      </p>
+      <p class="text-xs text-emerald-700 mt-0.5">
+        {{ job.slide_count }} slides — <span class="italic">{{ job.title }}</span>
+      </p>
+    </div>
+    <a href="/api/decks/{{ job.id }}/download"
+       class="text-sm bg-emerald-700 text-white px-3 py-1.5 rounded hover:bg-emerald-800 font-medium whitespace-nowrap">
+      Download .pptx
+    </a>
+  </div>
+</div>
+
+{% elif job.status == "failed" %}
+<div id="job-{{ job.id }}" class="p-4 bg-red-50 border border-red-200 rounded">
+  <p class="text-sm font-medium text-red-900">Generation failed</p>
+  <p class="text-xs text-red-700 mt-1 font-mono break-all">{{ job.error or job.progress_message }}</p>
+</div>
+{% endif %}
