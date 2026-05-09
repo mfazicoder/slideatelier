@@ -25,7 +25,7 @@ Native-editable code-defined primitives are the moat (squares stay squares, char
 | Y — Freeform text blocks + typography | ✅ done (Y.1+Y.2+Y.3) — bbox + typography overrides; renderer honors both |
 | J — Hosted Web Deck publishing | ✅ done — SVG renderer for all 14 shapes + WebRenderer + routes + viewer + presenter mode + Publish button |
 | **K–X — Competitive-analysis gap-fill (below)** | newly queued |
-| Z — Selective text stripping on library_asset copy | ✅ done — chrome_only mode default; thumbnail re-render queued for v2 |
+| Z — Selective text stripping (Z.v1 .pptx + Z.v2 Web Deck SVG) | ✅ done — chrome_only at attach time + live SVG translation in Web Deck |
 
 ---
 
@@ -252,11 +252,35 @@ Implementation (shipped):
   slide with title + footer + page-number + 4 quadrant annotations + axis
   label, verifying each strip mode behaves correctly + heuristic unit tests.
 
-**Queued for v2 (not shipped this turn):** thumbnail re-render with
-chrome_only mode. The library/ thumbnails are pre-rendered PNGs from the
-original .pptx via LibreOffice → PDF → PNG; replacing them requires running
-the chrome-strip through a fresh .pptx file then re-converting. Not blocking
-since runtime attach now produces clean output.
+**Z.v2 (✅ shipped same day)** — live SVG translation of library_asset
+extras in the Web Deck viewer. Replaces the baked thumbnail PNG with native
+inline SVG so chrome stripping applies, text reflows, and theme tokens hot-
+swap on the published web view (matching the .pptx attach path bit-for-bit).
+- New module `src/slideatelier/library_to_svg.py` — walks the source slide's
+  shapes recursively (descends into GROUPs), dispatches on shape_type /
+  auto_shape_type, emits native SVG primitives (`<rect>`, `<ellipse>` /
+  `<circle>`, `<polygon>`, `<line>`, `<image>` for pictures, `<text>` /
+  `<tspan>` for text frames). Outer `<svg>` uses `viewBox="0 0 W H"` in
+  source EMU so each shape uses native coords directly.
+- Handles common AutoShape geometries: RECTANGLE, ROUNDED_RECTANGLE, OVAL,
+  RIGHT_TRIANGLE, ISOCELES_TRIANGLE, DIAMOND, CHEVRON, PENTAGON, HEXAGON.
+  Other AutoShape types fall back to a bounding-box `<rect>`.
+- Pictures: base64-embedded as `data:` URLs so the SVG is self-contained.
+- Charts / tables / freeform custGeom: low-key bounding-box placeholder so
+  the layout footprint stays correct (worst case is identical to v1
+  thumbnail).
+- Reuses `_is_chrome_text` from `asset_copier.py` so the heuristic is shared.
+- WebRenderer's `_extra_svg` calls `library_asset_to_svg` first; on any
+  exception falls through to the legacy thumbnail `<img>` (worst case
+  unchanged).
+- Routes wired to construct the WebRenderer with the loaded LibraryCatalog.
+- 9 new tests in `test_library_to_svg.py` covering well-formed XML, native
+  primitive emission, all three strip modes, viewBox in source EMU,
+  invalid-index error, unknown shape fallback, group recursion. End-to-end
+  publish test passed against the user's actual DIFC deck (8 inline `<svg>`s,
+  0 thumbnails, 0 placeholders).
+
+Total tests: 118 (was 98 pre-Sprint-Z; +20 across Z.v1 + Z.v2).
 
 ### Sprint X — Typography depth
 *Source: Design/creative cluster (Readymag 5,000 fonts + Adobe Fonts).*

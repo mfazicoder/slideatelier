@@ -125,7 +125,19 @@ def _publish(job_id: str, config: Config) -> dict:
         _write_slug_index(config, index)
 
     tpl = _load_template_for_job(job_dir, config)
-    renderer = WebRenderer(tpl)
+    # Load the library catalog so the WebRenderer can resolve library_asset
+    # extras to their source .pptx and emit live SVG (Sprint Z.v2). When the
+    # catalog isn't available we silently fall back to thumbnail <img>.
+    catalog = None
+    try:
+        from ..library import load_catalog
+        from pathlib import Path as _Path
+        cat_path = _Path("./library/catalog.json")
+        if cat_path.exists():
+            catalog = load_catalog(cat_path)
+    except Exception:  # noqa: BLE001
+        catalog = None
+    renderer = WebRenderer(tpl, catalog=catalog)
     html = renderer.render_deck_html(deck, slug=slug)
     (job_dir / "web_deck.html").write_text(html)
 

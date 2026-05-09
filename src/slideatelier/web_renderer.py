@@ -317,14 +317,31 @@ class WebRenderer:
         cfg = extra.config or {}
         if extra.type == "library_asset":
             ref = cfg.get("asset_ref") or ""
-            if ref:
-                # Mirror the same URL pattern used by the wireframe slide-card:
-                # /thumbnails/<asset_ref-with-/-replaced-by-__>.png
+            if ref and self.catalog is not None:
+                # Sprint Z.v2: live SVG translation of the source library
+                # .pptx. Walks the source slide's shapes and emits inline SVG
+                # primitives so text reflows / theme tokens hot-swap / chrome
+                # is stripped to match the .pptx attach path bit-for-bit.
+                # Falls back to the legacy thumbnail <img> if the asset can't
+                # be located or translation fails.
+                try:
+                    asset = self.catalog.find(ref)
+                    if asset is not None:
+                        from .library_to_svg import library_asset_to_svg
+                        from pathlib import Path as _Path
+                        return library_asset_to_svg(
+                            _Path(asset.file_path),
+                            asset.slide_index,
+                            w_px, h_px,
+                            strip_text="chrome_only",
+                        )
+                except Exception:  # noqa: BLE001 — fall through to thumbnail
+                    pass
+
+                # Fallback: legacy thumbnail <img>. Used when (a) catalog
+                # missing, (b) asset not found in catalog, or (c) live
+                # translation raised. Worst case is identical to pre-Z.v2.
                 thumb_path = "/thumbnails/" + ref.replace("/", "__") + ".png"
-                # Use foreignObject so the <img> inherits SVG sizing semantics
-                # without us having to re-implement object-fit. xmlns is
-                # required on the inner <div> for SVG XHTML inclusion to be
-                # well-formed.
                 return (
                     f'<svg xmlns="http://www.w3.org/2000/svg" '
                     f'width="{w_px}" height="{h_px}" '
