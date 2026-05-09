@@ -11,6 +11,11 @@ from .base import AssetShape, ShapeRenderContext
 from .shapes_matrix import _lighten
 
 
+def _hex(color) -> str:
+    """RGBColor → '#RRGGBB' for SVG."""
+    return "#{:02X}{:02X}{:02X}".format(color[0], color[1], color[2])
+
+
 _MILESTONES = [
     ("Q1 '25", "Discovery"),
     ("Q2 '25", "Pilot"),
@@ -149,3 +154,117 @@ class TimelineDots(AssetShape):
             lrun.font.size = Pt(theme.typography.caption_size_pt)
             lrun.font.name = theme.typography.body
             lrun.font.color.rgb = palette.muted
+
+
+# ---------------------------------------------------------------------------
+# SVG rendering (Web Deck publishing — Sprint J.C)
+# ---------------------------------------------------------------------------
+
+def _render_svg_timeline_dots(
+    self: "TimelineDots", ctx: ShapeRenderContext, width_px: int, height_px: int
+) -> str:
+    """Inline SVG mirror of TimelineDots — baseline <line> + N <circle>s +
+    alternating <text> callouts above/below.
+    """
+    theme = ctx.theme
+    palette = ctx.palette
+
+    outline_only = theme.accent_treatment == "outline" or theme.is_dark
+
+    milestones = list(_MILESTONES)
+    n = len(milestones)
+
+    # Layout — spine at vertical centre.
+    spine_y = height_px // 2
+    dot_d = int(min(height_px * 0.18, width_px * 0.06))
+    dot_d = max(dot_d, 24)
+    dot_r = dot_d / 2.0
+
+    margin_x = int(width_px * 0.05)
+    usable_w = width_px - 2 * margin_x
+    stride = (usable_w / (n - 1)) if n > 1 else 0
+    first_cx = margin_x
+    dot_centres = [first_cx + i * stride for i in range(n)]
+
+    spine_left = int(margin_x * 0.5)
+    spine_right = width_px - int(margin_x * 0.5)
+
+    if outline_only:
+        spine_color = _hex(palette.primary)
+        dot_fill = _hex(palette.background) if not theme.is_dark else _hex(palette.primary)
+        dot_text_color = _hex(palette.primary) if not theme.is_dark else _hex(palette.background)
+        dot_stroke = _hex(palette.primary)
+    else:
+        spine_color = _hex(palette.muted)
+        dot_fill = _hex(palette.primary)
+        dot_text_color = _hex(palette.background)
+        dot_stroke = _hex(palette.primary)
+
+    heading_font = theme.typography.heading
+    body_font = theme.typography.body
+    body_pt = theme.typography.body_size_pt
+    cap_pt = theme.typography.caption_size_pt
+
+    parts: list[str] = []
+    parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{width_px}" height="{height_px}" '
+        f'viewBox="0 0 {width_px} {height_px}">'
+    )
+    # Background
+    parts.append(
+        f'  <rect x="0" y="0" width="{width_px}" height="{height_px}" '
+        f'fill="{_hex(palette.background)}" />'
+    )
+
+    # Spine baseline.
+    parts.append(
+        f'  <line x1="{spine_left}" y1="{spine_y}" '
+        f'x2="{spine_right}" y2="{spine_y}" '
+        f'stroke="{spine_color}" stroke-width="2" />'
+    )
+
+    # Dots + numbered labels + alternating callouts.
+    for i, (date, label) in enumerate(milestones):
+        cx = dot_centres[i]
+        # Circle marker.
+        parts.append(
+            f'  <circle cx="{cx:.2f}" cy="{spine_y}" r="{dot_r:.2f}" '
+            f'fill="{dot_fill}" stroke="{dot_stroke}" stroke-width="1" />'
+        )
+        # Number inside the dot.
+        parts.append(
+            f'  <text x="{cx:.2f}" y="{spine_y + cap_pt / 3:.2f}" '
+            f'font-family="{heading_font}" font-size="{cap_pt}" '
+            f'font-weight="bold" fill="{dot_text_color}" '
+            f'text-anchor="middle">{i + 1}</text>'
+        )
+
+        # Callout placement — alternate above / below.
+        if i % 2 == 0:
+            # Above the spine.
+            date_y = spine_y - dot_r - 12 - body_pt
+            label_y = date_y + body_pt + 4
+        else:
+            # Below the spine.
+            date_y = spine_y + dot_r + 12 + body_pt
+            label_y = date_y + body_pt + 4
+
+        parts.append(
+            f'  <text x="{cx:.2f}" y="{date_y:.2f}" '
+            f'font-family="{heading_font}" font-size="{body_pt}" '
+            f'font-weight="bold" fill="{_hex(palette.text)}" '
+            f'text-anchor="middle">{date}</text>'
+        )
+        parts.append(
+            f'  <text x="{cx:.2f}" y="{label_y:.2f}" '
+            f'font-family="{body_font}" font-size="{cap_pt}" '
+            f'fill="{_hex(palette.muted)}" '
+            f'text-anchor="middle">{label}</text>'
+        )
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+TimelineDots.render_svg = _render_svg_timeline_dots  # type: ignore[attr-defined]

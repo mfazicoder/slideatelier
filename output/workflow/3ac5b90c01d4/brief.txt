@@ -1,0 +1,13 @@
+Acme Corp Q3 business review.
+
+Revenue grew 12% YoY to $48M, beating plan by 4%. Growth driven entirely by enterprise segment (+34%); SMB flat at $11M.
+
+New-customer acquisition down 8% — pipeline conversion fell from 22% to 17%. Sales cycle lengthened from 47 to 63 days. Win rate against competitor "Beta" dropped from 58% to 41% on deals over $250K ARR.
+
+Churn ticked up to 4.2% (vs 3.1% prior quarter), concentrated in customers under $50K ARR. Net retention for enterprise (>$250K ARR) remains strong at 124%.
+
+CAC up 19% in SMB (now $14K against an $18K average first-year contract); enterprise CAC steady at $42K with 8-month payback.
+
+Recommendation under discussion: shift $2M from SMB marketing to enterprise demand-gen, enforce a $50K ARR floor for new SMB deals starting Q4, and stand up a competitive war-room targeting Beta.
+
+Audience: board of directors, 30-minute slot, decision required on the $2M reallocation and the SMB ARR floor.

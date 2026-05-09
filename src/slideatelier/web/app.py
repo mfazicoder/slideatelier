@@ -330,6 +330,7 @@ from .font_routes import register_font_routes  # noqa: E402
 from .library_routes import register_library_routes  # noqa: E402
 from .sample_routes import register_sample_routes  # noqa: E402
 from .three_stage_routes import register_three_stage_routes  # noqa: E402
+from .web_deck_routes import register_web_deck_routes  # noqa: E402
 from .wireframe_edit_routes import register_wireframe_edit_routes  # noqa: E402
 
 register_design_system_routes(app, templates, _config)
@@ -339,6 +340,7 @@ register_wireframe_edit_routes(app, templates, _config)
 register_sample_routes(app, _config)
 register_library_routes(app, templates, _config)
 register_font_routes(app, templates, _config)
+register_web_deck_routes(app, templates, _config)
 
 # Static mount for user-uploaded fonts (Sprint C). Created on demand by
 # /fonts/upload; mount only if the dir exists so a fresh install doesn't crash.

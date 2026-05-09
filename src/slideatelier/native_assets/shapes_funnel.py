@@ -126,6 +126,113 @@ class Funnel(AssetShape):
             crun.font.name = theme.typography.body
             crun.font.color.rgb = palette.muted
 
+    def render_svg(self, ctx: ShapeRenderContext, width_px: int, height_px: int) -> str:
+        """Inline SVG mirroring render(): 4 trapezoid <polygon>s + step captions.
+
+        Although the PPT version uses RECTANGLEs whose widths shrink (because
+        python-pptx's TRAPEZOID is wider at the bottom), we are free in SVG to
+        draw true narrowing trapezoids — and we should, because that is what a
+        funnel visually IS. Each step is a <polygon> with 4 points.
+        """
+        theme = ctx.theme
+        palette = ctx.palette
+
+        n_stages = len(_STAGES)
+
+        caption_w = int(width_px * 0.30)
+        funnel_area_w = width_px - caption_w
+        funnel_left = 0
+        funnel_top = 0
+
+        gap_px = int(height_px * 0.02)
+        total_gap = gap_px * (n_stages - 1)
+        stage_h = (height_px - total_gap) // n_stages
+
+        if theme.accent_treatment == "outline" or theme.is_dark:
+            stage_fills = [palette.background] * n_stages
+            line_color = palette.primary
+            text_on_stage = palette.text
+            use_inverted_label = False
+        else:
+            stage_fills = [
+                _blend(palette.primary, palette.accent, i / (n_stages - 1))
+                for i in range(n_stages)
+            ]
+            line_color = palette.muted
+            text_on_stage = palette.background
+            use_inverted_label = True
+
+        body_pt = theme.typography.body_size_pt
+        cap_pt = theme.typography.caption_size_pt
+        heading_font = theme.typography.heading
+        body_font = theme.typography.body
+
+        parts: list[str] = []
+        parts.append(
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'width="{width_px}" height="{height_px}" '
+            f'viewBox="0 0 {width_px} {height_px}">'
+        )
+        parts.append(
+            f'  <rect x="0" y="0" width="{width_px}" height="{height_px}" '
+            f'fill="{_hex(palette.background)}" />'
+        )
+
+        for i, (label, caption) in enumerate(_STAGES):
+            top_w = int(funnel_area_w * _WIDTH_PCTS[i])
+            # Bottom width is the next step's width (or 50% of top for last).
+            if i < n_stages - 1:
+                bottom_w = int(funnel_area_w * _WIDTH_PCTS[i + 1])
+            else:
+                bottom_w = max(int(top_w * 0.5), 1)
+
+            top_y = funnel_top + i * (stage_h + gap_px)
+            bottom_y = top_y + stage_h
+
+            top_left_x = funnel_left + (funnel_area_w - top_w) // 2
+            top_right_x = top_left_x + top_w
+            bottom_left_x = funnel_left + (funnel_area_w - bottom_w) // 2
+            bottom_right_x = bottom_left_x + bottom_w
+
+            points = (
+                f"{top_left_x},{top_y} "
+                f"{top_right_x},{top_y} "
+                f"{bottom_right_x},{bottom_y} "
+                f"{bottom_left_x},{bottom_y}"
+            )
+            fill = _hex(stage_fills[i])
+            stroke = _hex(line_color)
+            parts.append(
+                f'  <polygon points="{points}" '
+                f'fill="{fill}" stroke="{stroke}" stroke-width="1" />'
+            )
+
+            label_color = _hex(text_on_stage if use_inverted_label else palette.text)
+            cx = funnel_left + funnel_area_w // 2
+            cy = top_y + stage_h // 2 + body_pt // 3
+            parts.append(
+                f'  <text x="{cx}" y="{cy}" '
+                f'font-family="{heading_font}" font-size="{body_pt}" '
+                f'font-weight="bold" fill="{label_color}" '
+                f'text-anchor="middle">{label}</text>'
+            )
+
+            cap_x = funnel_left + funnel_area_w + int(width_px * 0.01)
+            cap_y = top_y + stage_h // 2 + cap_pt // 3
+            parts.append(
+                f'  <text x="{cap_x}" y="{cap_y}" '
+                f'font-family="{body_font}" font-size="{cap_pt}" '
+                f'fill="{_hex(palette.muted)}">{caption}</text>'
+            )
+
+        parts.append("</svg>")
+        return "\n".join(parts)
+
+
+def _hex(color) -> str:
+    """RGBColor → '#RRGGBB' for SVG."""
+    return "#{:02X}{:02X}{:02X}".format(color[0], color[1], color[2])
+
 
 def _blend(a: RGBColor, b: RGBColor, t: float) -> RGBColor:
     """Linear blend of two RGBColors. t=0 → a, t=1 → b."""

@@ -110,6 +110,97 @@ class Matrix2x2(AssetShape):
         xrun.font.color.rgb = palette.muted
         xrun.font.name = theme.typography.body
 
+    def render_svg(self, ctx: ShapeRenderContext, width_px: int, height_px: int) -> str:
+        """Inline SVG mirroring render(): 4 <rect>s in a 2x2 grid + 2 axis labels."""
+        theme = ctx.theme
+        palette = ctx.palette
+
+        # Mirror the EMU layout: reserve ~10% on left/bottom for axis labels.
+        axis_label = int(min(width_px, height_px) * 0.10)
+        grid_left = axis_label
+        grid_top = 0
+        grid_w = width_px - axis_label
+        grid_h = height_px - axis_label
+
+        cell_w = grid_w // 2
+        cell_h = grid_h // 2
+
+        if theme.accent_treatment == "outline" or theme.is_dark:
+            fill_colors = [palette.background] * 4
+            line_color = palette.primary
+        else:
+            fill_colors = [
+                palette.background,
+                _lighten(palette.primary, 0.92),
+                _lighten(palette.primary, 0.92),
+                palette.primary,
+            ]
+            line_color = palette.muted
+
+        cell_labels = ["Quadrant 1", "Quadrant 2", "Quadrant 3", "Quadrant 4"]
+
+        body_font = theme.typography.body
+        heading_font = theme.typography.heading
+        body_pt = theme.typography.body_size_pt
+        cap_pt = theme.typography.caption_size_pt
+
+        parts: list[str] = []
+        parts.append(
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'width="{width_px}" height="{height_px}" '
+            f'viewBox="0 0 {width_px} {height_px}">'
+        )
+        parts.append(
+            f'  <rect x="0" y="0" width="{width_px}" height="{height_px}" '
+            f'fill="{_hex(palette.background)}" />'
+        )
+
+        for r in range(2):
+            for c in range(2):
+                idx = r * 2 + c
+                x = grid_left + c * cell_w
+                y = grid_top + r * cell_h
+                fill = _hex(fill_colors[idx])
+                stroke = _hex(line_color)
+                parts.append(
+                    f'  <rect x="{x}" y="{y}" width="{cell_w}" height="{cell_h}" '
+                    f'fill="{fill}" stroke="{stroke}" stroke-width="1" />'
+                )
+                label = cell_labels[idx]
+                if idx == 3 and not theme.is_dark and theme.accent_treatment != "outline":
+                    txt_color = _hex(palette.background)
+                else:
+                    txt_color = _hex(palette.text)
+                tx = x + 8
+                ty = y + 8 + body_pt
+                parts.append(
+                    f'  <text x="{tx}" y="{ty}" '
+                    f'font-family="{heading_font}" font-size="{body_pt}" '
+                    f'fill="{txt_color}">{label}</text>'
+                )
+
+        # Y-axis label rotated -90 around its anchor.
+        y_axis_x = axis_label - 4
+        y_axis_y = grid_top + grid_h // 2
+        parts.append(
+            f'  <text x="{y_axis_x}" y="{y_axis_y}" '
+            f'font-family="{body_font}" font-size="{cap_pt}" '
+            f'fill="{_hex(palette.muted)}" text-anchor="middle" '
+            f'transform="rotate(-90 {y_axis_x} {y_axis_y})">Y axis →</text>'
+        )
+
+        # X-axis label along the bottom.
+        x_axis_x = grid_left + grid_w // 2
+        x_axis_y = grid_top + grid_h + axis_label // 2 + cap_pt // 2
+        parts.append(
+            f'  <text x="{x_axis_x}" y="{x_axis_y}" '
+            f'font-family="{body_font}" font-size="{cap_pt}" '
+            f'fill="{_hex(palette.muted)}" text-anchor="middle">X axis →</text>'
+        )
+
+        parts.append("</svg>")
+        return "\n".join(parts)
+
 
 def _lighten(color, factor: float):
     """Blend an RGBColor toward white. factor=0 → original, factor=1 → white."""
@@ -118,3 +209,8 @@ def _lighten(color, factor: float):
     g = min(255, int(color[1] + (255 - color[1]) * factor))
     b = min(255, int(color[2] + (255 - color[2]) * factor))
     return RGBColor(r, g, b)
+
+
+def _hex(color) -> str:
+    """RGBColor → '#RRGGBB' for SVG."""
+    return "#{:02X}{:02X}{:02X}".format(color[0], color[1], color[2])

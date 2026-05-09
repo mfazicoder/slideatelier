@@ -173,3 +173,128 @@ class HexagonGrid(AssetShape):
             label_color=centre_text,
             bold=True,
         )
+
+    def render_svg(self, ctx: ShapeRenderContext, width_px: int, height_px: int) -> str:
+        """Inline SVG mirroring render(): 7 flat-top hexagon <polygon>s
+        (1 centre + 6 honeycomb neighbours), each with 6 points.
+        """
+        theme = ctx.theme
+        palette = ctx.palette
+
+        sqrt3 = math.sqrt(3.0)
+
+        w_from_x = width_px / 3.0
+        h_from_y = height_px / 2.5
+        w_candidate_from_h = h_from_y * sqrt3 / 2.0
+        W = min(w_from_x, w_candidate_from_h) * 0.95
+        H = W * 2.0 / sqrt3
+
+        cx = width_px / 2.0
+        cy = height_px / 2.0
+
+        neighbour_offsets = [
+            (W, 0.0),
+            (W * 0.5, -H * 0.75),
+            (-W * 0.5, -H * 0.75),
+            (-W, 0.0),
+            (-W * 0.5, H * 0.75),
+            (W * 0.5, H * 0.75),
+        ]
+
+        if theme.accent_treatment == "outline" or theme.is_dark:
+            outline_only = True
+            line_color = palette.primary
+        else:
+            outline_only = False
+            line_color = palette.muted
+
+        cap_pt = theme.typography.caption_size_pt
+        heading_font = theme.typography.heading
+
+        def _hex_points(px: float, py: float) -> str:
+            """Flat-top hexagon: vertices at top, top-right, bottom-right,
+            bottom, bottom-left, top-left. W = flat-to-flat horizontal,
+            H = vertex-to-vertex vertical. Quarter-height steps for the slanted
+            corners match python-pptx's MSO_SHAPE.HEXAGON geometry."""
+            half_w = W / 2.0
+            half_h = H / 2.0
+            quarter_h = H / 4.0
+            verts = [
+                (px,          py - half_h),       # top vertex
+                (px + half_w, py - quarter_h),    # top-right
+                (px + half_w, py + quarter_h),    # bottom-right
+                (px,          py + half_h),       # bottom vertex
+                (px - half_w, py + quarter_h),    # bottom-left
+                (px - half_w, py - quarter_h),    # top-left
+            ]
+            return " ".join(f"{x:.2f},{y:.2f}" for x, y in verts)
+
+        parts: list[str] = []
+        parts.append(
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'width="{width_px}" height="{height_px}" '
+            f'viewBox="0 0 {width_px} {height_px}">'
+        )
+        parts.append(
+            f'  <rect x="0" y="0" width="{width_px}" height="{height_px}" '
+            f'fill="{_hex_color(palette.background)}" />'
+        )
+
+        # Six surrounding hexagons.
+        for i, (dx, dy) in enumerate(neighbour_offsets):
+            if outline_only:
+                fill = palette.background
+                lbl_color = palette.text
+            else:
+                if i % 2 == 0:
+                    fill = _lighten(palette.accent, 0.65)
+                else:
+                    fill = _lighten(palette.primary, 0.80)
+                lbl_color = palette.text
+
+            px = cx + dx
+            py = cy + dy
+            parts.append(
+                f'  <polygon points="{_hex_points(px, py)}" '
+                f'fill="{_hex_color(fill)}" stroke="{_hex_color(line_color)}" '
+                f'stroke-width="1" />'
+            )
+            label = _SURROUND_LABELS[i]
+            ty = py + cap_pt // 3
+            parts.append(
+                f'  <text x="{px:.2f}" y="{ty:.2f}" '
+                f'font-family="{heading_font}" font-size="{cap_pt}" '
+                f'fill="{_hex_color(lbl_color)}" text-anchor="middle">{label}</text>'
+            )
+
+        # Centre hexagon.
+        if outline_only and theme.is_dark:
+            centre_fill = palette.primary
+            centre_text = palette.background
+        elif outline_only:
+            centre_fill = palette.background
+            centre_text = palette.primary
+        else:
+            centre_fill = palette.primary
+            centre_text = palette.background
+
+        parts.append(
+            f'  <polygon points="{_hex_points(cx, cy)}" '
+            f'fill="{_hex_color(centre_fill)}" '
+            f'stroke="{_hex_color(palette.primary)}" stroke-width="1" />'
+        )
+        ty = cy + cap_pt // 3
+        parts.append(
+            f'  <text x="{cx:.2f}" y="{ty:.2f}" '
+            f'font-family="{heading_font}" font-size="{cap_pt}" '
+            f'font-weight="bold" '
+            f'fill="{_hex_color(centre_text)}" text-anchor="middle">CORE</text>'
+        )
+
+        parts.append("</svg>")
+        return "\n".join(parts)
+
+
+def _hex_color(color) -> str:
+    """RGBColor → '#RRGGBB' for SVG."""
+    return "#{:02X}{:02X}{:02X}".format(color[0], color[1], color[2])

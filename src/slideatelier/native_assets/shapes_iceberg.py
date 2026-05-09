@@ -10,7 +10,7 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.util import Pt
 
 from .base import AssetShape, ShapeRenderContext
-from .shapes_matrix import _lighten
+from .shapes_matrix import _hex, _lighten
 
 
 _UNDERWATER_LABELS = ["Beliefs", "Values", "Assumptions", "Behaviors"]
@@ -152,3 +152,153 @@ class Iceberg(AssetShape):
             lrun.font.size = Pt(theme.typography.caption_size_pt)
             lrun.font.name = theme.typography.heading
             lrun.font.color.rgb = below_text
+
+
+# ---------------------------------------------------------------------------
+# SVG rendering (Web Deck publishing — Sprint J.B)
+# ---------------------------------------------------------------------------
+
+def _render_svg_iceberg(
+    self: "Iceberg", ctx: ShapeRenderContext, width_px: int, height_px: int
+) -> str:
+    theme = ctx.theme
+    palette = ctx.palette
+
+    outline_only = theme.accent_treatment == "outline" or theme.is_dark
+
+    # Match render(): top 30% above water, 4% waterline, rest below water.
+    above_h = int(height_px * 0.30)
+    line_h = int(height_px * 0.04)
+    below_h = height_px - above_h - line_h
+
+    # Tip triangle
+    tip_w = int(width_px * 0.42)
+    tip_left = (width_px - tip_w) // 2
+    tip_top = 0
+    tip_apex_x = tip_left + tip_w / 2.0
+    tip_apex_y = tip_top
+    tip_bl_x = tip_left
+    tip_bl_y = tip_top + above_h
+    tip_br_x = tip_left + tip_w
+    tip_br_y = tip_top + above_h
+
+    if outline_only:
+        tip_fill = _hex(palette.background)
+        tip_stroke = _hex(palette.primary)
+        tip_text = _hex(palette.text)
+    else:
+        tip_fill = _hex(palette.primary)
+        tip_stroke = _hex(palette.primary)
+        tip_text = _hex(palette.background)
+
+    # Waterline rectangle
+    line_top = above_h
+    if outline_only:
+        water_fill = _hex(palette.background)
+        water_stroke = _hex(palette.accent)
+    else:
+        water_fill = _hex(_lighten(palette.accent, 0.55))
+        water_stroke = _hex(palette.accent)
+
+    # Below-water inverted pentagon. We mirror the python-pptx PENTAGON
+    # (a regular pentagon point-up, then rotated 180 → point-down). Build
+    # it as an explicit polygon. Pentagon vertices for a point-up
+    # pentagon inscribed in a unit-square bbox approximate to:
+    # top apex at (0.5, 0), upper-left (0, 0.38), upper-right (1, 0.38),
+    # lower-left (0.18, 1), lower-right (0.82, 1).
+    # Rotated 180° about the bbox centre flips top↔bottom and left↔right:
+    # bottom apex at (0.5, 1), lower-left (1, 0.62), lower-right (0, 0.62),
+    # upper-right (0.82, 0), upper-left (0.18, 0).
+    below_w = int(width_px * 0.78)
+    below_left = (width_px - below_w) // 2
+    below_top = line_top + line_h
+    pent_pts = [
+        (below_left + 0.18 * below_w, below_top + 0.0 * below_h),
+        (below_left + 0.82 * below_w, below_top + 0.0 * below_h),
+        (below_left + 1.00 * below_w, below_top + 0.62 * below_h),
+        (below_left + 0.50 * below_w, below_top + 1.00 * below_h),
+        (below_left + 0.00 * below_w, below_top + 0.62 * below_h),
+    ]
+
+    if outline_only:
+        below_fill = _hex(palette.background)
+        below_stroke = _hex(palette.primary)
+        below_text = _hex(palette.text)
+    else:
+        below_fill = _hex(_lighten(palette.primary, 0.55))
+        below_stroke = _hex(palette.primary)
+        below_text = _hex(palette.text)
+
+    heading_font = theme.typography.heading
+    body_font = theme.typography.body
+    cap_pt = theme.typography.caption_size_pt
+
+    parts: list[str] = []
+    parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{width_px}" height="{height_px}" '
+        f'viewBox="0 0 {width_px} {height_px}">'
+    )
+    # Background
+    parts.append(
+        f'  <rect x="0" y="0" width="{width_px}" height="{height_px}" '
+        f'fill="{_hex(palette.background)}" />'
+    )
+
+    # Tip triangle polygon
+    tip_pts_str = (
+        f"{tip_apex_x:.2f},{tip_apex_y:.2f} "
+        f"{tip_br_x:.2f},{tip_br_y:.2f} "
+        f"{tip_bl_x:.2f},{tip_bl_y:.2f}"
+    )
+    parts.append(
+        f'  <polygon points="{tip_pts_str}" '
+        f'fill="{tip_fill}" stroke="{tip_stroke}" stroke-width="1.5" />'
+    )
+    # Tip label
+    tip_label_x = tip_left + tip_w / 2.0
+    tip_label_y = tip_top + above_h * 0.65
+    parts.append(
+        f'  <text x="{tip_label_x:.2f}" y="{tip_label_y:.2f}" '
+        f'font-family="{heading_font}" font-size="{cap_pt}" '
+        f'font-weight="bold" fill="{tip_text}" '
+        f'text-anchor="middle">Visible</text>'
+    )
+
+    # Waterline rectangle (acts as horizontal divider)
+    parts.append(
+        f'  <rect x="0" y="{line_top}" width="{width_px}" height="{line_h}" '
+        f'fill="{water_fill}" stroke="{water_stroke}" stroke-width="1.5" />'
+    )
+    # Waterline label
+    parts.append(
+        f'  <text x="6" y="{line_top + line_h - 2}" '
+        f'font-family="{body_font}" font-size="{cap_pt}" '
+        f'fill="{_hex(palette.muted)}">Waterline</text>'
+    )
+
+    # Below-water polygon
+    pent_pts_str = " ".join(f"{x:.2f},{y:.2f}" for (x, y) in pent_pts)
+    parts.append(
+        f'  <polygon points="{pent_pts_str}" '
+        f'fill="{below_fill}" stroke="{below_stroke}" stroke-width="1.5" />'
+    )
+
+    # Underwater labels (stacked vertically over the pentagon).
+    labels_top = below_top + int(below_h * 0.10)
+    labels_h = int(below_h * 0.80)
+    each_h = labels_h // len(_UNDERWATER_LABELS)
+    for i, lbl in enumerate(_UNDERWATER_LABELS):
+        lx = below_left + below_w / 2.0
+        ly = labels_top + i * each_h + each_h / 2.0 + cap_pt / 3.0
+        parts.append(
+            f'  <text x="{lx:.2f}" y="{ly:.2f}" '
+            f'font-family="{heading_font}" font-size="{cap_pt}" '
+            f'fill="{below_text}" text-anchor="middle">{lbl}</text>'
+        )
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+Iceberg.render_svg = _render_svg_iceberg  # type: ignore[attr-defined]

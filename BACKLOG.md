@@ -23,7 +23,8 @@ Native-editable code-defined primitives are the moat (squares stay squares, char
 | H — Storyboard creative whiteboard | queued |
 | I — Three-pronged entry chooser | queued |
 | Y — Freeform text blocks + typography | ✅ done (Y.1+Y.2+Y.3) — bbox + typography overrides; renderer honors both |
-| **J–X — Competitive-analysis gap-fill (below)** | newly queued |
+| J — Hosted Web Deck publishing | ✅ done — SVG renderer for all 14 shapes + WebRenderer + routes + viewer + presenter mode + Publish button |
+| **K–X — Competitive-analysis gap-fill (below)** | newly queued |
 
 ---
 
@@ -74,14 +75,26 @@ Native-editable code-defined primitives are the moat (squares stay squares, char
 
 > Generated 2026-05-08 from parallel competitive analysis of Framer / Figma / Ceros / Readymag / Squarespace / Webflow / Wix / WordPress / Claude Code / Codex / Lovable / Unbounce / Contentful. Each sprint cites the cluster that surfaced it. Recommended ordering top-to-bottom — J–N are the structural Framer-killers; O–R unlock team/enterprise tier; S–X are ecosystem and polish.
 
-### Sprint J — Hosted Web Deck publishing (the Framer-killer)
+### Sprint J — Hosted Web Deck publishing (✅ shipped 2026-05-08)
 *Source: Site-builders cluster (consensus structural feature).*
 
-The single feature that converts slideAtelier from "PPTX generator" to "Framer for decks."
-- Every deck gets a live URL `<slug>.atelier.app` (Pro+: custom domain).
-- Renderer emits **HTML + SVG** of native shapes (not raster), preserving editability semantics: text reflows, charts re-animate, theme tokens hot-swap.
-- Presenter-notes mode, keyboard nav, password gate.
-- Foundation for Sprints P (variants), Q (analytics), and the hosted recurring-revenue tier.
+The structural feature that converts slideAtelier from "PPTX generator" to "Framer for decks." Shipped via 4 parallel agents in worktree isolation (J.A/J.B/J.C shapes + J.D infrastructure).
+
+**What landed:**
+- `WebRenderer` class (`src/slideatelier/web_renderer.py`) emits a complete `<html>` doc with each slide as a 16:9 `<section>`. Theme palette/typography → CSS custom properties (`--brand-primary`, `--type-display`, etc.) ready for Sprint K brand-token swap-in. Honors `block_bbox` + `block_style` from Sprint Y.
+- All 14 native AssetShapes have a `render_svg(ctx, w, h)` method using native primitives only — `<rect>`, `<circle>`, `<polygon>`, `<line>`. Donut chart uses `<path>` arc commands (`A` elliptical-arc — the SVG-native curve, no polyline approximations). All 14 × 4 themes = 56 renders parse as valid XML.
+- Routes: `POST /api/jobs/<job_id>/publish` (idempotent, generates URL-safe 8-char slug, writes `web_slug.txt` + `web_deck.html` + slug-index), `GET /web/<slug>`, `GET /web/<slug>/slide/<idx>` (deeplink redirect), `GET /api/jobs/<job_id>/web-deck-url` (lookup).
+- Viewer: keyboard nav (← → space PgUp/PgDn Home/End Backspace), `f` for fullscreen, `p` for presenter mode (overlays speaker notes), `esc` exits, IntersectionObserver keeps slide counter in sync.
+- "🌐 Publish to Web" button on the hi-fi page; copy-to-clipboard chip; auto-loads existing URL on page open.
+
+**Test count**: +31 (5+5+6 shape SVG tests + 12 web-deck tests + 3 from value_chain regression fix). Total 98/98 passing.
+
+**Bug fixed during integration**: ValueChain SVG had unescaped `&` in "Marketing & sales" label breaking XML parse. Added `_xml_escape` helper and applied to all label interpolations.
+
+**Out of scope (queued for J.v2)**:
+- Custom domains
+- Password gate
+- Multi-tenant slug-index storage (currently a single shared `output/web_slugs.json`; needs SQLite + write lock for multi-worker)
 
 ### Sprint K — Brand Kit + Brand Tokens
 *Source: Design/creative cluster (Figma variables) + Site-builders cluster (Squarespace Blueprint).*

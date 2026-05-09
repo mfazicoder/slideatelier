@@ -9,7 +9,7 @@ from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.util import Pt
 
 from .base import AssetShape, ShapeRenderContext
-from .shapes_matrix import _lighten
+from .shapes_matrix import _hex, _lighten
 
 
 _SPOKE_LABELS = [
@@ -149,3 +149,125 @@ class HubSpoke(AssetShape):
         hrun.font.name = theme.typography.heading
         hrun.font.bold = True
         hrun.font.color.rgb = hub_text_color
+
+
+# ---------------------------------------------------------------------------
+# SVG rendering (Web Deck publishing — Sprint J.B)
+# ---------------------------------------------------------------------------
+
+def _render_svg_hub_spoke(
+    self: "HubSpoke", ctx: ShapeRenderContext, width_px: int, height_px: int
+) -> str:
+    theme = ctx.theme
+    palette = ctx.palette
+
+    # Mirror render() geometry but in pixel space.
+    bbox_min = min(width_px, height_px)
+    hub_d = int(bbox_min * 0.22)
+    spoke_d = int(bbox_min * 0.16)
+
+    cx = width_px / 2.0
+    cy = height_px / 2.0
+
+    ring_rx = (width_px - spoke_d) / 2.0 - int(width_px * 0.02)
+    ring_ry = (height_px - spoke_d) / 2.0 - int(height_px * 0.02)
+
+    outline_only = theme.accent_treatment == "outline" or theme.is_dark
+
+    spoke_centres = []
+    for i in range(6):
+        theta = -math.pi / 2.0 + i * (2 * math.pi / 6.0)
+        sx = cx + ring_rx * math.cos(theta)
+        sy = cy + ring_ry * math.sin(theta)
+        spoke_centres.append((sx, sy))
+
+    heading_font = theme.typography.heading
+    cap_pt = theme.typography.caption_size_pt
+    body_pt = theme.typography.body_size_pt
+
+    parts: list[str] = []
+    parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{width_px}" height="{height_px}" '
+        f'viewBox="0 0 {width_px} {height_px}">'
+    )
+    # Background
+    parts.append(
+        f'  <rect x="0" y="0" width="{width_px}" height="{height_px}" '
+        f'fill="{_hex(palette.background)}" />'
+    )
+
+    # Connector lines (drawn first so spokes/hub stack on top).
+    line_color = (
+        _hex(palette.muted) if not outline_only else _hex(palette.primary)
+    )
+    for sx, sy in spoke_centres:
+        dx = sx - cx
+        dy = sy - cy
+        dist = math.hypot(dx, dy) or 1.0
+        ux = dx / dist
+        uy = dy / dist
+        x1 = cx + ux * hub_d / 2.0
+        y1 = cy + uy * hub_d / 2.0
+        x2 = sx - ux * spoke_d / 2.0
+        y2 = sy - uy * spoke_d / 2.0
+        parts.append(
+            f'  <line x1="{x1:.2f}" y1="{y1:.2f}" '
+            f'x2="{x2:.2f}" y2="{y2:.2f}" '
+            f'stroke="{line_color}" stroke-width="2" />'
+        )
+
+    # Spoke circles.
+    spoke_r = spoke_d / 2.0
+    for i, (sx, sy) in enumerate(spoke_centres):
+        if outline_only:
+            spoke_fill = _hex(palette.background)
+            spoke_stroke = _hex(palette.primary)
+            lbl_color = _hex(palette.text)
+        else:
+            if i % 2 == 0:
+                spoke_fill = _hex(_lighten(palette.primary, 0.78))
+            else:
+                spoke_fill = _hex(_lighten(palette.accent, 0.70))
+            spoke_stroke = _hex(palette.primary)
+            lbl_color = _hex(palette.text)
+        parts.append(
+            f'  <circle cx="{sx:.2f}" cy="{sy:.2f}" r="{spoke_r:.2f}" '
+            f'fill="{spoke_fill}" stroke="{spoke_stroke}" stroke-width="1.5" />'
+        )
+        parts.append(
+            f'  <text x="{sx:.2f}" y="{sy + cap_pt / 3.0:.2f}" '
+            f'font-family="{heading_font}" font-size="{cap_pt}" '
+            f'fill="{lbl_color}" text-anchor="middle">{_SPOKE_LABELS[i]}</text>'
+        )
+
+    # Hub circle (drawn last, on top).
+    hub_r = hub_d / 2.0
+    if outline_only:
+        if theme.is_dark:
+            hub_fill = _hex(palette.primary)
+            hub_text_color = _hex(palette.background)
+        else:
+            hub_fill = _hex(palette.background)
+            hub_text_color = _hex(palette.primary)
+        hub_stroke = _hex(palette.primary)
+    else:
+        hub_fill = _hex(palette.primary)
+        hub_stroke = _hex(palette.primary)
+        hub_text_color = _hex(palette.background)
+    parts.append(
+        f'  <circle cx="{cx:.2f}" cy="{cy:.2f}" r="{hub_r:.2f}" '
+        f'fill="{hub_fill}" stroke="{hub_stroke}" stroke-width="1.5" />'
+    )
+    parts.append(
+        f'  <text x="{cx:.2f}" y="{cy + body_pt / 3.0:.2f}" '
+        f'font-family="{heading_font}" font-size="{body_pt}" '
+        f'font-weight="bold" fill="{hub_text_color}" '
+        f'text-anchor="middle">CORE</text>'
+    )
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+HubSpoke.render_svg = _render_svg_hub_spoke  # type: ignore[attr-defined]

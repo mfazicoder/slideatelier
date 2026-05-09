@@ -8,7 +8,7 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.util import Pt
 
 from .base import AssetShape, ShapeRenderContext
-from .shapes_matrix import _lighten
+from .shapes_matrix import _hex, _lighten
 
 
 class Ribbon(AssetShape):
@@ -126,3 +126,109 @@ class Ribbon(AssetShape):
         run.font.name = theme.typography.heading
         run.font.bold = True
         run.font.color.rgb = text_color
+
+
+# ---------------------------------------------------------------------------
+# SVG rendering (Web Deck publishing — Sprint J.B)
+# ---------------------------------------------------------------------------
+
+def _render_svg_ribbon(
+    self: "Ribbon", ctx: ShapeRenderContext, width_px: int, height_px: int
+) -> str:
+    theme = ctx.theme
+    palette = ctx.palette
+
+    outline_only = theme.accent_treatment == "outline" or theme.is_dark
+
+    # Mirror render() proportions.
+    band_h = int(height_px * 0.50)
+    band_top = (height_px - band_h) // 2
+    end_w = band_h
+    overlap = int(end_w * 0.25)
+    center_left = end_w - overlap
+    center_right = width_px - end_w + overlap
+    center_w = center_right - center_left
+
+    if outline_only:
+        ribbon_fill = _hex(palette.background)
+        ribbon_line = _hex(palette.primary)
+        text_color = _hex(palette.text)
+        flag_fill = _hex(palette.background)
+        flag_line = _hex(palette.accent)
+    else:
+        ribbon_fill = _hex(palette.primary)
+        ribbon_line = _hex(palette.primary)
+        text_color = _hex(palette.background)
+        flag_fill = _hex(_lighten(palette.primary, 0.30))
+        flag_line = _hex(palette.primary)
+
+    heading_font = theme.typography.heading
+    heading_pt = theme.typography.heading_size_pt
+
+    parts: list[str] = []
+    parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{width_px}" height="{height_px}" '
+        f'viewBox="0 0 {width_px} {height_px}">'
+    )
+    parts.append(
+        f'  <rect x="0" y="0" width="{width_px}" height="{height_px}" '
+        f'fill="{_hex(palette.background)}" />'
+    )
+
+    # Left flag — triangle with notch on the right (point inward).
+    # Mirrors the RIGHT_TRIANGLE silhouette: outer left edge full height,
+    # outer top edge full width, inner slanted hypotenuse from top-right
+    # to bottom-left of bbox is what python-pptx draws by default. We
+    # render the polygon using three vertices.
+    lf_x = 0
+    lf_y = band_top
+    lf_pts = (
+        f"{lf_x},{lf_y} "  # top-left
+        f"{lf_x + end_w},{lf_y} "  # top-right
+        f"{lf_x},{lf_y + band_h}"  # bottom-left
+    )
+    parts.append(
+        f'  <polygon points="{lf_pts}" '
+        f'fill="{flag_fill}" stroke="{flag_line}" stroke-width="1.5" />'
+    )
+
+    # Right flag — mirror image (rotation 180 in render()).
+    rf_x = width_px - end_w
+    rf_y = band_top
+    rf_pts = (
+        f"{rf_x + end_w},{rf_y + band_h} "  # bottom-right
+        f"{rf_x},{rf_y + band_h} "  # bottom-left
+        f"{rf_x + end_w},{rf_y}"  # top-right
+    )
+    parts.append(
+        f'  <polygon points="{rf_pts}" '
+        f'fill="{flag_fill}" stroke="{flag_line}" stroke-width="1.5" />'
+    )
+
+    # Central rectangle (rounded if theme has rounded corners).
+    rx_attr = ""
+    if theme.corner_radius_pct > 0:
+        rxv = max(4, int(band_h * 0.15))
+        rx_attr = f' rx="{rxv}" ry="{rxv}"'
+    parts.append(
+        f'  <rect x="{center_left}" y="{band_top}" '
+        f'width="{center_w}" height="{band_h}"{rx_attr} '
+        f'fill="{ribbon_fill}" stroke="{ribbon_line}" stroke-width="1.5" />'
+    )
+
+    # Centred label.
+    label_x = center_left + center_w / 2.0
+    label_y = band_top + band_h / 2.0 + heading_pt / 3.0
+    parts.append(
+        f'  <text x="{label_x:.2f}" y="{label_y:.2f}" '
+        f'font-family="{heading_font}" font-size="{heading_pt}" '
+        f'font-weight="bold" fill="{text_color}" '
+        f'text-anchor="middle">FEATURED</text>'
+    )
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+Ribbon.render_svg = _render_svg_ribbon  # type: ignore[attr-defined]

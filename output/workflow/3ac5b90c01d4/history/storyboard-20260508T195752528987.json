@@ -1,0 +1,86 @@
+{
+  "title": "Double down on enterprise; restructure SMB before it bleeds margin",
+  "subtitle": "Board of Directors · Q3 2026 review · Decisions required on $2M reallocation and SMB ARR floor",
+  "core_message": "Enterprise is funding all our growth while SMB unit economics have inverted; reallocate $2M and enforce a $50K ARR floor now.",
+  "narrative_arc": "We open with the headline that Q3's beat masks a two-speed business, then diagnose why SMB economics have broken and why enterprise win rates are slipping against Beta. We land the financial case for reallocation and close by asking the board to approve the $2M shift, the ARR floor, and the competitive war-room.",
+  "slides": [
+    {
+      "layout": "title",
+      "title": "Q3 beat plan, but growth is concentrated and SMB economics have broken",
+      "purpose": "Open the deck with the headline answer and frame the two board decisions required.",
+      "rationale": "Title layout sets context and decision stakes upfront for a board audience."
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "Enterprise is carrying the company; SMB is destroying value at current CAC",
+      "purpose": "State the core message in one slide so the board has the answer before the defense.",
+      "rationale": "Key_takeaway enforces pyramid-principle commitment to the thesis on slide two."
+    },
+    {
+      "layout": "content",
+      "title": "Revenue grew 12% to $48M, but 100% of growth came from enterprise",
+      "purpose": "Establish the headline result and immediately expose the concentration behind it.",
+      "rationale": "Content layout supports a single chart-led proof point."
+    },
+    {
+      "layout": "section_divider",
+      "title": "Diagnosis: three pressures are reshaping the funnel",
+      "purpose": "Signal the transition from results to root-cause analysis.",
+      "rationale": "Section_divider marks the narrative shift into diagnosis."
+    },
+    {
+      "layout": "bullet_list",
+      "title": "SMB unit economics have inverted: CAC now exceeds first-year contract value",
+      "purpose": "Diagnose the SMB problem with the CAC, churn, and contract-size facts that justify the ARR floor.",
+      "rationale": "Bullet_list cleanly stacks the three reinforcing data points behind one conclusion."
+    },
+    {
+      "layout": "content",
+      "title": "Enterprise remains healthy — 124% NRR and 8-month payback",
+      "purpose": "Show that the enterprise engine is the right place to invest more capital.",
+      "rationale": "Content layout focuses attention on the single proof that enterprise scales profitably."
+    },
+    {
+      "layout": "content",
+      "title": "Beta is winning 59% of large deals and stretching our sales cycle by 16 days",
+      "purpose": "Diagnose the top-of-funnel and competitive pressure that motivates the war-room.",
+      "rationale": "Content layout lets one competitive narrative carry the slide."
+    },
+    {
+      "layout": "section_divider",
+      "title": "The response: reallocate, raise the floor, and counter Beta",
+      "purpose": "Transition from diagnosis to recommended actions.",
+      "rationale": "Section_divider cues the board that decisions are coming next."
+    },
+    {
+      "layout": "two_column",
+      "title": "Shifting $2M from SMB marketing to enterprise demand-gen lifts ROI roughly 3x",
+      "purpose": "Compare the return on the marginal dollar in SMB vs enterprise to justify the reallocation.",
+      "rationale": "Two_column is the right form for a genuine side-by-side economic comparison."
+    },
+    {
+      "layout": "bullet_list",
+      "title": "A $50K ARR floor removes the cohort driving 4.2% churn and negative CAC payback",
+      "purpose": "Justify the SMB ARR floor by tying it directly to the churn and CAC data.",
+      "rationale": "Bullet_list lets the policy, rationale, and expected impact sit together."
+    },
+    {
+      "layout": "content",
+      "title": "Competitive war-room targets reclaiming 10+ points of win rate against Beta",
+      "purpose": "Outline the third action and its expected impact on enterprise win rate.",
+      "rationale": "Content layout supports a single initiative with a defined target."
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "Combined actions protect FY plan and restore SMB to profitable growth by Q2",
+      "purpose": "Land the integrated financial impact of the three actions before the ask.",
+      "rationale": "Key_takeaway at the inflection point consolidates the case before decisions."
+    },
+    {
+      "layout": "closing",
+      "title": "Decisions requested: approve $2M reallocation, $50K ARR floor, and war-room standup",
+      "purpose": "Close with the explicit board asks and immediate next steps.",
+      "rationale": "Closing layout makes the decision request unambiguous for the board."
+    }
+  ]
+}
