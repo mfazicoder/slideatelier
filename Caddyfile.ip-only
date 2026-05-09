@@ -1,0 +1,74 @@
+# slideAtelier — IP-only Caddy config.
+#
+# Use this variant when DNS for $DOMAIN hasn't been pointed at the VPS yet.
+# Caddy issues a self-signed cert via its internal CA, so:
+#   - Browsers will show a "Not Secure / certificate not trusted" warning;
+#     click through it for the private beta.
+#   - HSTS is OFF (would make the warning sticky if the user later switches
+#     to a real cert on a different hostname).
+#
+# Switch to the LE-driven Caddyfile once DNS resolves:
+#   1. Set DOMAIN=<your.host.example.com> + ACME_EMAIL=<you@example.com> in .env
+#   2. Set CADDY_CONFIG=/etc/caddy/Caddyfile in .env
+#   3. `docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d caddy`
+#
+# Caddy reads $STUDIO_BASICAUTH_USER + $STUDIO_BASICAUTH_HASH for the /studio
+# proxy. Generate the hash with:
+#   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'yourpw'
+
+{
+	# No email — internal CA doesn't need ACME registration.
+	auto_https disable_redirects
+	# Servers are addressed by IP, no public DNS, so Caddy's local CA
+	# fires up automatically. Self-signed cert valid for ~12 hours and
+	# auto-rotated. See https://caddyserver.com/docs/automatic-https
+}
+
+# `:443` matches any host on port 443 — works whether the user hits
+# https://<vps-ip>/ or https://<temp-hostname>/.
+:443 {
+	tls internal
+	encode zstd gzip
+
+	header {
+		# No HSTS in IP-only mode — see file header comment.
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Health endpoint — bypass logging.
+	@health path /api/health /api/ready
+	log_skip @health
+
+	request_body {
+		max_size 10MB
+	}
+
+	# ----- Supabase Studio (admin UI) — basicauth gated -----
+	handle_path /studio* {
+		basicauth {
+			{$STUDIO_BASICAUTH_USER} {$STUDIO_BASICAUTH_HASH}
+		}
+		reverse_proxy supabase-studio:3000
+	}
+
+	# ----- Supabase API (Kong gateway) -----
+	handle_path /supabase/* {
+		reverse_proxy supabase-kong:8000
+	}
+
+	# ----- slideAtelier app (default) -----
+	reverse_proxy slideatelier:8000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		health_uri /api/health
+		health_interval 30s
+		health_timeout 5s
+	}
+}
+
+# Plain :80 — redirect to https:// for any host.
+:80 {
+	redir https://{host}{uri} permanent
+}

@@ -1,0 +1,111 @@
+# VPS overlay — runs the slideatelier app + Caddy + the full self-hosted
+# Supabase stack on a single host.
+#
+# Usage:
+#   cp .env.example .env                  # parent app env
+#   cp supabase/.env.example supabase/.env # supabase secrets
+#   # edit both, then:
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.vps.yml \
+#     up -d
+#
+# This file:
+#   1. Re-declares the Supabase services from supabase/docker-compose.yml so
+#      docker compose can resolve their dependencies in one stack. We can't
+#      use the top-level `include:` directive on every Compose version we
+#      target, so we use the more portable `extends:` for the supabase
+#      services here.
+#   2. Adds the supabase_net to the slideatelier and caddy services so Caddy
+#      can reach supabase-kong + supabase-studio for the /supabase + /studio
+#      routes declared in Caddyfile / Caddyfile.ip-only.
+#   3. Switches Caddy's mounted Caddyfile via the CADDY_CONFIG env var so we
+#      can flip between LE (`Caddyfile`) and self-signed (`Caddyfile.ip-only`)
+#      without editing this file. Default: Caddyfile (LE).
+
+services:
+  slideatelier:
+    networks:
+      - slideatelier_net
+      - supabase_net
+
+  caddy:
+    networks:
+      - slideatelier_net
+      - supabase_net
+    volumes:
+      # Mount BOTH Caddyfiles into the container; CADDY_CONFIG selects which
+      # one Caddy reads. Default points at the LE-driven one.
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.ip-only:/etc/caddy/Caddyfile.ip-only:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+      - STUDIO_BASICAUTH_USER=${STUDIO_BASICAUTH_USER:-admin}
+      - STUDIO_BASICAUTH_HASH=${STUDIO_BASICAUTH_HASH}
+      - CADDY_CONFIG=${CADDY_CONFIG:-/etc/caddy/Caddyfile}
+    command: ["caddy", "run", "--config", "${CADDY_CONFIG:-/etc/caddy/Caddyfile}", "--adapter", "caddyfile"]
+
+  # ---------------------------------------------------------------------
+  # Supabase services — extended from the supabase/ stack so we run a
+  # single `docker compose up` for the whole VPS.
+  # ---------------------------------------------------------------------
+
+  supabase-db:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-db
+
+  supabase-auth:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-auth
+
+  supabase-rest:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-rest
+
+  supabase-realtime:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-realtime
+
+  supabase-storage:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-storage
+
+  supabase-meta:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-meta
+
+  supabase-studio:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-studio
+
+  supabase-kong:
+    extends:
+      file: supabase/docker-compose.yml
+      service: supabase-kong
+    # Re-anchor the kong.yml mount relative to the project root so it works
+    # under both Compose v1 (which resolves relative to the EXTENDING file)
+    # and v2 (which keeps it relative to the original).
+    volumes:
+      - ./supabase/kong.yml:/var/lib/kong/kong.yml:ro
+
+networks:
+  supabase_net:
+    name: supabase_net
+    driver: bridge
+
+volumes:
+  # Re-declare the supabase volumes here so the extended services can find
+  # them in the combined Compose stack. `extends:` pulls only the service
+  # definition — top-level volumes/networks must be declared in this file.
+  supabase_db_data:
+  supabase_storage_data:

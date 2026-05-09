@@ -29,8 +29,11 @@ LAYOUT_TYPES: list[str] = [
 # State helpers
 # ---------------------------------------------------------------------------
 
-def _job_dir(config: Config, job_id: str) -> Path:
-    return config.output_dir / "workflow" / job_id
+def _job_dir(config: Config, job_id: str, request=None) -> Path:
+    """Auth-aware: returns the per-user namespace if SQLite says the job is
+    owned by an authenticated user, else falls back to the legacy flat layout."""
+    from ..auth import resolve_job_dir
+    return resolve_job_dir(config, request, job_id)
 
 
 def _deck_path(config: Config, job_id: str) -> Path:
@@ -188,7 +191,13 @@ def register_wireframe_edit_routes(app, templates, _config_callable):
     def _require_slide(deck: dict, idx: int) -> dict:
         slides = deck.get("slides", [])
         if idx < 0 or idx >= len(slides):
-            raise HTTPException(404, f"slide index {idx} out of range")
+            # idx is 0-based; surface a 1-based "slide #N" plus the deck size
+            # so the user can see whether the deck shrank under them.
+            raise HTTPException(
+                404,
+                f"slide #{idx + 1} doesn't exist (deck has {len(slides)} slide{'s' if len(slides) != 1 else ''}). "
+                "Reload the page.",
+            )
         return slides[idx]
 
     # ---- undo / redo ----
@@ -230,6 +239,168 @@ def register_wireframe_edit_routes(app, templates, _config_callable):
         if not job_dir.exists():
             raise HTTPException(404, "workflow not found")
         return HTMLResponse(_render_history_status(job_dir))
+
+    # ---- named version cards (Sprint N): rail, restore-and-fork, compare, rename ----
+
+    def _annotate_relative(snaps: list[dict]) -> list[dict]:
+        """Add a relative-time string for display in the rail."""
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).timestamp()
+        for s in snaps:
+            secs = max(0, now - s["epoch"]) if s.get("epoch") else 0
+            if not s.get("epoch"):
+                s["relative"] = ""
+            elif secs < 5:
+                s["relative"] = "just now"
+            elif secs < 60:
+                s["relative"] = f"{int(secs)}s ago"
+            elif secs < 3600:
+                s["relative"] = f"{int(secs / 60)}m ago"
+            elif secs < 86400:
+                s["relative"] = f"{int(secs / 3600)}h ago"
+            else:
+                s["relative"] = f"{int(secs / 86400)}d ago"
+        return snaps
+
+    @app.get("/workflow/wireframe/{job_id}/version-cards", response_class=HTMLResponse)
+    def version_cards_rail(request: Request, job_id: str):
+        """HTMX-loaded rail listing every snapshot as a Named Version Card.
+
+        Cards sharing parent_timestamp group with a subtle vertical-line indent
+        (rendered by the template via the `parent_timestamp` field).
+        """
+        from .workflow_history import list_snapshots
+        config = _config_callable()
+        job_dir = config.output_dir / "workflow" / job_id
+        if not job_dir.exists():
+            raise HTTPException(404, "workflow not found")
+        snaps = _annotate_relative(list_snapshots(job_dir))
+        return templates.TemplateResponse(
+            request,
+            "workflow/_version_cards_rail.html",
+            {"job_id": job_id, "snapshots": snaps},
+        )
+
+    @app.post("/workflow/wireframe/{job_id}/version-cards/label", response_class=HTMLResponse)
+    async def version_cards_rename(request: Request, job_id: str):
+        """Rename a card. Form fields: kind, timestamp, label."""
+        from .workflow_history import rename_snapshot
+        config = _config_callable()
+        job_dir = config.output_dir / "workflow" / job_id
+        if not job_dir.exists():
+            raise HTTPException(404, "workflow not found")
+        form = await request.form()
+        kind = (form.get("kind") or "").strip()
+        timestamp = (form.get("timestamp") or "").strip()
+        label = (form.get("label") or "").strip()
+        if kind not in ("deck", "storyboard"):
+            raise HTTPException(400, f"unknown kind: {kind}")
+        if not timestamp:
+            raise HTTPException(400, "missing timestamp")
+        ok = rename_snapshot(job_dir, kind, timestamp, label)  # type: ignore[arg-type]
+        if not ok:
+            return HTMLResponse("snapshot not found", status_code=404)
+        # Re-render the rail so the user sees the new label immediately
+        from .workflow_history import list_snapshots
+        snaps = _annotate_relative(list_snapshots(job_dir))
+        return templates.TemplateResponse(
+            request,
+            "workflow/_version_cards_rail.html",
+            {"job_id": job_id, "snapshots": snaps},
+        )
+
+    @app.post(
+        "/workflow/wireframe/{job_id}/version-cards/restore/{timestamp}",
+        response_class=HTMLResponse,
+    )
+    async def version_cards_restore(request: Request, job_id: str, timestamp: str):
+        """Restore-and-fork: write the named snapshot's content back to the
+        live artifact, then take a fresh snapshot with parent_timestamp pointing
+        to the restored card. Form field `kind` selects deck (default) or
+        storyboard."""
+        from .workflow_history import restore_snapshot
+        config = _config_callable()
+        job_dir = config.output_dir / "workflow" / job_id
+        if not job_dir.exists():
+            raise HTTPException(404, "workflow not found")
+        # Accept kind from form OR query param; default to deck for the wireframe rail.
+        kind = request.query_params.get("kind", "")
+        if not kind:
+            try:
+                form = await request.form()
+                kind = (form.get("kind") or "").strip()
+            except Exception:  # noqa: BLE001
+                pass
+        if not kind:
+            kind = "deck"
+        if kind not in ("deck", "storyboard"):
+            raise HTTPException(400, f"unknown kind: {kind}")
+        ok = restore_snapshot(job_dir, kind, timestamp)  # type: ignore[arg-type]
+        if not ok:
+            return HTMLResponse("snapshot not found", status_code=404)
+        return HTMLResponse("ok", headers={"HX-Refresh": "true"})
+
+    @app.get("/workflow/wireframe/{job_id}/compare", response_class=HTMLResponse)
+    def version_cards_compare(request: Request, job_id: str, a: str = "", b: str = "", kind: str = "deck"):
+        """Side-by-side compare of two snapshots, rendered as two iframes."""
+        from .workflow_history import list_snapshots, read_snapshot_content
+        config = _config_callable()
+        job_dir = config.output_dir / "workflow" / job_id
+        if not job_dir.exists():
+            raise HTTPException(404, "workflow not found")
+        if kind not in ("deck", "storyboard"):
+            raise HTTPException(400, f"unknown kind: {kind}")
+        if not a or not b:
+            raise HTTPException(400, "missing a or b timestamp")
+        content_a = read_snapshot_content(job_dir, kind, a)  # type: ignore[arg-type]
+        content_b = read_snapshot_content(job_dir, kind, b)  # type: ignore[arg-type]
+        if content_a is None or content_b is None:
+            raise HTTPException(404, "one or both snapshots not found")
+        # Build label lookup so each pane shows its card name.
+        snaps = list_snapshots(job_dir)
+        labels = {s["timestamp"]: s["label"] for s in snaps if s["kind"] == kind}
+        return templates.TemplateResponse(
+            request,
+            "workflow/_version_cards_compare.html",
+            {
+                "job_id": job_id,
+                "kind": kind,
+                "a_ts": a,
+                "b_ts": b,
+                "a_label": labels.get(a, a),
+                "b_label": labels.get(b, b),
+                "content_a": content_a,
+                "content_b": content_b,
+            },
+        )
+
+    @app.get(
+        "/workflow/wireframe/{job_id}/version-cards/snapshot/{timestamp}",
+        response_class=HTMLResponse,
+    )
+    def version_cards_snapshot_view(request: Request, job_id: str, timestamp: str, kind: str = "deck"):
+        """Render a single snapshot's content as a read-only HTML pane.
+        Used by the compare page's iframes."""
+        from .workflow_history import read_snapshot_content
+        config = _config_callable()
+        job_dir = config.output_dir / "workflow" / job_id
+        if not job_dir.exists():
+            raise HTTPException(404, "workflow not found")
+        if kind not in ("deck", "storyboard"):
+            raise HTTPException(400, f"unknown kind: {kind}")
+        content = read_snapshot_content(job_dir, kind, timestamp)  # type: ignore[arg-type]
+        if content is None:
+            raise HTTPException(404, "snapshot not found")
+        return templates.TemplateResponse(
+            request,
+            "workflow/_version_cards_snapshot_view.html",
+            {
+                "job_id": job_id,
+                "kind": kind,
+                "timestamp": timestamp,
+                "content": content,
+            },
+        )
 
     def _render_history_status(job_dir, message: str = "All changes saved") -> str:
         from .workflow_history import can_undo, can_redo
@@ -765,7 +936,10 @@ def register_wireframe_edit_routes(app, templates, _config_callable):
         deck = _load_deck(config, job_id)
         slides = deck.get("slides", [])
         if idx < 0 or idx >= len(slides):
-            raise HTTPException(404, f"slide index {idx} out of range")
+            raise HTTPException(
+                404,
+                f"slide #{idx + 1} doesn't exist (deck has {len(slides)} slide{'s' if len(slides) != 1 else ''}).",
+            )
         slides.pop(idx)
         deck["slides"] = slides
         _save_deck(config, job_id, deck)
@@ -783,7 +957,10 @@ def register_wireframe_edit_routes(app, templates, _config_callable):
         deck = _load_deck(config, job_id)
         slides = deck.get("slides", [])
         if idx < -1 or idx > len(slides):
-            raise HTTPException(404, f"slide index {idx} out of range")
+            raise HTTPException(
+                404,
+                f"can't insert after slide #{idx + 1} (deck has {len(slides)} slide{'s' if len(slides) != 1 else ''}).",
+            )
         new_slide = _empty_slide()
         insert_at = idx + 1
         slides.insert(insert_at, new_slide)

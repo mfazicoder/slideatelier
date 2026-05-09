@@ -23,8 +23,11 @@ from ..critic import (
 from ..models import SlideDeck
 
 
-def _job_dir(config: Config, job_id: str) -> Path:
-    return config.output_dir / "workflow" / job_id
+def _job_dir(config: Config, job_id: str, request=None) -> Path:
+    """Auth-aware: returns the per-user namespace if SQLite says the job is
+    owned by an authenticated user, else falls back to the legacy flat layout."""
+    from ..auth import resolve_job_dir
+    return resolve_job_dir(config, request, job_id)
 
 
 def _load_deck(job_dir: Path) -> SlideDeck:

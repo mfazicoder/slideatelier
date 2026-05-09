@@ -1,6 +1,7 @@
+import re
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 LayoutType = Literal[
     "title",
@@ -155,6 +156,95 @@ class Slide(BaseModel):
     )
 
 
+_HEX_RE = re.compile(r"^#?([0-9a-fA-F]{6})$")
+
+
+def _normalize_hex(value: str) -> str:
+    """Normalize a hex string to '#RRGGBB' uppercase form. Raises ValueError on malformed input."""
+    m = _HEX_RE.match(value.strip())
+    if not m:
+        raise ValueError(
+            f"Invalid hex color: {value!r}. Expected '#RRGGBB' or 'RRGGBB'."
+        )
+    return "#" + m.group(1).upper()
+
+
+class BrandKit(BaseModel):
+    """Per-workspace brand tokens. When set, override the active theme's
+    palette + typography at render time so every existing AssetShape and
+    SlideTemplate rebrands without re-running generation.
+
+    Storage is JSON at output/brand_kit.json (anonymous) or
+    output/users/<user_id>/brand_kit.json (authenticated). The renderer reads
+    the kit once per render via ShapeRenderContext.brand_kit and the
+    effective_*() helpers fall back to theme values when a field is None.
+    """
+
+    logo_path: str | None = None
+    color_primary: str = "#0F172A"
+    color_secondary: str = "#3B82F6"
+    color_accent: str | None = None
+    color_bg: str = "#FFFFFF"
+    color_text: str = "#0F172A"
+    type_display: str = "Inter"
+    type_body: str = "Inter"
+    type_mono: str = "JetBrains Mono"
+    audience_tone: Literal["formal", "approachable", "bold", "minimal"] = "approachable"
+
+    @field_validator("color_primary", "color_secondary", "color_bg", "color_text")
+    @classmethod
+    def _validate_required_hex(cls, v: str) -> str:
+        return _normalize_hex(v)
+
+    @field_validator("color_accent")
+    @classmethod
+    def _validate_optional_hex(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return None
+        return _normalize_hex(v)
+
+
+class BriefAnalysis(BaseModel):
+    """Structured read-out of a raw brief — what the deck author actually
+    asked for vs. what the brief leaves implicit. Sprint W (Brief Inbox).
+
+    Used as the second return value from a Claude call that ALSO produces a
+    Storyboard. The pair lets the user see the deck draft side-by-side with
+    a critique of the brief itself, then decide whether to continue or
+    re-prompt with corrections.
+    """
+    stated_goals: list[str] = Field(
+        default_factory=list,
+        description=(
+            "What the brief explicitly says it wants the deck to accomplish. "
+            "Quote-or-paraphrase short statements (≤14 words each). 1–5 items."
+        ),
+    )
+    audience: str = Field(
+        default="",
+        description=(
+            "Who the deck is for, as inferred from the brief. Job role / "
+            "decision-making context / time pressure if known. ≤30 words. "
+            "Empty if the brief gives no signal."
+        ),
+    )
+    key_messages: list[str] = Field(
+        default_factory=list,
+        description=(
+            "The argument lines the deck must land. Each is the takeaway form "
+            "(verb + object), not the topic. 2–5 items, ≤18 words each."
+        ),
+    )
+    risks_unaddressed: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Gaps, ambiguities, or pushbacks the brief leaves unanswered that "
+            "the deck author should resolve before final review. 0–5 items, "
+            "≤25 words each. Empty list is fine if the brief is tight."
+        ),
+    )
+
+
 class SlideDeck(BaseModel):
     title: str = Field(
         description=(
@@ -192,4 +282,29 @@ class SlideDeck(BaseModel):
             "Slides in presentation order. Aim for 8–15 slides for a 30-minute slot, 4–8 for a 10-minute slot, "
             "16–25 for a 60-minute deep-dive. Length should match content density of the brief — don't pad, don't cram."
         )
+    )
+
+
+class AuditIssue(BaseModel):
+    """A single deck-audit (linter) finding.
+
+    Sprint V — produced by slideatelier.audit.audit_deck. Defined here so the
+    schema is shared with downstream consumers (CLI, web, tests) without
+    pulling in the audit module's dependencies.
+    """
+
+    slide_idx: int = Field(
+        description="0-based index of the offending slide. -1 for deck-level issues."
+    )
+    severity: Literal["error", "warning", "info"]
+    code: str = Field(
+        description="Stable code, e.g. 'BODY_TOO_LONG'. See audit.AUDIT_CODES."
+    )
+    message: str
+    fix: dict | None = Field(
+        default=None,
+        description=(
+            "Sparse {action: ...} dict describing how apply_audit_fixes() can resolve "
+            "the issue, or None if the issue requires user action."
+        ),
     )

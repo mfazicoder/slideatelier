@@ -1,0 +1,35 @@
+# Render.com deploy config (Blueprint) for slideAtelier.
+# Push to a GitHub repo, then in Render: New → Blueprint → connect repo.
+# See DEPLOY.md for full instructions.
+
+services:
+  - type: web
+    name: slideatelier
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # 512MB RAM / 0.5 CPU. Bump to standard for headroom.
+    region: frankfurt        # closest available to the user. Change as needed.
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: SLIDEATELIER_ENV
+        value: production
+      - key: SLIDEATELIER_OUTPUT_DIR
+        value: /app/output
+      - key: SLIDEATELIER_TEMPLATES_DIR
+        value: /app/templates
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Secrets — set in the Render dashboard, NOT in this file.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DOMAIN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ACME_EMAIL
+        sync: false
+    disk:
+      name: slideatelier-output
+      mountPath: /app/output
+      sizeGB: 1

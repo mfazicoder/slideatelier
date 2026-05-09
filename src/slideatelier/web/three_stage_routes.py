@@ -7,6 +7,7 @@ an in-progress workflow via URL.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import traceback
@@ -14,9 +15,21 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _is_production() -> bool:
+    return os.getenv("SLIDEATELIER_ENV", "").lower() == "production"
+
 from fastapi import BackgroundTasks, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 
+from ..auth import (
+    get_current_user,
+    login_redirect_if_anonymous,
+    new_job_dir,
+    resolve_job_dir,
+    user_owns_job,
+    workflow_root_for_request,
+)
 from ..config import Config
 from ..models import LayoutType, SlideDeck
 from ..renderer import DeckRenderer
@@ -41,11 +54,20 @@ STAGE_ORDER = ["storyboard", "wireframe", "hi_fi"]
 # ---------------------------------------------------------------------------
 
 def _workflow_root(config: Config) -> Path:
+    """Legacy/system flat root. Per-user roots are derived in route handlers."""
     return config.output_dir / "workflow"
 
 
-def _job_dir(config: Config, job_id: str) -> Path:
-    return _workflow_root(config) / job_id
+def _job_dir(config: Config, job_id: str, request: Request | None = None) -> Path:
+    """Resolve the job dir for the active session.
+
+    - In dev with anonymous traffic this still returns the legacy flat path.
+    - For an authenticated user that owns the job, returns the per-user
+      namespace under output/users/<user_id>/workflow/<job_id>/.
+    - Background workers pass request=None and rely on the SQLite ownership
+      record (set at job-creation time) to pick the right path.
+    """
+    return resolve_job_dir(config, request, job_id)
 
 
 def _read_text(path: Path) -> str:
@@ -129,9 +151,15 @@ def _run_storyboard(job_id: str, config: Config) -> None:
         storyboard, _meta = plan_storyboard(client, config, brief, requirements)
         (job_dir / "storyboard.json").write_text(storyboard.model_dump_json(indent=2))
         # Snapshot the freshly-generated storyboard so the user can step back to
-        # the original after editing.
+        # the original after editing. Pass the brief as `prompt` so the version
+        # card surfaces it as a 60-char ai_summary (no extra Claude call).
         from .workflow_history import snapshot
-        snapshot(job_dir, "storyboard")
+        snapshot(
+            job_dir,
+            "storyboard",
+            label="Initial storyboard (AI)",
+            prompt=brief or None,
+        )
         _write_status(
             job_dir,
             stage="storyboard",
@@ -161,8 +189,14 @@ def _run_expand(job_id: str, config: Config) -> None:
         deck, _meta = expand_storyboard_to_deck(client, config, storyboard, brief, requirements)
         (job_dir / "deck.json").write_text(deck.model_dump_json(indent=2))
         # Snapshot the freshly-expanded deck as the first deck-history entry.
+        # The expansion is AI-driven, so surface the brief as ai_summary fodder.
         from .workflow_history import snapshot
-        snapshot(job_dir, "deck")
+        snapshot(
+            job_dir,
+            "deck",
+            label="Initial wireframe (AI)",
+            prompt=brief or None,
+        )
         _write_status(
             job_dir,
             stage="wireframe",
@@ -230,9 +264,13 @@ def register_three_stage_routes(app, templates, _config_callable):
     @app.get("/workflow", response_class=HTMLResponse)
     def page_workflow_index(request: Request, show_archived: bool = False):
         from .workflow_history import list_workflows
+        if _is_production():
+            gate = login_redirect_if_anonymous(request)
+            if gate is not None:
+                return gate
         config = _config_callable()
         workflows = list_workflows(
-            config.output_dir / "workflow",
+            workflow_root_for_request(config, request),
             include_archived=show_archived,
         )
         return templates.TemplateResponse(
@@ -255,6 +293,11 @@ def register_three_stage_routes(app, templates, _config_callable):
         requirements: str = Form(""),
         template: str = Form("default"),
     ):
+        # Production gates the editor behind /login. In dev, anonymous traffic
+        # still works against the legacy flat layout for backwards-compat.
+        gate = login_redirect_if_anonymous(request)
+        if gate is not None and _is_production():
+            return gate
         config = _config_callable()
         if not brief.strip():
             return HTMLResponse(
@@ -263,7 +306,8 @@ def register_three_stage_routes(app, templates, _config_callable):
                 status_code=400,
             )
         job_id = uuid.uuid4().hex[:12]
-        job_dir = _job_dir(config, job_id)
+        # Register ownership in SQLite + return the right per-user directory.
+        job_dir = new_job_dir(config, request, job_id)
         job_dir.mkdir(parents=True, exist_ok=True)
         _write_text(job_dir / "brief.txt", brief)
         _write_text(job_dir / "requirements.txt", requirements or "")
@@ -523,6 +567,29 @@ def register_three_stage_routes(app, templates, _config_callable):
         done_stages = _stage_done_set(status) | {"storyboard", "wireframe"}
         if ready:
             done_stages.add("hi_fi")
+
+        # hi_fi.html expects pptx_ready, pptx_fresh, tpl, and template_name to
+        # decide between "Render" and "Download .pptx" button states. Without
+        # these, the page always shows the Render button — even after a
+        # successful render. Resolve them here.
+        pptx_ready = deck_pptx.exists()
+        pptx_fresh = False
+        if pptx_ready and deck_path.exists():
+            pptx_fresh = deck_pptx.stat().st_mtime >= deck_path.stat().st_mtime
+
+        from ..template import load_default_template, load_template
+        template_name = ""
+        template_name_path = job_dir / "template_name.txt"
+        if template_name_path.exists():
+            template_name = template_name_path.read_text().strip()
+        try:
+            if template_name and template_name != "default":
+                tpl_obj = load_template(config.templates_dir / f"{template_name}.json")
+            else:
+                tpl_obj = load_default_template(config.templates_dir)
+        except Exception:  # noqa: BLE001
+            tpl_obj = load_default_template(config.templates_dir)
+
         return templates.TemplateResponse(
             request,
             "workflow/hi_fi.html",
@@ -531,6 +598,10 @@ def register_three_stage_routes(app, templates, _config_callable):
                 "status": status,
                 "deck": deck,
                 "ready": ready,
+                "pptx_ready": pptx_ready,
+                "pptx_fresh": pptx_fresh,
+                "tpl": tpl_obj,
+                "template_name": template_name or "default",
                 "current_stage": "hi_fi",
                 "done_stages": done_stages,
                 "model": config.model,

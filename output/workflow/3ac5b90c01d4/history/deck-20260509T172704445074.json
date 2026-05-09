@@ -1,0 +1,254 @@
+{
+  "title": "Double down on enterprise; restructure SMB before it bleeds margin",
+  "subtitle": "Board of Directors \u00b7 Q3 2026 review \u00b7 Decisions required on $2M reallocation and SMB ARR floor",
+  "core_message": "Enterprise is funding all our growth while SMB unit economics have inverted; reallocate $2M and enforce a $50K ARR floor now.",
+  "narrative_arc": "We open with the headline that Q3's beat masks a two-speed business, then diagnose why SMB economics have broken and why enterprise win rates are slipping against Beta. We land the financial case for reallocation and close by asking the board to approve the $2M shift, the ARR floor, and the competitive war-room.",
+  "slides": [
+    {
+      "layout": "title",
+      "title": "Q3 beat plan, but growth is concentrated and SMB economics have broken",
+      "strap": "",
+      "body": [],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Frame the session: we beat plan but the composition of the beat changes the strategy. Two decisions are required today \u2014 the $2M reallocation and the $50K ARR floor. Set expectation that the war-room is the third action we'll discuss but it does not require board approval.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [
+        {
+          "type": "library_asset",
+          "position": "right",
+          "config": {
+            "asset_ref": "alphabet-powerpoint/alphabet-infographic/10",
+            "bbox": {
+              "left": 0.10954972044728435,
+              "top": 0.00033280085197018105,
+              "width": 0.3999975039936102,
+              "height": 1.0
+            }
+          }
+        }
+      ],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "Enterprise is carrying the company; SMB is destroying value at current CAC",
+      "strap": "",
+      "body": [
+        "Enterprise +34% YoY; SMB flat with CAC now 78% of first-year ACV"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "This is the deck's answer slide. State it cleanly and pause. The rest of the deck defends these two facts and motivates the three actions. Likely board pushback: 'Are we abandoning SMB?' \u2014 answer: no, we are restructuring it to be profitable.",
+      "rationale": "Single-insight emphasis at the top so the board has the punchline before the evidence.",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "content",
+      "title": "Revenue grew 12% to $48M, but 100% of growth came from enterprise",
+      "strap": "Enterprise added $5.1M YoY; SMB contributed zero net growth",
+      "body": [
+        "Total revenue $48M, beating plan by 4% ($1.8M)",
+        "Enterprise revenue +34% YoY, now 77% of book",
+        "SMB revenue flat at $11M for third straight quarter",
+        "New-customer acquisition down 8% across both segments"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Walk through the headline beat, then immediately decompose it. The point is that the consolidated number masks a binary outcome: one engine running hot, one engine stalled. Reference the CFO pack page 4 for the segment waterfall.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "section_divider",
+      "title": "Diagnosis: three pressures are reshaping the funnel",
+      "strap": "",
+      "body": [],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Transition. The three pressures are: (1) SMB unit economics, (2) enterprise health as the contrast case, (3) Beta competitive pressure at the top of funnel. Tell the board we will take each in turn before landing the response.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "bullet_list",
+      "title": "SMB unit economics have inverted: CAC now exceeds first-year contract value",
+      "strap": "CAC up 19% to $14K against an $18K average ACV \u2014 and churn is concentrated here",
+      "body": [
+        "SMB CAC rose 19% QoQ to $14K per new customer",
+        "Average first-year SMB contract is $18K \u2014 78% consumed by CAC",
+        "Churn ticked to 4.2%, concentrated in sub-$50K ARR cohort",
+        "Payback period now exceeds contract length for ~40% of new SMB deals"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "This is the core justification for the $50K ARR floor. The math: at $14K CAC and 4.2% churn concentrated below $50K, we are acquiring customers we cannot retain long enough to recoup acquisition cost. Expected pushback: 'SMB is a feeder for enterprise expansion' \u2014 counter with the data that sub-$50K cohort almost never expands.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "content",
+      "title": "Enterprise remains healthy \u2014 124% NRR and 8-month payback",
+      "strap": "The segment we'd starve to fund SMB is the one with proven compounding economics",
+      "body": [
+        "Net revenue retention 124% on accounts above $250K ARR",
+        "CAC steady at $42K with 8-month payback period",
+        "Enterprise revenue +34% YoY, now $37M annualized",
+        "Expansion within existing accounts contributed $4.1M of the $5.1M lift"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Contrast slide. The point is to show that the marginal dollar in enterprise compounds \u2014 124% NRR means each cohort grows itself. Reference the cohort waterfall in the appendix. This sets up the ROI comparison on slide 8.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "content",
+      "title": "Beta is winning 59% of large deals and stretching our sales cycle by 16 days",
+      "strap": "Win rate on >$250K ARR deals fell from 58% to 41% in one quarter",
+      "body": [
+        "Win rate vs Beta on >$250K deals dropped from 58% to 41%",
+        "Sales cycle lengthened from 47 to 63 days (+34%)",
+        "Pipeline conversion fell from 22% to 17% across all segments",
+        "Beta now appears in 71% of competitive enterprise evaluations"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "This is the motivation for the war-room. We are still growing enterprise 34%, but we are leaving deals on the table \u2014 every point of win rate recovered against Beta is roughly $1.2M in incremental ARR at current pipeline volume. Likely question: 'Is this a product gap or a sales gap?' \u2014 answer: per loss-review data, 60% sales execution, 40% product positioning.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "section_divider",
+      "title": "The response: reallocate, raise the floor, and counter Beta",
+      "strap": "",
+      "body": [],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Transition to the recommendations. Three actions, two require board approval today, one is operational. Frame as an integrated package \u2014 each action reinforces the others.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "two_column",
+      "title": "Shifting $2M from SMB marketing to enterprise demand-gen lifts ROI roughly 3x",
+      "strap": "Marginal dollar comparison based on trailing four-quarter blended performance",
+      "body": [],
+      "body_left": [
+        "SMB marketing: $14K CAC, $18K ACV, 4.2% churn",
+        "Marginal $1 returns ~$0.30 in three-year contribution",
+        "$2M generates ~143 customers, ~60% retained past year one",
+        "Net three-year contribution: roughly $0.6M"
+      ],
+      "body_right": [
+        "Enterprise demand-gen: $42K CAC, 124% NRR, 8-month payback",
+        "Marginal $1 returns ~$0.95 in three-year contribution",
+        "$2M generates ~48 enterprise opportunities, ~$6M new ARR",
+        "Net three-year contribution: roughly $1.9M"
+      ],
+      "speaker_notes": "This is the financial heart of the recommendation. The 3x figure is conservative \u2014 it does not assume any win-rate recovery from the war-room. If the board challenges the assumptions, walk them to appendix B which shows the sensitivity analysis. Note that we are not zeroing SMB marketing \u2014 the residual $1.4M continues to fund the resized, $50K-floor SMB motion.",
+      "rationale": "Comparison IS the point \u2014 SMB vs enterprise marginal ROI side-by-side is the cleanest way to justify the shift.",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "bullet_list",
+      "title": "A $50K ARR floor removes the cohort driving 4.2% churn and negative CAC payback",
+      "strap": "Effective Q4; existing customers grandfathered; channel partners notified November 1",
+      "body": [
+        "Sub-$50K cohort drove 78% of Q3 churn events",
+        "Floor removes ~35% of new SMB deal volume but only ~12% of SMB revenue",
+        "Remaining SMB deals project to $32K average ACV, 2.3x current CAC",
+        "Frees ~6 AE-quarters of capacity to redeploy to mid-market"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Justify the floor with the churn concentration data. Anticipate two objections: (1) 'We are walking away from a market' \u2014 response: we are walking away from unprofitable acquisition, not the segment. (2) 'What about strategic logos?' \u2014 response: floor includes a CRO-approved exception process, capped at 5 deals per quarter.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "content",
+      "title": "Competitive war-room targets reclaiming 10+ points of win rate against Beta",
+      "strap": "Cross-functional standup; product, sales, and marketing; first readout in 60 days",
+      "body": [
+        "Dedicated team: 2 product, 2 sales eng, 1 PMM, 1 RevOps",
+        "Battlecard refresh and loss-review program live by week 3",
+        "Three product gaps identified in loss reviews; fixes scoped for Q1",
+        "Each 1-point win-rate recovery worth ~$1.2M ARR at current pipeline"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "This action does not require board approval but the board should understand it as part of the integrated response. The 10-point target would restore us to 51% win rate \u2014 still below the 58% peak but enough to add ~$12M to FY pipeline yield. Funded from existing budget; no incremental ask.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "key_takeaway",
+      "title": "Combined actions protect FY plan and restore SMB to profitable growth by Q2",
+      "strap": "",
+      "body": [
+        "Integrated impact: +$6M enterprise ARR, SMB CAC payback under 12 months by Q2"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Close the argument before the ask. The three actions are mutually reinforcing: reallocation funds the engine that's working, the floor stops the bleeding, and the war-room defends the lead. Land the FY protection point \u2014 this is what the board cares about most.",
+      "rationale": "Second key_takeaway lands the integrated outcome before the explicit ask \u2014 narrative inflection point.",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    },
+    {
+      "layout": "closing",
+      "title": "Decisions requested: approve $2M reallocation, $50K ARR floor, and war-room standup",
+      "strap": "",
+      "body": [
+        "Approve $2M reallocation from SMB marketing to enterprise demand-gen, effective Q4",
+        "Approve $50K ARR floor for new SMB deals, effective October 1",
+        "Endorse competitive war-room standup; first board readout in 60 days",
+        "CFO to recut FY forecast by November 15 reflecting approved changes",
+        "Return to board in Q1 with win-rate, churn, and ROI tracking against targets"
+      ],
+      "body_left": [],
+      "body_right": [],
+      "speaker_notes": "Explicit asks. Pause after each for discussion. If the board defers the floor, recommend proceeding with the reallocation alone \u2014 but flag that the SMB churn drag will continue to mask the enterprise lift. Have the resolution language ready for the corporate secretary.",
+      "rationale": "",
+      "asset_ref": null,
+      "extras": [],
+      "block_bbox": {},
+      "block_style": {}
+    }
+  ]
+}

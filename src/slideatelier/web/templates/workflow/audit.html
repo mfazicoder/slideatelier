@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Audit · slideAtelier{% endblock %}
+{% block content %}
+
+<div class="max-w-5xl mx-auto">
+  <header class="mb-6 flex items-baseline justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-stone-900">Deck audit</h1>
+      <p class="text-sm text-stone-500">
+        Linter results for <code class="text-stone-700">{{ deck.title }}</code>.
+        Each issue can be fixed in place; bulk fix-all only touches auto-fixable codes.
+      </p>
+    </div>
+    <div class="text-xs text-stone-400 font-mono">{{ job_id }}</div>
+  </header>
+
+  <!-- Summary bar -->
+  <div class="bg-white border border-stone-200 rounded-lg px-4 py-3 mb-4 flex flex-wrap items-center gap-4">
+    <div class="flex items-center gap-3 text-sm">
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
+        <span class="font-semibold">{{ counts.error }}</span> errors
+      </span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+        <span class="font-semibold">{{ counts.warning }}</span> warnings
+      </span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-stone-50 text-stone-700 border border-stone-200">
+        <span class="font-semibold">{{ counts.info }}</span> info
+      </span>
+    </div>
+
+    <div class="ml-auto flex items-center gap-2">
+      <a href="/workflow/wireframe/{{ job_id }}"
+         class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100 no-underline">
+        ← Back to wireframe
+      </a>
+      <form method="post" action="/workflow/wireframe/{{ job_id }}/audit/fix-all">
+        <button type="submit"
+                {% if auto_fixable_count == 0 %}disabled{% endif %}
+                class="bg-amber-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed">
+          Fix all auto-fixable ({{ auto_fixable_count }})
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if issues|length == 0 %}
+    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-6 text-center text-emerald-800">
+      <div class="text-2xl mb-1">&#10003;</div>
+      <div class="font-medium">Clean deck — no audit issues found.</div>
+      <div class="text-sm text-emerald-700">Ready to publish.</div>
+    </div>
+  {% else %}
+    <div class="space-y-4">
+      {% for grp in slide_groups %}
+        {% if grp.issues %}
+          <section class="bg-white border border-stone-200 rounded-lg overflow-hidden">
+            <header class="px-4 py-2 border-b border-stone-200 bg-stone-50 flex items-baseline gap-3">
+              <span class="text-xs font-mono text-stone-500">slide #{{ grp.idx + 1 }}</span>
+              <span class="text-stone-900 font-medium">{{ grp.title or "(untitled)" }}</span>
+              <span class="text-xs text-stone-400">{{ grp.layout }}</span>
+              <span class="ml-auto text-xs text-stone-500">{{ grp.issues|length }} issue{{ '' if grp.issues|length == 1 else 's' }}</span>
+            </header>
+            <ul class="divide-y divide-stone-100">
+              {% for issue in grp.issues %}
+                {% set sev = issue.severity %}
+                {% if sev == "error" %}
+                  {% set sev_class = "bg-red-100 text-red-800 border-red-200" %}
+                {% elif sev == "warning" %}
+                  {% set sev_class = "bg-amber-100 text-amber-800 border-amber-200" %}
+                {% else %}
+                  {% set sev_class = "bg-stone-100 text-stone-700 border-stone-200" %}
+                {% endif %}
+                <li class="px-4 py-3 flex items-start gap-3 text-sm">
+                  <span class="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded border {{ sev_class }} mt-0.5">
+                    {{ sev }}
+                  </span>
+                  <div class="flex-1">
+                    <div class="font-mono text-xs text-stone-500">{{ issue.code }}</div>
+                    <div class="text-stone-800">{{ issue.message }}</div>
+                  </div>
+                  {% if issue.fix %}
+                    <form method="post"
+                          action="/workflow/wireframe/{{ job_id }}/audit/fix/{{ issue.audit_idx }}">
+                      <button type="submit"
+                              class="text-xs bg-stone-900 text-white px-3 py-1.5 rounded hover:bg-stone-800">
+                        Fix
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="text-xs text-stone-400 italic">edit manually</span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Legend -->
+  <details class="mt-6 text-xs text-stone-500">
+    <summary class="cursor-pointer hover:text-stone-700">Lint code legend</summary>
+    <ul class="mt-2 space-y-1 pl-4">
+      {% for code, meta in audit_codes.items() %}
+        <li><code class="text-stone-700">{{ code }}</code>
+          <span class="text-stone-400">({{ meta[0] }})</span> — {{ meta[1] }}</li>
+      {% endfor %}
+    </ul>
+  </details>
+</div>
+
+{% endblock %}

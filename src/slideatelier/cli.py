@@ -29,9 +29,11 @@ app = typer.Typer(help="slideAtelier — consulting-quality presentation generat
 template_app = typer.Typer(help="Manage presentation templates")
 cache_app = typer.Typer(help="Inspect and manage the response cache")
 library_app = typer.Typer(help="Manage the visual asset library")
+invite_app = typer.Typer(help="Manage invite codes for the private-beta signup gate")
 app.add_typer(template_app, name="template")
 app.add_typer(cache_app, name="cache")
 app.add_typer(library_app, name="library")
+app.add_typer(invite_app, name="invite")
 console = Console()
 
 
@@ -666,6 +668,158 @@ def research(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(dossier.model_dump_json(indent=2))
     console.print(f"\n[green]✓[/green] Saved to [cyan]{out}[/cyan]")
+
+
+@app.command()
+def audit(
+    job_id: str = typer.Argument(..., help="Workflow job ID (the deck.json under output/workflow/<job_id>/)"),
+    json_output: bool = typer.Option(False, "--json", help="Print JSON instead of pretty table"),
+    template: str | None = typer.Option(
+        None, "--template", "-t", help="Template name or path. Defaults to job's recorded template."
+    ),
+):
+    """Sprint V — Run the deck audit (linter) on a workflow job.
+
+    Exits 0 if no error-severity issues; exits 1 otherwise — suitable for CI.
+    Reads <output_dir>/workflow/<job_id>/deck.json.
+    """
+    import json as _json
+
+    from .audit import audit_deck
+    from .models import SlideDeck
+
+    config = Config.from_env()
+    job_dir = config.output_dir / "workflow" / job_id
+    deck_path = job_dir / "deck.json"
+    if not deck_path.exists():
+        console.print(f"[red]deck.json not found:[/red] {deck_path}")
+        raise typer.Exit(2)
+
+    try:
+        deck = SlideDeck.model_validate_json(deck_path.read_text())
+    except Exception as e:  # noqa: BLE001
+        console.print(f"[red]deck.json invalid:[/red] {e}")
+        raise typer.Exit(2) from e
+
+    # Resolve template — prefer CLI flag, then job's stored template, then default.
+    if template is None:
+        name_path = job_dir / "template_name.txt"
+        if name_path.exists():
+            stored = name_path.read_text().strip()
+            template = stored if stored else None
+    tpl = _resolve_template(template, config)
+
+    issues = audit_deck(deck, tpl)
+    error_count = sum(1 for i in issues if i.severity == "error")
+
+    if json_output:
+        payload = {
+            "job_id": job_id,
+            "deck_title": deck.title,
+            "issue_count": len(issues),
+            "error_count": error_count,
+            "issues": [i.model_dump() for i in issues],
+        }
+        # Use typer.echo (NOT rich console) so the output is plain JSON suitable
+        # for piping. CliRunner captures typer.echo via Click's stdout proxy.
+        typer.echo(_json.dumps(payload, indent=2))
+    else:
+        if not issues:
+            console.print(f"[green]✓[/green] {deck.title!r} — no audit issues.")
+        else:
+            table = Table(title=f"Audit: {deck.title}")
+            table.add_column("Slide", justify="right", style="cyan")
+            table.add_column("Sev")
+            table.add_column("Code", style="bold")
+            table.add_column("Message", overflow="fold")
+            for i in issues:
+                sev_style = {
+                    "error": "[red]error[/red]",
+                    "warning": "[yellow]warn[/yellow]",
+                    "info": "[dim]info[/dim]",
+                }.get(i.severity, i.severity)
+                table.add_row(
+                    str(i.slide_idx + 1) if i.slide_idx >= 0 else "-",
+                    sev_style,
+                    i.code,
+                    i.message,
+                )
+            console.print(table)
+            console.print(
+                f"[dim]{len(issues)} issue(s); {error_count} error(s).[/dim]"
+            )
+
+    raise typer.Exit(1 if error_count > 0 else 0)
+
+
+# ---------------------------------------------------------------------------
+# Invite codes — private-beta signup gate
+# ---------------------------------------------------------------------------
+
+@invite_app.command("create")
+def invite_create(
+    max_uses: int = typer.Option(1, "--max-uses", "-n", help="How many signups this code authorises (>=1; 0=unlimited, discouraged)"),
+    expires_days: int | None = typer.Option(None, "--expires-days", "-e", help="Days until the code expires. Omit for no expiry."),
+    code: str | None = typer.Option(None, "--code", help="Vanity code; omit to auto-generate via secrets.token_urlsafe(8)."),
+):
+    """Create a new invite code and print it.
+
+    Stores into ${SLIDEATELIER_OUTPUT_DIR}/atelier.db (the same SQLite file the
+    auth agent uses). Idempotent only when --code is supplied: re-running with
+    the same code raises an error so you don't accidentally bump max_uses on a
+    live invite.
+    """
+    from .auth import invites
+
+    try:
+        inv = invites.create_invite(max_uses=max_uses, expires_days=expires_days, code=code)
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[green]✓[/green] Created invite [bold cyan]{inv.code}[/bold cyan]")
+    console.print(f"  max_uses:    [bold]{inv.max_uses if inv.max_uses else '∞'}[/bold]")
+    console.print(f"  used_count:  [bold]{inv.used_count}[/bold]")
+    console.print(f"  expires_at:  [bold]{inv.expires_at or 'never'}[/bold]")
+    console.print()
+    console.print(f"[dim]Share with the invitee — they enter this on /signup.[/dim]")
+
+
+@invite_app.command("list")
+def invite_list():
+    """List every invite code with its remaining uses + expiry."""
+    from .auth import invites
+
+    rows = invites.list_invites()
+    if not rows:
+        console.print("[dim]No invites yet — create one with `atelier invite create`.[/dim]")
+        return
+    table = Table()
+    table.add_column("Code", style="cyan", no_wrap=True)
+    table.add_column("Used / Max", justify="right")
+    table.add_column("Created")
+    table.add_column("Expires")
+    for r in rows:
+        max_disp = "∞" if r.is_unlimited else str(r.max_uses)
+        used_disp = f"{r.used_count} / {max_disp}"
+        expires = r.expires_at or "never"
+        if r.is_expired():
+            expires = f"[red]{expires} (expired)[/red]"
+        elif r.is_exhausted():
+            used_disp = f"[red]{used_disp}[/red]"
+        table.add_row(r.code, used_disp, r.created_at, expires)
+    console.print(table)
+
+
+@invite_app.command("revoke")
+def invite_revoke(code: str = typer.Argument(..., help="The invite code to disable.")):
+    """Revoke an invite (force max_uses=used_count) so it can't be redeemed again."""
+    from .auth import invites
+
+    if invites.revoke_invite(code):
+        console.print(f"[green]✓[/green] Revoked [bold cyan]{code}[/bold cyan].")
+    else:
+        console.print(f"[yellow]No such invite: {code}[/yellow]")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

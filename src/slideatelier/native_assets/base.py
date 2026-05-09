@@ -13,9 +13,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from pptx.dml.color import RGBColor
+
+if TYPE_CHECKING:  # pragma: no cover — avoid runtime cycle
+    from ..models import BrandKit
 
 
 # ---------------------------------------------------------------------------
@@ -104,16 +107,94 @@ class Theme:
 
 @dataclass
 class ShapeRenderContext:
-    """Bounding rectangle (in EMU) and the resolved theme/palette for a render."""
+    """Bounding rectangle (in EMU) and the resolved theme/palette for a render.
+
+    When `brand_kit` is set, color and font lookups via `palette`,
+    `typography`, and the `effective_*()` helpers return brand-kit overrides
+    in place of the theme's values. Shapes already read these properties, so
+    a single brand-kit swap rebrands the entire deck — no per-shape rewrite.
+    """
     left: int
     top: int
     width: int
     height: int
     theme: Theme
+    brand_kit: "BrandKit | None" = None
 
     @property
     def palette(self) -> Palette:
-        return self.theme.palette
+        """Effective palette — brand-kit overrides applied on top of theme."""
+        if self.brand_kit is None:
+            return self.theme.palette
+        base = self.theme.palette
+        bk = self.brand_kit
+        # color_secondary is the user's secondary brand color; we map it onto
+        # the palette `accent` slot when no explicit color_accent override
+        # exists. This keeps "primary + secondary" the meaningful pairing
+        # surfaced to the user while preserving accent as a 3rd-level color.
+        accent_hex = bk.color_accent or bk.color_secondary
+        return Palette(
+            primary=_hex_to_rgb(bk.color_primary),
+            accent=_hex_to_rgb(accent_hex),
+            text=_hex_to_rgb(bk.color_text),
+            muted=base.muted,
+            background=_hex_to_rgb(bk.color_bg),
+            success=base.success,
+            warning=base.warning,
+            danger=base.danger,
+        )
+
+    @property
+    def typography(self) -> Typography:
+        """Effective typography — brand-kit fonts override theme fonts when set."""
+        if self.brand_kit is None:
+            return self.theme.typography
+        base = self.theme.typography
+        return Typography(
+            heading=self.brand_kit.type_display or base.heading,
+            body=self.brand_kit.type_body or base.body,
+            title_size_pt=base.title_size_pt,
+            heading_size_pt=base.heading_size_pt,
+            body_size_pt=base.body_size_pt,
+            caption_size_pt=base.caption_size_pt,
+        )
+
+    # -----------------------------------------------------------------
+    # Effective-* helpers — explicit accessors for shapes that prefer to
+    # call a method instead of unpacking the palette. Each returns the
+    # brand-kit override when present, else the theme value.
+    # -----------------------------------------------------------------
+
+    def effective_primary(self) -> RGBColor:
+        return self.palette.primary
+
+    def effective_secondary(self) -> RGBColor:
+        # Secondary maps to the palette `accent` slot (see `palette` above).
+        return self.palette.accent
+
+    def effective_accent(self) -> RGBColor:
+        return self.palette.accent
+
+    def effective_bg(self) -> RGBColor:
+        return self.palette.background
+
+    def effective_text(self) -> RGBColor:
+        return self.palette.text
+
+    def effective_muted(self) -> RGBColor:
+        return self.palette.muted
+
+    def effective_display_font(self) -> str:
+        return self.typography.heading
+
+    def effective_body_font(self) -> str:
+        return self.typography.body
+
+    def effective_mono_font(self) -> str:
+        if self.brand_kit is not None and self.brand_kit.type_mono:
+            return self.brand_kit.type_mono
+        # Theme has no dedicated mono slot; fall back to the body font.
+        return self.typography.body
 
 
 class AssetShape(ABC):
@@ -131,9 +212,18 @@ class AssetShape(ABC):
         shape primitives only — no freeform paths."""
         raise NotImplementedError
 
-    def render_into_full_slide(self, slide, theme: Theme, *, slide_width_emu: int, slide_height_emu: int) -> None:
+    def render_into_full_slide(
+        self,
+        slide,
+        theme: Theme,
+        *,
+        slide_width_emu: int,
+        slide_height_emu: int,
+        brand_kit: "BrandKit | None" = None,
+    ) -> None:
         """Convenience: render the shape filling 80% of the slide, centered.
-        Used by the catalog generator to produce a per-shape preview .pptx."""
+        Used by the catalog generator to produce a per-shape preview .pptx.
+        Optionally accepts a `brand_kit` to apply token overrides."""
         margin_x = int(slide_width_emu * 0.10)
         margin_y = int(slide_height_emu * 0.10)
         ctx = ShapeRenderContext(
@@ -142,6 +232,7 @@ class AssetShape(ABC):
             width=slide_width_emu - 2 * margin_x,
             height=slide_height_emu - 2 * margin_y,
             theme=theme,
+            brand_kit=brand_kit,
         )
         self.render(slide, ctx)
 

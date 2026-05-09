@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Review draft · slideAtelier{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto" style="font-family: 'DM Sans', sans-serif;">
+  <header class="mb-6 flex items-baseline justify-between">
+    <div>
+      <div class="text-xs uppercase tracking-wider text-amber-700 font-medium mb-1">Brief Inbox · review</div>
+      <h1 class="text-2xl font-semibold text-stone-900">Storyboard draft + brief read-out</h1>
+      <p class="text-sm text-stone-500 mt-1">
+        Confirm the model heard your brief correctly, then continue to the wireframe stage —
+        or re-prompt with corrections.
+      </p>
+    </div>
+    <div class="text-xs text-stone-400 font-mono">{{ job_id }}</div>
+  </header>
+
+  {% if not ready %}
+    <div id="status-shell"
+         hx-get="/brief-inbox/{{ job_id }}/review"
+         hx-trigger="load delay:2s"
+         hx-swap="outerHTML"
+         class="p-6 bg-white rounded-lg border border-stone-200">
+      <div class="flex items-center gap-3 text-stone-700">
+        <span class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        <div>
+          <div class="text-sm font-medium">{{ status.message or "Reading the brief…" }}</div>
+          <div class="text-xs text-stone-500 mt-0.5">Status: {{ status.status }}. Auto-refreshing.</div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+    <!-- LEFT: Storyboard draft -->
+    <section class="bg-white rounded-lg border border-stone-200 p-5">
+      <div class="flex items-baseline justify-between mb-4">
+        <h2 class="text-lg font-semibold text-stone-900">Storyboard draft</h2>
+        <span class="text-xs text-stone-400">{{ storyboard.slides|length }} slides</span>
+      </div>
+
+      <div class="mb-4 pb-4 border-b border-stone-100">
+        <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Title</div>
+        <div class="text-sm font-semibold text-stone-900">{{ storyboard.title }}</div>
+        {% if storyboard.subtitle %}
+          <div class="text-xs text-stone-500 mt-0.5">{{ storyboard.subtitle }}</div>
+        {% endif %}
+      </div>
+
+      <div class="mb-4 pb-4 border-b border-stone-100">
+        <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Core message</div>
+        <div class="text-sm text-stone-800 leading-relaxed">{{ storyboard.core_message }}</div>
+      </div>
+
+      <div class="mb-4 pb-4 border-b border-stone-100">
+        <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Narrative arc</div>
+        <div class="text-sm text-stone-700 leading-relaxed">{{ storyboard.narrative_arc }}</div>
+      </div>
+
+      <ol class="space-y-2">
+        {% for slide in storyboard.slides %}
+          <li class="flex items-start gap-3 py-1.5">
+            <span class="font-mono text-stone-400 text-xs w-5 text-right pt-0.5 flex-shrink-0">{{ loop.index }}</span>
+            <div class="flex-1 min-w-0">
+              <div class="text-[10px] uppercase tracking-wide text-amber-700">{{ slide.layout }}</div>
+              <div class="text-sm text-stone-800 leading-snug">{{ slide.title }}</div>
+              {% if slide.purpose %}
+                <div class="text-xs text-stone-500 mt-0.5 leading-snug">{{ slide.purpose }}</div>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <!-- RIGHT: BriefAnalysis read-out -->
+    <section class="bg-white rounded-lg border border-stone-200 p-5">
+      <div class="flex items-baseline justify-between mb-4">
+        <h2 class="text-lg font-semibold text-stone-900">What I heard</h2>
+        <span class="text-xs text-stone-400">brief read-out</span>
+      </div>
+
+      {% if analysis.audience %}
+        <div class="mb-4 pb-4 border-b border-stone-100">
+          <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Audience</div>
+          <div class="text-sm text-stone-800">{{ analysis.audience }}</div>
+        </div>
+      {% endif %}
+
+      <div class="mb-4 pb-4 border-b border-stone-100">
+        <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">Stated goals</div>
+        {% if analysis.stated_goals %}
+          <ul class="space-y-1">
+            {% for g in analysis.stated_goals %}
+              <li class="text-sm text-stone-800 flex gap-2"><span class="text-amber-600">›</span><span>{{ g }}</span></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-xs text-stone-500 italic">None explicitly stated.</div>
+        {% endif %}
+      </div>
+
+      <div class="mb-4 pb-4 border-b border-stone-100">
+        <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">Key messages</div>
+        {% if analysis.key_messages %}
+          <ul class="space-y-1">
+            {% for m in analysis.key_messages %}
+              <li class="text-sm text-stone-800 flex gap-2"><span class="text-amber-600">›</span><span>{{ m }}</span></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-xs text-stone-500 italic">No key messages extracted.</div>
+        {% endif %}
+      </div>
+
+      <div class="mb-4">
+        <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">Risks unaddressed</div>
+        {% if analysis.risks_unaddressed %}
+          <ul class="space-y-1">
+            {% for r in analysis.risks_unaddressed %}
+              <li class="text-sm text-stone-700 flex gap-2"><span class="text-red-600">⚠</span><span>{{ r }}</span></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-xs text-emerald-700">Brief looks tight — no obvious gaps.</div>
+        {% endif %}
+      </div>
+
+      {% if sources %}
+        <div class="pt-4 border-t border-stone-100">
+          <div class="text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">Sources ({{ sources|length }})</div>
+          <ul class="space-y-1 text-xs">
+            {% for s in sources %}
+              <li class="flex items-center gap-2">
+                <span class="text-stone-400 font-mono w-16 flex-shrink-0">{{ s.kind }}</span>
+                <span class="flex-1 truncate text-stone-700">{{ s.label }}</span>
+                {% if s.note %}
+                  <span class="text-stone-400 italic">{{ s.note }}</span>
+                {% else %}
+                  <span class="text-stone-400">{{ s.char_count }} chars</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <!-- Action bar: continue or re-prompt -->
+  <div class="mt-6 bg-white rounded-lg border border-stone-200 p-5">
+    <div class="flex flex-wrap gap-3 items-center mb-4">
+      <a href="/workflow/storyboard/{{ job_id }}"
+         class="bg-amber-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-amber-700 no-underline">
+        Continue to wireframe →
+      </a>
+      <a href="/brief-inbox" class="text-sm text-stone-500 hover:text-stone-800">
+        Drop another brief
+      </a>
+    </div>
+
+    <details class="mt-2 border-t border-stone-100 pt-3">
+      <summary class="text-sm text-stone-700 cursor-pointer hover:text-stone-900">
+        Try again with these notes →
+      </summary>
+      <form method="post"
+            action="/brief-inbox/{{ job_id }}/reprompt"
+            class="mt-3 space-y-2">
+        <textarea name="notes"
+                  rows="3"
+                  placeholder="What did the model get wrong? e.g., 'Audience is the CFO, not the board' or 'Lead with cost, not strategy'"
+                  class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        <button type="submit"
+                class="bg-stone-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-stone-800">
+          Re-run with notes
+        </button>
+      </form>
+    </details>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

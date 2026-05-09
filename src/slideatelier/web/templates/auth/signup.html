@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Sign up · slideAtelier{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto py-12" style="font-family: 'DM Sans', system-ui, sans-serif;">
+  <div class="bg-white border border-stone-200 rounded-lg p-8 shadow-sm">
+    <h1 class="text-2xl font-semibold text-stone-900 mb-1">Create your account</h1>
+    <p class="text-sm text-stone-500 mb-6">Email and a password — that&rsquo;s it.</p>
+
+    {% if error %}
+    <div class="p-3 mb-4 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/signup" class="space-y-4">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div>
+        <label class="block text-xs font-medium text-stone-700 mb-1" for="email">Email</label>
+        <input
+          type="email" id="email" name="email"
+          value="{{ email or '' }}" required autocomplete="email"
+          class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600"
+        >
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-stone-700 mb-1" for="password">Password</label>
+        <input
+          type="password" id="password" name="password"
+          required minlength="8" autocomplete="new-password"
+          class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600"
+        >
+        <p class="text-[11px] text-stone-500 mt-1">At least 8 characters. We hash it with bcrypt &mdash; we never see your plaintext password.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-stone-700 mb-1" for="invite">Invite code</label>
+        <input
+          type="text" id="invite" name="invite"
+          required autocomplete="off" autocapitalize="off"
+          class="w-full px-3 py-2 border border-stone-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600"
+          placeholder="abc123XYZ"
+        >
+        <p class="text-[11px] text-stone-500 mt-1">slideAtelier is in private beta. Email <a href="mailto:founder@slideatelier.app" class="text-amber-700 hover:underline">founder@slideatelier.app</a> to request an invite.</p>
+      </div>
+      <button type="submit"
+        class="w-full bg-stone-900 text-white text-sm font-medium px-4 py-2 rounded hover:bg-stone-800 transition">
+        Create account
+      </button>
+    </form>
+
+    <p class="text-xs text-stone-500 mt-6">
+      Already have an account?
+      <a href="/login{% if next != '/workflow' %}?next={{ next | urlencode }}{% endif %}" class="text-amber-700 hover:underline">Log in</a>.
+    </p>
+  </div>
+</div>
+{% endblock %}

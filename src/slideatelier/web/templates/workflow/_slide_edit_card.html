@@ -148,6 +148,20 @@
         {% endfor %}
       </select>
       <button type="button"
+              hx-post="/workflow/wireframe/{{ job_id }}/copilot/rethink/{{ slide_idx }}"
+              hx-target="#rethink-panel-{{ slide_idx }}"
+              hx-swap="outerHTML"
+              class="text-xs px-2 py-1 text-amber-700 hover:text-amber-900 hover:bg-amber-50 border border-amber-200 rounded"
+              title="Ask Atelier to suggest a better visual shape for this slide">
+        💡 Rethink
+      </button>
+      <button type="button"
+              onclick="(function(idx){if(window.atelierSetSelection){window.atelierSetSelection('slide', idx);} if(window.toggleCopilot){var r=document.getElementById('copilot-rail'); if(r && r.classList.contains('hidden')) window.toggleCopilot();}})({{ slide_idx }})"
+              class="text-xs px-2 py-1 text-stone-600 hover:text-stone-900 hover:bg-stone-50 border border-stone-200 rounded"
+              title="Open Atelier Copilot scoped to this slide">
+        🤖 Ask
+      </button>
+      <button type="button"
               hx-post="/workflow/wireframe/{{ job_id }}/delete-slide/{{ slide_idx }}"
               hx-target="closest [data-slide-card]"
               hx-swap="outerHTML"
@@ -157,6 +171,10 @@
       </button>
     </form>
   </div>
+
+  {# Sprint L: Rethink-panel target. Empty by default; hx-swap="outerHTML"
+     replaces it with the suggestions list when the 💡 Rethink button is clicked. #}
+  <div id="rethink-panel-{{ slide_idx }}"></div>
 
   {# WYSIWYG slide preview — 16:9 aspect, template colors/fonts, inline-edit text #}
   <div class="p-3 bg-stone-100">

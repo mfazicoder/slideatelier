@@ -1,5 +1,59 @@
+# slideAtelier — production-style stack:
+#   - `slideatelier` runs the FastAPI app behind a non-public network.
+#   - `caddy` terminates TLS (Let's Encrypt) on :80/:443 and reverse-proxies
+#     to the app. Only Caddy is exposed to the internet.
+#
+# For local dev, the legacy hot-reload setup is kept in the `dev` profile so
+# `docker compose --profile dev up slideatelier-dev` still works as before.
+#
+# Required env vars at the project root .env (see .env.example):
+#   - DOMAIN              — e.g. slideatelier.example.com (used by Caddy + ACME)
+#   - ACME_EMAIL          — contact email for Let's Encrypt notices
+#   - ANTHROPIC_API_KEY   — Claude API key (the user's billing)
+#   - SESSION_SECRET      — long random string
+#   - SLIDEATELIER_ENV=production
+
 services:
   slideatelier:
+    build: .
+    image: slideatelier:latest
+    restart: unless-stopped
+    expose:
+      - "8000"  # internal only — Caddy reaches us via the shared network
+    volumes:
+      - ./templates:/app/templates
+      - ./output:/app/output
+      - ./library:/app/library:ro   # read-only in prod
+    env_file: .env
+    environment:
+      - SLIDEATELIER_ENV=production
+      - SLIDEATELIER_OUTPUT_DIR=/app/output
+      - SLIDEATELIER_TEMPLATES_DIR=/app/templates
+    networks:
+      - slideatelier_net
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+    depends_on:
+      - slideatelier
+    networks:
+      - slideatelier_net
+
+  # ---- dev profile: hot-reload, port-forwarded direct to host ----
+  slideatelier-dev:
+    profiles: ["dev"]
     build: .
     image: slideatelier:dev
     ports:
@@ -7,13 +61,20 @@ services:
     volumes:
       - ./templates:/app/templates
       - ./output:/app/output
-      - ./library:/app/library   # 539 indexed library assets + thumbnails
-      - ./src:/app/src           # live-mount source for hot reload in dev
-      # The asset library .pptx source files live outside the project on the Mac.
-      # Mount them read-only so asset_copier can copy slide shapes from them.
+      - ./library:/app/library
+      - ./src:/app/src
       - /Users/farha/Documents/Powerpoint slides:/Users/farha/Documents/Powerpoint slides:ro
     env_file: .env
     environment:
+      - SLIDEATELIER_ENV=development
       - SLIDEATELIER_OUTPUT_DIR=/app/output
       - SLIDEATELIER_TEMPLATES_DIR=/app/templates
     command: uvicorn slideatelier.web.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  slideatelier_net:
+    driver: bridge

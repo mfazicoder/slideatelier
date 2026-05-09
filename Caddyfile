@@ -1,0 +1,69 @@
+# slideAtelier — Caddy reverse proxy with automatic Let's Encrypt TLS.
+#
+# Caddy reads $DOMAIN and $ACME_EMAIL from the docker-compose environment.
+# If DOMAIN=localhost (the default fallback), Caddy serves plain HTTP only —
+# useful for smoke-testing the stack without a real cert.
+#
+# In production, point DOMAIN at the host's public DNS A/AAAA record and
+# Caddy will fetch + auto-renew a TLS cert on first request.
+
+{
+	email {$ACME_EMAIL}
+	# Uncomment the next line to test against the Let's Encrypt staging CA
+	# while debugging DNS / firewall problems (avoids the prod rate limit):
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Reasonable production defaults — see https://caddyserver.com/docs/caddyfile
+	header {
+		# HSTS — only enable once you've confirmed HTTPS works end-to-end.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Remove the Server header for a tiny bit of obscurity.
+		-Server
+	}
+
+	# Health endpoint — bypass logging to keep the log tail readable. Useful
+	# when external uptime monitors hammer it every 30s.
+	@health path /api/health /api/ready
+	log_skip @health
+
+	# Body size: deck briefs can be moderately large; allow 10 MB.
+	request_body {
+		max_size 10MB
+	}
+
+	# ----- Supabase Studio (admin UI) — basicauth gated -----
+	# Only present when the supabase-studio + supabase-kong containers are
+	# on the shared network (i.e. when -f docker-compose.vps.yml is used).
+	# If those services aren't running, this block 502s — harmless.
+	handle_path /studio* {
+		basicauth {
+			{$STUDIO_BASICAUTH_USER} {$STUDIO_BASICAUTH_HASH}
+		}
+		reverse_proxy supabase-studio:3000
+	}
+
+	# ----- Supabase API (Kong gateway) -----
+	# Future migration target; not yet consumed by the app.
+	handle_path /supabase/* {
+		reverse_proxy supabase-kong:8000
+	}
+
+	# ----- slideAtelier app (default) -----
+	reverse_proxy slideatelier:8000 {
+		# Pass through forwarded headers so uvicorn can build https URLs.
+		header_up X-Real-IP {remote_host}
+		# Caddy already sets X-Forwarded-{For,Proto,Host} — be explicit.
+		header_up X-Forwarded-Proto {scheme}
+
+		# Health probe so Caddy can pull the upstream out if the app dies.
+		health_uri /api/health
+		health_interval 30s
+		health_timeout 5s
+	}
+}

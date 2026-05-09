@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Analytics · slideAtelier{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+
+  <header class="flex items-baseline justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold text-stone-900">Slide analytics</h1>
+      <p class="text-sm text-stone-500 mt-1">
+        Anonymous viewer telemetry for this Web Deck. No PII is stored —
+        sessions are random UUIDs in the visitor's localStorage.
+      </p>
+    </div>
+    <a href="/workflow/hi-fi/{{ job_id }}" class="text-sm text-stone-500 hover:text-stone-900">← Hi-fi</a>
+  </header>
+
+  {# ---- Privacy controls ---------------------------------------------- #}
+  <section class="bg-white border border-stone-200 rounded-lg p-5 mb-6"
+           id="analytics-toggle-section">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-sm font-medium text-stone-900">Anonymous viewing analytics</div>
+        <div class="text-xs text-stone-500 mt-1">
+          When off, the public deck does not load the beacon and existing
+          viewers stop reporting. Existing data is retained.
+        </div>
+      </div>
+      <form method="post"
+            action="/workflow/{{ job_id }}/analytics/toggle"
+            id="analytics-toggle-form">
+        {% if settings.analytics_enabled %}
+        <input type="hidden" name="analytics_enabled" value="false">
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">
+          <span class="inline-block w-2 h-2 rounded-full bg-white"></span>
+          Enabled — turn off
+        </button>
+        {% else %}
+        <input type="hidden" name="analytics_enabled" value="true">
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-stone-200 text-stone-700 text-sm font-medium hover:bg-stone-300">
+          <span class="inline-block w-2 h-2 rounded-full bg-stone-400"></span>
+          Disabled — turn on
+        </button>
+        {% endif %}
+      </form>
+    </div>
+    {% if public_url %}
+    <div class="mt-3 text-xs text-stone-500">
+      Public URL: <a href="{{ public_url }}" target="_blank" rel="noopener" class="text-sky-700 underline">{{ public_url }}</a>
+    </div>
+    {% else %}
+    <div class="mt-3 text-xs text-stone-500">Deck not yet published — analytics will start after publish.</div>
+    {% endif %}
+  </section>
+
+  {# ---- Headline number ------------------------------------------------ #}
+  <section class="bg-white border border-stone-200 rounded-lg p-5 mb-6">
+    <div class="text-xs uppercase tracking-wide text-stone-500">Total unique viewers</div>
+    <div class="text-3xl font-semibold text-stone-900 mt-1" id="total-sessions">{{ total_sessions }}</div>
+  </section>
+
+  {# ---- Funnel --------------------------------------------------------- #}
+  <section class="bg-white border border-stone-200 rounded-lg p-5 mb-6" id="funnel-section">
+    <h2 class="text-sm font-semibold text-stone-900 mb-3">Per-slide retention</h2>
+    {% if funnel %}
+      <div class="space-y-2">
+        {% for row in funnel %}
+        <div class="flex items-center gap-3 text-xs">
+          <div class="w-16 text-stone-500 tabular-nums">slide {{ row.slide_idx + 1 }}</div>
+          <div class="flex-1 h-5 bg-stone-100 rounded overflow-hidden">
+            <div class="h-full bg-sky-500"
+                 style="width: {{ (row.retention * 100) | round(1) }}%"></div>
+          </div>
+          <div class="w-32 text-right text-stone-700 tabular-nums">
+            {{ row.unique_sessions }} sessions ({{ (row.retention * 100) | round(0) | int }}%)
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-sm text-stone-500">No views yet.</p>
+    {% endif %}
+  </section>
+
+  {# ---- Dwell time ----------------------------------------------------- #}
+  <section class="bg-white border border-stone-200 rounded-lg p-5 mb-6">
+    <h2 class="text-sm font-semibold text-stone-900 mb-3">Dwell time per slide</h2>
+    {% if dwell %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-stone-500 border-b border-stone-200">
+            <th class="py-2 pr-2">Slide</th>
+            <th class="py-2 pr-2 tabular-nums">Samples</th>
+            <th class="py-2 pr-2 tabular-nums">Median (s)</th>
+            <th class="py-2 pr-2 tabular-nums">p90 (s)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dwell %}
+          <tr class="border-b border-stone-100">
+            <td class="py-1 pr-2">slide {{ row.slide_idx + 1 }}</td>
+            <td class="py-1 pr-2 tabular-nums">{{ row.samples }}</td>
+            <td class="py-1 pr-2 tabular-nums">{{ (row.median_ms / 1000.0) | round(1) }}</td>
+            <td class="py-1 pr-2 tabular-nums">{{ (row.p90_ms / 1000.0) | round(1) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-sm text-stone-500">No dwell data yet — viewers need to scroll past at least one slide.</p>
+    {% endif %}
+  </section>
+
+  {# ---- CTA CTR -------------------------------------------------------- #}
+  <section class="bg-white border border-stone-200 rounded-lg p-5 mb-6">
+    <h2 class="text-sm font-semibold text-stone-900 mb-3">CTA click-through rate</h2>
+    {% if ctas %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-stone-500 border-b border-stone-200">
+            <th class="py-2 pr-2">Slide</th>
+            <th class="py-2 pr-2 tabular-nums">Clicks</th>
+            <th class="py-2 pr-2 tabular-nums">Viewers</th>
+            <th class="py-2 pr-2 tabular-nums">CTR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in ctas %}
+          <tr class="border-b border-stone-100">
+            <td class="py-1 pr-2">slide {{ row.slide_idx + 1 }}</td>
+            <td class="py-1 pr-2 tabular-nums">{{ row.clicks }}</td>
+            <td class="py-1 pr-2 tabular-nums">{{ row.viewers }}</td>
+            <td class="py-1 pr-2 tabular-nums">{{ (row.ctr * 100) | round(1) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-sm text-stone-500">No CTA clicks recorded yet.</p>
+    {% endif %}
+  </section>
+
+  {# ---- Top referrers ------------------------------------------------- #}
+  <section class="bg-white border border-stone-200 rounded-lg p-5 mb-6">
+    <h2 class="text-sm font-semibold text-stone-900 mb-3">Top sources</h2>
+    {% if sources %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-stone-500 border-b border-stone-200">
+            <th class="py-2 pr-2">Origin</th>
+            <th class="py-2 pr-2 tabular-nums">Hits</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in sources %}
+          <tr class="border-b border-stone-100">
+            <td class="py-1 pr-2 break-all">{{ row.referrer }}</td>
+            <td class="py-1 pr-2 tabular-nums">{{ row.count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-sm text-stone-500">Direct visits only — no referrers captured.</p>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

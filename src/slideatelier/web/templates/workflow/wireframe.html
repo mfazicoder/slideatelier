@@ -53,6 +53,14 @@
                 hx-swap="beforeend"
                 class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100 ml-1"
                 title="View full cross-stage history">⏱ History</button>
+        <button type="button"
+                onclick="(function(){var p=document.getElementById('version-cards-panel'); if(!p) return; p.classList.toggle('hidden'); if(!p.classList.contains('hidden')){if(window.htmx){window.htmx.trigger(p,'version-cards-show')}else{p.dispatchEvent(new CustomEvent('version-cards-show'))}}})()"
+                class="text-sm px-3 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100 ml-1"
+                title="Toggle named version cards rail">🗂 Versions</button>
+        <button type="button"
+                onclick="window.toggleCopilot && window.toggleCopilot()"
+                class="text-sm px-3 py-2 rounded-md border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 ml-1"
+                title="Toggle Atelier Copilot (shortcut: backtick `)">🤖 Atelier</button>
       </div>
 
       <!-- Persistent saved indicator (refreshes every 6s + on deck-saved events) -->
@@ -159,6 +167,7 @@
                         hx-confirm="Delete slide #{{ loop.index }}?"
                         hx-on:htmx:after-request="if(event.detail.successful) window.location.reload()"
                         class="opacity-0 group-hover:opacity-100 text-[10px] text-red-600 hover:text-red-800 hover:bg-red-50 px-1 py-0.5 rounded flex-shrink-0 mt-0.5"
+                        aria-label="Delete slide #{{ loop.index }}"
                         title="Delete slide">
                   ✕
                 </button>
@@ -188,6 +197,47 @@
       <!-- RIGHT MAIN: slide cards (drag-and-drop) -->
       <main>
 
+        <!-- Sprint N: Named Version Cards rail. Hidden by default; toggled by toolbar button.
+             HTMX-loaded the first time the toggle reveals it (custom `version-cards-show` event). -->
+        <section id="version-cards-panel"
+                 class="hidden mb-3"
+                 hx-get="/workflow/wireframe/{{ job_id }}/version-cards"
+                 hx-trigger="version-cards-show"
+                 hx-swap="innerHTML"></section>
+
+        <!-- Sprint L: Atelier Copilot — sticky right-rail chat anchored to the
+             current selection. Stacked below the version-cards rail per design
+             spec (version-cards is on top). Toggle via 🤖 Atelier button or
+             backtick `. JS at the bottom of this template wires
+             selection-tracking + slash-shortcut hints. -->
+        <aside id="copilot-rail"
+               class="hidden mb-3 lg:fixed lg:top-20 lg:right-4 lg:w-[320px] lg:max-h-[calc(100vh-6rem)] lg:overflow-hidden lg:flex lg:flex-col bg-white border border-amber-200 rounded-lg shadow-lg z-30">
+          <header class="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-amber-900">🤖 Atelier Copilot</span>
+              <span id="copilot-selection-badge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-amber-200 text-amber-800">deck</span>
+            </div>
+            <button type="button" class="text-stone-500 hover:text-stone-900 text-sm" onclick="window.toggleCopilot && window.toggleCopilot()">×</button>
+          </header>
+          <div id="copilot-log" class="px-3 py-2 space-y-2 overflow-y-auto flex-1 text-sm text-stone-700">
+            <div class="text-[11px] text-stone-500 italic">
+              Type a request. Use <code>/slide N</code>, <code>/shape &lt;id&gt;</code>, or <code>/theme</code> to scope.
+            </div>
+          </div>
+          <form id="copilot-form"
+                hx-post="/workflow/wireframe/{{ job_id }}/copilot/ask"
+                hx-target="#copilot-log"
+                hx-swap="beforeend"
+                hx-on:htmx:after-request="(function(ev){var f=document.getElementById('copilot-form'); if(f){f.querySelector('textarea[name=prompt]').value='';}})(event)"
+                class="border-t border-stone-200 p-2 flex gap-2">
+            <input type="hidden" name="selection_kind" id="copilot-selection-kind" value="deck">
+            <input type="hidden" name="selection_id" id="copilot-selection-id" value="">
+            <textarea name="prompt" rows="2" placeholder="Ask Atelier… (e.g. /slide 3 sharpen the title)"
+                      class="flex-1 text-sm border border-stone-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"></textarea>
+            <button type="submit" class="bg-amber-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-amber-700 self-end">Send</button>
+          </form>
+        </aside>
+
         <!-- Reorder status indicator -->
         <div id="reorder-status" class="mb-2 h-4"></div>
 
@@ -197,6 +247,13 @@
             {% with slide_idx=loop.index0, saved=False %}
               {% include "workflow/_slide_edit_card.html" %}
             {% endwith %}
+          {% else %}
+            <div class="p-8 bg-white border border-dashed border-stone-300 rounded-lg text-center">
+              <p class="text-sm font-medium text-stone-700">No slides yet.</p>
+              <p class="text-xs text-stone-500 mt-1">
+                Use the “+ add at top” / “+ add at bottom” buttons in the sidebar to create your first slide.
+              </p>
+            </div>
           {% endfor %}
         </div>
       </main>
@@ -309,6 +366,58 @@
         }
       });
     }
+  })();
+</script>
+
+<!-- Sprint L: Atelier Copilot client-side behavior.
+     - toggleCopilot(): show/hide the right-rail panel
+     - backtick `: keyboard toggle (only when not typing in an input)
+     - selection state: clicking a slide-card sets the active selection so
+       subsequent /copilot/ask requests carry the right scope without the user
+       having to type /slide N every time. -->
+<script>
+  (function() {
+    const rail = document.getElementById('copilot-rail');
+    if (!rail) return;
+    window.toggleCopilot = function() {
+      rail.classList.toggle('hidden');
+      if (window.htmx) window.htmx.process(rail);
+      if (!rail.classList.contains('hidden')) {
+        const ta = rail.querySelector('textarea[name="prompt"]');
+        if (ta) ta.focus();
+      }
+    };
+
+    // Backtick keyboard shortcut. Skip when the user is typing somewhere.
+    document.addEventListener('keydown', function(ev) {
+      if (ev.key !== '`') return;
+      const t = ev.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      ev.preventDefault();
+      window.toggleCopilot();
+    });
+
+    // Selection state. Clicking a slide-card switches the copilot's scope.
+    // Shape-level selection is reachable via the slash command /shape <id>
+    // since the WYSIWYG doesn't yet expose shape-click targets.
+    const kindInput = document.getElementById('copilot-selection-kind');
+    const idInput = document.getElementById('copilot-selection-id');
+    const badge = document.getElementById('copilot-selection-badge');
+    function setSelection(kind, id) {
+      if (!kindInput || !idInput) return;
+      kindInput.value = kind;
+      idInput.value = id == null ? '' : String(id);
+      if (badge) {
+        badge.textContent = (kind === 'slide' && id != null) ? ('slide #' + (parseInt(id, 10) + 1))
+                          : kind;
+      }
+    }
+    window.atelierSetSelection = setSelection;
+
+    document.addEventListener('click', function(ev) {
+      const card = ev.target && ev.target.closest && ev.target.closest('[data-slide-card]');
+      if (card) setSelection('slide', card.dataset.slideCard);
+    });
   })();
 </script>
 

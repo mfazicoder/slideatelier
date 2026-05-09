@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Snapshot {{ timestamp }}</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; padding: 12px; color: #1c1917; }
+    h1 { font-size: 1rem; margin: 0 0 4px; }
+    h2 { font-size: 0.85rem; margin: 0; color: #57534e; font-weight: 500; }
+    .meta { font-size: 0.7rem; color: #78716c; margin-bottom: 12px; }
+    .slide { background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+    .slide-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+    .slide-strap { color: #57534e; font-size: 0.8rem; margin-bottom: 6px; }
+    .layout-tag { display: inline-block; font-size: 0.65rem; text-transform: uppercase;
+                  background: #e7e5e4; padding: 1px 6px; border-radius: 3px; color: #44403c;
+                  margin-bottom: 4px; }
+    ul { margin: 4px 0 0 18px; padding: 0; font-size: 0.85rem; }
+    li { margin-bottom: 2px; }
+    .empty { color: #a8a29e; font-size: 0.75rem; font-style: italic; }
+    .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .col-label { font-size: 0.65rem; text-transform: uppercase; color: #78716c; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  <h1 data-snapshot-title>{{ content.title or "(untitled deck)" }}</h1>
+  {% if content.subtitle %}<h2>{{ content.subtitle }}</h2>{% endif %}
+  <div class="meta" data-snapshot-meta>
+    {{ kind }} · {{ timestamp }} ·
+    {{ (content.slides or [])|length }} slide{{ "s" if (content.slides or [])|length != 1 else "" }}
+  </div>
+
+  {% if content.core_message %}
+    <div class="slide">
+      <div class="layout-tag">core message</div>
+      <div>{{ content.core_message }}</div>
+    </div>
+  {% endif %}
+  {% if content.narrative_arc %}
+    <div class="slide">
+      <div class="layout-tag">narrative arc</div>
+      <div>{{ content.narrative_arc }}</div>
+    </div>
+  {% endif %}
+
+  {% for slide in (content.slides or []) %}
+    <div class="slide" data-slide-index="{{ loop.index0 }}">
+      <span class="layout-tag">{{ slide.layout or "content" }}</span>
+      <div class="slide-title">{{ slide.title or "(untitled)" }}</div>
+      {% if slide.strap %}<div class="slide-strap">{{ slide.strap }}</div>{% endif %}
+      {% if slide.layout == "two_column" %}
+        <div class="columns">
+          <div>
+            <div class="col-label">left</div>
+            {% if slide.body_left %}
+              <ul>{% for b in slide.body_left %}<li>{{ b }}</li>{% endfor %}</ul>
+            {% else %}<span class="empty">(empty)</span>{% endif %}
+          </div>
+          <div>
+            <div class="col-label">right</div>
+            {% if slide.body_right %}
+              <ul>{% for b in slide.body_right %}<li>{{ b }}</li>{% endfor %}</ul>
+            {% else %}<span class="empty">(empty)</span>{% endif %}
+          </div>
+        </div>
+      {% elif slide.body %}
+        <ul>{% for b in slide.body %}<li>{{ b }}</li>{% endfor %}</ul>
+      {% else %}
+        <span class="empty">(no body)</span>
+      {% endif %}
+    </div>
+  {% endfor %}
+</body>
+</html>

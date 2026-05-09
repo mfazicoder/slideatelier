@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Compare versions · slideAtelier{% endblock %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto p-4">
+  <header class="mb-3 flex items-baseline justify-between">
+    <div>
+      <h1 class="text-xl font-semibold text-stone-900">Compare versions</h1>
+      <p class="text-sm text-stone-500">
+        {{ kind }} · workflow <code class="text-stone-700">{{ job_id }}</code>
+      </p>
+    </div>
+    <a href="/workflow/wireframe/{{ job_id }}" class="text-sm text-stone-500 hover:text-stone-800">
+      ← Back to wireframe
+    </a>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section class="bg-white rounded-lg border border-stone-200 overflow-hidden">
+      <header class="bg-stone-50 border-b border-stone-200 px-3 py-2">
+        <div class="text-xs uppercase tracking-wide text-stone-500">A</div>
+        <div class="text-sm text-stone-900 font-medium" data-pane-a-label>{{ a_label }}</div>
+        <div class="text-[11px] text-stone-500 font-mono">{{ a_ts }}</div>
+      </header>
+      <iframe src="/workflow/wireframe/{{ job_id }}/version-cards/snapshot/{{ a_ts }}?kind={{ kind }}"
+              class="w-full"
+              style="height: 70vh; border: 0;"
+              data-compare-pane="a"
+              title="Snapshot A"></iframe>
+    </section>
+    <section class="bg-white rounded-lg border border-stone-200 overflow-hidden">
+      <header class="bg-stone-50 border-b border-stone-200 px-3 py-2">
+        <div class="text-xs uppercase tracking-wide text-stone-500">B</div>
+        <div class="text-sm text-stone-900 font-medium" data-pane-b-label>{{ b_label }}</div>
+        <div class="text-[11px] text-stone-500 font-mono">{{ b_ts }}</div>
+      </header>
+      <iframe src="/workflow/wireframe/{{ job_id }}/version-cards/snapshot/{{ b_ts }}?kind={{ kind }}"
+              class="w-full"
+              style="height: 70vh; border: 0;"
+              data-compare-pane="b"
+              title="Snapshot B"></iframe>
+    </section>
+  </div>
+
+  <p class="mt-3 text-xs text-stone-500">
+    Diff highlighting v1 is purely visual side-by-side. Text-level diff coming next sprint.
+  </p>
+</div>
+
+{% endblock %}

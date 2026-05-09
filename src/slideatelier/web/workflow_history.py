@@ -61,7 +61,70 @@ def _snapshot_path(job_dir: Path, kind: ArtifactKind, ts: str) -> Path:
     return _history_dir(job_dir) / f"{kind}-{ts}.json"
 
 
-def snapshot(job_dir: Path, kind: ArtifactKind) -> str | None:
+def _meta_path(job_dir: Path, kind: ArtifactKind, ts: str) -> Path:
+    """Sidecar meta file path: holds {label, prompt, ai_summary, parent_timestamp}."""
+    return _history_dir(job_dir) / f"{kind}-{ts}.meta.json"
+
+
+def _default_label(kind: ArtifactKind, ts: str) -> str:
+    """Best-effort `Manual edit · HH:MM` from the timestamp string."""
+    try:
+        dt = datetime.strptime(ts[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+        return f"Manual {kind} edit · {dt.strftime('%H:%M')}"
+    except Exception:  # noqa: BLE001
+        return f"Manual {kind} edit"
+
+
+def _read_meta(job_dir: Path, kind: ArtifactKind, ts: str) -> dict:
+    """Read the sidecar meta for a snapshot. Returns default-shaped dict on missing/corrupt."""
+    p = _meta_path(job_dir, kind, ts)
+    default = {
+        "label": _default_label(kind, ts),
+        "prompt": None,
+        "ai_summary": None,
+        "parent_timestamp": None,
+    }
+    if not p.exists():
+        return default
+    try:
+        loaded = json.loads(p.read_text())
+        if not isinstance(loaded, dict):
+            return default
+        # Merge so missing keys don't break callers
+        for k, v in default.items():
+            loaded.setdefault(k, v)
+        return loaded
+    except Exception:  # noqa: BLE001
+        return default
+
+
+def _write_meta(
+    job_dir: Path,
+    kind: ArtifactKind,
+    ts: str,
+    *,
+    label: str,
+    prompt: str | None = None,
+    ai_summary: str | None = None,
+    parent_timestamp: str | None = None,
+) -> None:
+    payload = {
+        "label": label,
+        "prompt": prompt,
+        "ai_summary": ai_summary,
+        "parent_timestamp": parent_timestamp,
+    }
+    _meta_path(job_dir, kind, ts).write_text(json.dumps(payload, indent=2))
+
+
+def snapshot(
+    job_dir: Path,
+    kind: ArtifactKind,
+    *,
+    label: str | None = None,
+    prompt: str | None = None,
+    parent_timestamp: str | None = None,
+) -> str | None:
     """Snapshot the current artifact (deck or storyboard) into history.
 
     Strategy: append the CURRENT version (before mutation) to history. So the
@@ -71,6 +134,15 @@ def snapshot(job_dir: Path, kind: ArtifactKind) -> str | None:
     If the user has undone some edits (position < tail), the forward branch is
     truncated — undone changes can't be redone after a fresh edit.
 
+    Optional kwargs (all None-default; existing call sites stay unchanged):
+        label:            human-readable name for the version card. Defaults to
+                          `"Manual <kind> edit · HH:MM"`.
+        prompt:           the AI-edit prompt that produced this snapshot, if any.
+                          The first 60 chars become `ai_summary` automatically —
+                          NO extra Claude calls.
+        parent_timestamp: when restoring an old card, the source timestamp this
+                          snapshot was forked from. Used to render the tree.
+
     Returns the snapshot's timestamp, or None if there's nothing to snapshot.
     """
     src = _artifact_path(job_dir, kind)
@@ -79,6 +151,22 @@ def snapshot(job_dir: Path, kind: ArtifactKind) -> str | None:
     ts = _now_ts()
     snap = _snapshot_path(job_dir, kind, ts)
     snap.write_text(src.read_text())
+
+    # Sidecar meta — written eagerly so list_snapshots() always returns label/etc.
+    final_label = label if label else _default_label(kind, ts)
+    ai_summary: str | None = None
+    if prompt:
+        clean = prompt.strip()
+        ai_summary = clean[:60] + ("…" if len(clean) > 60 else "") if clean else None
+    _write_meta(
+        job_dir,
+        kind,
+        ts,
+        label=final_label,
+        prompt=prompt,
+        ai_summary=ai_summary,
+        parent_timestamp=parent_timestamp,
+    )
 
     pointer = _read_pointer(job_dir)
     history_key = f"{kind}_history"
@@ -92,6 +180,9 @@ def snapshot(job_dir: Path, kind: ArtifactKind) -> str | None:
             stale_path = _snapshot_path(job_dir, kind, stale)
             if stale_path.exists():
                 stale_path.unlink()
+            stale_meta = _meta_path(job_dir, kind, stale)
+            if stale_meta.exists():
+                stale_meta.unlink()
         history = history[: pos + 1]
 
     history.append(ts)
@@ -104,6 +195,9 @@ def snapshot(job_dir: Path, kind: ArtifactKind) -> str | None:
             old_path = _snapshot_path(job_dir, kind, old_ts)
             if old_path.exists():
                 old_path.unlink()
+            old_meta = _meta_path(job_dir, kind, old_ts)
+            if old_meta.exists():
+                old_meta.unlink()
         history = history[excess:]
         pos = len(history) - 1
 
@@ -146,8 +240,9 @@ def undo(job_dir: Path, kind: ArtifactKind) -> bool:
 def list_snapshots(job_dir: Path) -> list[dict]:
     """Return all snapshots across both kinds, newest-first.
 
-    Each entry: {kind, timestamp, iso, is_current, label}. Used to build the
-    cross-stage time-travel timeline.
+    Each entry: {kind, timestamp, iso, epoch, is_current, label, ai_summary,
+    prompt, parent_timestamp}. Used to build the cross-stage time-travel
+    timeline AND the version-cards rail (which renders the branching tree).
     """
     pointer = _read_pointer(job_dir)
     out: list[dict] = []
@@ -163,25 +258,32 @@ def list_snapshots(job_dir: Path) -> list[dict]:
             except Exception:  # noqa: BLE001
                 iso = ts
                 epoch = 0.0
+            meta = _read_meta(job_dir, kind, ts)  # type: ignore[arg-type]
             out.append({
                 "kind": kind,
                 "timestamp": ts,
                 "iso": iso,
                 "epoch": epoch,
                 "is_current": i == pos,
-                "label": f"{kind} edit",
+                "label": meta.get("label") or _default_label(kind, ts),  # type: ignore[arg-type]
+                "ai_summary": meta.get("ai_summary"),
+                "prompt": meta.get("prompt"),
+                "parent_timestamp": meta.get("parent_timestamp"),
             })
-    out.sort(key=lambda e: e["epoch"], reverse=True)
+    # Sort by timestamp string (which includes sub-second precision in the
+    # microsecond suffix) — sorting by epoch alone collapses sub-second
+    # timestamps generated in the same second into insertion order.
+    out.sort(key=lambda e: e["timestamp"], reverse=True)
     return out
 
 
 def restore_snapshot(job_dir: Path, kind: ArtifactKind, timestamp: str) -> bool:
     """Restore the named artifact to the snapshot at the given timestamp.
 
-    The restore is implemented as a fresh snapshot at the head of history (so
-    the user can undo the restore). We treat it as an edit, not a position
-    rewind, because that mirrors how editors behave: any user mutation creates
-    a new redoable point.
+    Forking-on-restore: the restore is implemented as a fresh snapshot at the
+    head of history with `parent_timestamp=timestamp` and a default label of
+    `"Forked from <ts>"`. The on-disk history stays linear, but the tree view
+    surfaces branches by following `parent_timestamp` links.
     """
     pointer = _read_pointer(job_dir)
     history: list[str] = pointer.get(f"{kind}_history", [])
@@ -191,10 +293,55 @@ def restore_snapshot(job_dir: Path, kind: ArtifactKind, timestamp: str) -> bool:
     if not snap.exists():
         return False
     # Write the snapshot's content to the live artifact, then snapshot the new
-    # state so undo/redo continues to work.
+    # state so undo/redo continues to work AND the fork is recorded with a
+    # parent_timestamp pointer for the tree-view UI.
     _artifact_path(job_dir, kind).write_text(snap.read_text())
-    snapshot(job_dir, kind)
+    fork_label = f"Forked from {timestamp}"
+    snapshot(job_dir, kind, label=fork_label, parent_timestamp=timestamp)
     return True
+
+
+def rename_snapshot(job_dir: Path, kind: ArtifactKind, timestamp: str, new_label: str) -> bool:
+    """Update the human-readable label on an existing snapshot's sidecar meta.
+    Returns True on success, False if the snapshot doesn't exist.
+    """
+    pointer = _read_pointer(job_dir)
+    history: list[str] = pointer.get(f"{kind}_history", [])
+    if timestamp not in history:
+        return False
+    snap = _snapshot_path(job_dir, kind, timestamp)
+    if not snap.exists():
+        return False
+    new_label = (new_label or "").strip()
+    if not new_label:
+        new_label = _default_label(kind, timestamp)
+    meta = _read_meta(job_dir, kind, timestamp)
+    _write_meta(
+        job_dir,
+        kind,
+        timestamp,
+        label=new_label,
+        prompt=meta.get("prompt"),
+        ai_summary=meta.get("ai_summary"),
+        parent_timestamp=meta.get("parent_timestamp"),
+    )
+    return True
+
+
+def read_snapshot_content(job_dir: Path, kind: ArtifactKind, timestamp: str) -> dict | None:
+    """Return the JSON contents of a snapshot, or None if not found.
+    Used by the side-by-side compare endpoint to render two timestamps."""
+    pointer = _read_pointer(job_dir)
+    history: list[str] = pointer.get(f"{kind}_history", [])
+    if timestamp not in history:
+        return None
+    snap = _snapshot_path(job_dir, kind, timestamp)
+    if not snap.exists():
+        return None
+    try:
+        return json.loads(snap.read_text())
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def redo(job_dir: Path, kind: ArtifactKind) -> bool:

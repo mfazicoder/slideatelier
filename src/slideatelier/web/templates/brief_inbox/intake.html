@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Brief Inbox · slideAtelier{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto" style="font-family: 'DM Sans', sans-serif;">
+  <header class="mb-6">
+    <div class="text-xs uppercase tracking-wider text-amber-700 font-medium mb-2">Brief Inbox · fastest path to a draft</div>
+    <h1 class="text-3xl font-semibold text-stone-900">Drop a brief, get a deck.</h1>
+    <p class="text-sm text-stone-600 mt-2 leading-relaxed">
+      Paste a Slack thread, a Notion page, an email chain, or a Google Doc URL — slideAtelier
+      reads it, sketches a storyboard, and tells you what it heard so you can correct course
+      before the deck is written.
+    </p>
+  </header>
+
+  {% if not api_key_set %}
+  <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded">
+    <p class="text-red-800 font-medium">ANTHROPIC_API_KEY is not set on the server.</p>
+    <p class="text-red-700 text-sm mt-1">Add it to <code class="bg-red-100 px-1 rounded">.env</code> and restart.</p>
+  </div>
+  {% endif %}
+
+  <form method="post"
+        action="/api/brief-inbox/ingest"
+        enctype="multipart/form-data"
+        class="space-y-4 bg-white rounded-lg border border-stone-200 shadow-sm p-6">
+
+    <div>
+      <label for="brief-content" class="block text-sm font-medium text-stone-700 mb-1.5">Your brief</label>
+      <textarea id="brief-content"
+                name="content"
+                rows="14"
+                placeholder="Paste a Slack thread, Notion brief, email, or Google Doc URL — I'll turn it into a deck draft."
+                class="w-full border border-stone-300 rounded-md px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                style="font-family: 'DM Sans', sans-serif;"></textarea>
+      <div class="text-xs text-stone-500 mt-1.5 flex items-center gap-2">
+        <span>URLs in the paste will be fetched (5s timeout each). Auth-gated docs are skipped automatically.</span>
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-stone-700 mb-1.5">
+        Attach files <span class="text-stone-400 font-normal">(optional · {{ allowed_suffixes|join(', ') }} · {{ max_attachment_mb }}MB max each)</span>
+      </label>
+      <label for="brief-attachments"
+             class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-md border border-stone-300 bg-stone-50 hover:bg-stone-100 text-sm text-stone-700">
+        <span class="text-base leading-none">📎</span>
+        <span>Add a file…</span>
+      </label>
+      <input id="brief-attachments"
+             type="file"
+             name="attachments"
+             multiple
+             accept="{{ allowed_suffixes|join(',') }}"
+             class="hidden">
+      <div id="attachment-chips" class="mt-2 flex flex-wrap gap-2"></div>
+    </div>
+
+    <div>
+      <label for="brief-requirements" class="block text-sm font-medium text-stone-700 mb-1.5">
+        Notes for the model <span class="text-stone-400 font-normal">(optional)</span>
+      </label>
+      <input id="brief-requirements"
+             type="text"
+             name="requirements"
+             placeholder="e.g., 'Audience: Series A board, 20-min slot'"
+             class="w-full border border-stone-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+    </div>
+
+    <div class="pt-2 flex items-center gap-3">
+      <button type="submit"
+              class="bg-stone-900 text-white px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-stone-800 transition-colors">
+        Generate draft →
+      </button>
+      <a href="/workflow" class="text-sm text-stone-500 hover:text-stone-800">
+        or use the structured workflow
+      </a>
+    </div>
+  </form>
+
+  <section class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+    <div class="p-3 border border-stone-200 rounded bg-white">
+      <div class="font-semibold text-amber-700 mb-1">1 · Drop</div>
+      <p class="text-stone-600 text-xs leading-relaxed">Paste any source. Slack threads, Notion exports, RFP emails, attached PDFs — all are fair game.</p>
+    </div>
+    <div class="p-3 border border-stone-200 rounded bg-white">
+      <div class="font-semibold text-amber-700 mb-1">2 · Read-out</div>
+      <p class="text-stone-600 text-xs leading-relaxed">See what the model heard: stated goals, audience, key messages, and risks the brief leaves implicit.</p>
+    </div>
+    <div class="p-3 border border-stone-200 rounded bg-white">
+      <div class="font-semibold text-amber-700 mb-1">3 · Continue</div>
+      <p class="text-stone-600 text-xs leading-relaxed">Accept the draft into the wireframe stage, or re-prompt with corrections.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+  // Show selected attachments as chips so the user can sanity-check before submitting.
+  (function () {
+    const input = document.getElementById('brief-attachments');
+    const target = document.getElementById('attachment-chips');
+    if (!input || !target) return;
+    input.addEventListener('change', function () {
+      target.innerHTML = '';
+      Array.from(input.files || []).forEach(function (f) {
+        const chip = document.createElement('span');
+        chip.className = 'inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-stone-100 border border-stone-200 text-xs text-stone-700';
+        const sizeKb = (f.size / 1024).toFixed(0);
+        chip.innerHTML = '<span>' + f.name.replace(/[<>&]/g, '') + '</span><span class="text-stone-400">' + sizeKb + ' KB</span>';
+        target.appendChild(chip);
+      });
+    });
+  })();
+</script>
+{% endblock %}

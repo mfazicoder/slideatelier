@@ -22,7 +22,7 @@ from __future__ import annotations
 import html
 from typing import Any
 
-from .models import Slide, SlideDeck, SlideExtra
+from .models import BrandKit, Slide, SlideDeck, SlideExtra
 from .template import Template
 
 
@@ -39,13 +39,34 @@ class WebRenderer:
     can hot-swap them.
     """
 
-    def __init__(self, template: Template, catalog=None):
+    def __init__(
+        self,
+        template: Template,
+        catalog=None,
+        *,
+        brand_kit: BrandKit | None = None,
+    ):
         self.tpl = template
         self.catalog = catalog
+        self.brand_kit = brand_kit
 
     # -- entry point ------------------------------------------------------
 
-    def render_deck_html(self, deck: SlideDeck, *, slug: str) -> str:
+    def render_deck_html(
+        self,
+        deck: SlideDeck,
+        *,
+        slug: str,
+        deck_id: str = "",
+        analytics_enabled: bool = False,
+    ) -> str:
+        """Render deck HTML.
+
+        analytics_enabled (Sprint Q): when True, emits the inline beacon JS +
+        public privacy notice. Defaults to False for backwards compat. The
+        publish path consults `analytics_settings.json` and toggles on unless
+        the deck owner has opted out.
+        """
         sections = "\n".join(
             self._render_slide_section(slide, idx, deck)
             for idx, slide in enumerate(deck.slides)
@@ -53,6 +74,18 @@ class WebRenderer:
         css = _GLOBAL_CSS
         js = _PRESENTER_JS
         title_safe = html.escape(deck.title or "Deck")
+        analytics_block = ""
+        notice_block = ""
+        if analytics_enabled:
+            beacon = _BEACON_JS.replace("__DECK_ID__", html.escape(deck_id or slug)).replace(
+                "__SLUG__", html.escape(slug)
+            )
+            analytics_block = f"  <script>{beacon}</script>\n"
+            notice_block = (
+                "  <footer class=\"analytics-notice\" role=\"contentinfo\">"
+                "this deck has anonymous viewing analytics enabled — toggle off in your dashboard"
+                "</footer>\n"
+            )
         return (
             "<!doctype html>\n"
             "<html lang=\"en\">\n"
@@ -65,7 +98,7 @@ class WebRenderer:
             "  <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap\" rel=\"stylesheet\">\n"
             f"  <style>{css}</style>\n"
             "</head>\n"
-            f"<body data-slug=\"{html.escape(slug)}\">\n"
+            f"<body data-slug=\"{html.escape(slug)}\" data-deck-id=\"{html.escape(deck_id or slug)}\">\n"
             "  <div class=\"deck-toolbar\" aria-hidden=\"true\">\n"
             "    <span class=\"hint\">← / → · space · f · p · esc</span>\n"
             "    <span class=\"counter\" id=\"slide-counter\">1 / "
@@ -79,7 +112,9 @@ class WebRenderer:
             "    <div class=\"presenter-notes\" id=\"presenter-notes\"></div>\n"
             "    <p class=\"presenter-hint\">Press <kbd>p</kbd> to close.</p>\n"
             "  </aside>\n"
+            f"{notice_block}"
             f"  <script>{js}</script>\n"
+            f"{analytics_block}"
             "</body>\n"
             "</html>\n"
         )
@@ -260,19 +295,36 @@ class WebRenderer:
         return ";".join(parts) + (";" if parts else "")
 
     def _theme_css_vars(self) -> str:
+        """Emit per-slide CSS custom properties.
+
+        Sprint K: when a BrandKit is attached, its tokens override the
+        template-derived defaults AT THE SLIDE LEVEL (--brand-primary,
+        --brand-bg, --type-display, etc) so a saved kit re-skins the
+        published Web Deck without re-running generation.
+        """
         c = self.tpl.colors
         f = self.tpl.fonts
+        bk = self.brand_kit
+        primary = bk.color_primary if bk else c.primary
+        # color_secondary maps onto the accent slot (mirrors the
+        # ShapeRenderContext.palette override). color_accent wins when set.
+        accent = (bk.color_accent or bk.color_secondary) if bk else c.accent
+        text = bk.color_text if bk else c.text
+        bg = bk.color_bg if bk else c.background
+        display = (bk.type_display if bk else f.heading) or f.heading
+        body = (bk.type_body if bk else f.body) or f.body
         return (
-            f"--brand-primary:{c.primary};"
-            f"--brand-accent:{c.accent};"
-            f"--brand-text:{c.text};"
+            f"--brand-primary:{primary};"
+            f"--brand-accent:{accent};"
+            f"--brand-secondary:{(bk.color_secondary if bk else accent)};"
+            f"--brand-text:{text};"
             f"--brand-muted:{c.muted};"
-            f"--brand-bg:{c.background};"
+            f"--brand-bg:{bg};"
             f"--brand-success:{c.success};"
             f"--brand-warning:{c.warning};"
             f"--brand-danger:{c.danger};"
-            f"--type-display:'{_css_escape(f.heading)}',Inter,sans-serif;"
-            f"--type-body:'{_css_escape(f.body)}',Inter,sans-serif;"
+            f"--type-display:'{_css_escape(display)}',Inter,sans-serif;"
+            f"--type-body:'{_css_escape(body)}',Inter,sans-serif;"
         )
 
     # -- extras -----------------------------------------------------------
@@ -416,7 +468,14 @@ class WebRenderer:
             )
             # SVG renderers expect width/height in pixels; we pass them as such
             # via `width`/`height`. If a shape really wants EMU it can scale.
-            return ShapeRenderContext(left=0, top=0, width=w_px, height=h_px, theme=theme)
+            return ShapeRenderContext(
+                left=0,
+                top=0,
+                width=w_px,
+                height=h_px,
+                theme=theme,
+                brand_kit=self.brand_kit,
+            )
         except Exception:  # noqa: BLE001
             class _FallbackCtx:
                 width = w_px
@@ -722,5 +781,81 @@ _PRESENTER_JS = """
     });
   },{threshold:[0.5]});
   slides.forEach(function(s){io.observe(s);});
+})();
+"""
+_BEACON_JS = """
+/* slideatelier viewer beacon — privacy contract:
+ *   anon_session = UUID4 in localStorage[atelier_anon]; rotates when cleared.
+ *   We send: deck_id, slug, slide_id, event, ts, anon_session, duration_ms,
+ *   extras (referrer-origin only). NEVER IP/name/email/address/phone/UA.
+ *   Strings in extras are stripped of email/phone/address before send.
+ */
+(function(){
+  var DECK_ID="__DECK_ID__", SLUG="__SLUG__", URL="/api/events";
+  function uuid4(){
+    if(window.crypto&&crypto.randomUUID)return crypto.randomUUID().replace(/-/g,'');
+    var s='', h='0123456789abcdef';
+    for(var i=0;i<32;i++)s+=h[(Math.random()*16)|0];
+    return s;
+  }
+  var KEY='atelier_anon', sess='';
+  try{ sess=localStorage.getItem(KEY)||''; }catch(e){}
+  if(!/^[A-Za-z0-9_-]{8,64}$/.test(sess)){ sess=uuid4(); try{localStorage.setItem(KEY,sess);}catch(e){} }
+  var EMAIL=/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i, PHONE=/(?:\\+?\\d[ .-]?){7,}\\d/;
+  function clean(v){
+    if(typeof v!=='string')return v;
+    if(EMAIL.test(v)||PHONE.test(v))return '';
+    return v.length>200?v.slice(0,200):v;
+  }
+  function originOnly(u){ var m=/^https?:\\/\\/[^/?#]+/i.exec(u||''); return m?m[0]:''; }
+  function send(event, slideIdx, extra){
+    var payload={deck_id:DECK_ID, slug:SLUG, slide_id:slideIdx, event:event,
+                 ts:Date.now()/1000, anon_session:sess};
+    var ex={};
+    if(document.referrer) ex.referrer=originOnly(document.referrer);
+    if(extra){ for(var k in extra) if(extra.hasOwnProperty(k)) ex[k]=clean(extra[k]); }
+    payload.extras=ex;
+    if(extra&&typeof extra.duration_ms==='number') payload.duration_ms=extra.duration_ms|0;
+    var body=JSON.stringify(payload);
+    if(body.length>2000) return;  /* hard cap mirrors server */
+    try{
+      if(navigator.sendBeacon){ navigator.sendBeacon(URL, new Blob([body],{type:'application/json'})); }
+      else{ fetch(URL,{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}); }
+    }catch(e){}
+  }
+  var slides=Array.from(document.querySelectorAll('.slide'));
+  var entered={}, lastShare=0;
+  var io=new IntersectionObserver(function(ents){
+    ents.forEach(function(en){
+      var idx=parseInt(en.target.getAttribute('data-slide-index'),10);
+      if(isNaN(idx))return;
+      if(en.isIntersecting&&en.intersectionRatio>=0.5){
+        if(!entered[idx]){ entered[idx]={t:Date.now()}; send('slide_enter', idx); }
+      }else if(entered[idx]){
+        var dur=Date.now()-entered[idx].t;
+        send('slide_exit', idx, {duration_ms:dur});
+        delete entered[idx];
+      }
+    });
+  },{threshold:[0.5]});
+  slides.forEach(function(s){io.observe(s);});
+  window.addEventListener('beforeunload', function(){
+    Object.keys(entered).forEach(function(k){
+      var idx=parseInt(k,10), dur=Date.now()-entered[k].t;
+      send('slide_exit', idx, {duration_ms:dur});
+    });
+  });
+  document.addEventListener('click', function(e){
+    var a=e.target.closest&&e.target.closest('a[href]'); if(!a)return;
+    var sec=a.closest&&a.closest('.slide'); if(!sec)return;
+    var idx=parseInt(sec.getAttribute('data-slide-index'),10);
+    send('cta_click', isNaN(idx)?0:idx, {href:originOnly(a.href)||a.getAttribute('href')||''});
+  }, true);
+  document.addEventListener('copy', function(){
+    var now=Date.now(); if(now-lastShare<1500) return; lastShare=now;
+    var sel=(window.getSelection&&window.getSelection().toString())||'';
+    if(sel.indexOf(location.host)===-1) return;  /* only treat URL copies as share */
+    send('share', 0);
+  });
 })();
 """

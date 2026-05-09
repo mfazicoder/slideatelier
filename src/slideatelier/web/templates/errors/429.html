@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Slow down · slideAtelier{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto py-12">
+  <p class="text-xs uppercase tracking-wider text-stone-400 mb-2">429</p>
+  <h2 class="text-3xl font-semibold text-stone-900 mb-3">Easy there — too many requests</h2>
+  <p class="text-stone-600 mb-2">
+    You've hit the rate limit for this endpoint. To keep things fair (and to
+    keep our AI bills reasonable), we throttle expensive operations per IP.
+  </p>
+  {% if retry_after %}
+  <p class="text-stone-600 mb-6">
+    Try again in about <strong class="text-stone-900">{{ retry_after }} seconds</strong>.
+  </p>
+  {% else %}
+  <p class="text-stone-600 mb-6">Please try again shortly.</p>
+  {% endif %}
+  <div class="flex gap-3 mb-8">
+    <a href="/" class="inline-block px-4 py-2 bg-amber-700 text-white rounded hover:bg-amber-800 transition-colors">
+      Back to home
+    </a>
+  </div>
+  {% if request_id %}
+  <p class="text-xs text-stone-400 mt-8">
+    Request ID: <span class="font-mono">{{ request_id }}</span>
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

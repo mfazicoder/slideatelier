@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Not found · slideAtelier{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto py-12 text-center">
+  <p class="text-xs uppercase tracking-wide text-stone-400 mb-2">Error 404</p>
+  <h1 class="text-2xl font-semibold text-stone-900 mb-3">We couldn't find that.</h1>
+  <p class="text-sm text-stone-600 mb-6">
+    {{ detail or "The page or workflow you tried to open doesn't exist." }}
+  </p>
+  <div class="flex items-center justify-center gap-3 text-sm">
+    <a href="/" class="px-4 py-2 rounded-md bg-stone-900 text-white hover:bg-stone-800 no-underline">
+      Home
+    </a>
+    <a href="/workflow" class="px-4 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100 no-underline">
+      Open a workflow
+    </a>
+    <a href="/library" class="px-4 py-2 rounded-md border border-stone-300 text-stone-700 hover:bg-stone-100 no-underline">
+      Browse library
+    </a>
+  </div>
+</div>
+{% endblock %}

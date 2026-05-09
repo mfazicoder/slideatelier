@@ -1,0 +1,133 @@
+<div id="version-cards-rail" class="bg-white rounded-lg border border-stone-200 p-3">
+  <div class="flex items-center justify-between mb-2">
+    <h3 class="text-xs uppercase tracking-wide text-stone-500">Version cards</h3>
+    <span class="text-[10px] text-stone-400">restore = fork</span>
+  </div>
+
+  {% if not snapshots %}
+    <div class="p-4 text-center text-xs text-stone-500">
+      No versions yet. Each edit creates a card.
+    </div>
+  {% else %}
+    <ul class="space-y-1.5">
+      {% for s in snapshots %}
+        <li class="text-xs {% if s.parent_timestamp %}pl-3 border-l-2 border-stone-200 ml-1{% endif %}"
+            data-version-card="{{ s.timestamp }}"
+            data-kind="{{ s.kind }}"
+            data-parent="{{ s.parent_timestamp or '' }}">
+          <div class="rounded border {% if s.is_current %}border-emerald-300 bg-emerald-50{% else %}border-stone-200 hover:border-stone-300 hover:bg-stone-50{% endif %} px-2 py-1.5">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="text-[10px] uppercase tracking-wide font-medium {{ 'text-amber-700' if s.kind == 'storyboard' else 'text-emerald-700' }}">
+                {{ s.kind }}
+              </span>
+              <span class="text-[10px] text-stone-400">{{ s.relative or s.iso }}</span>
+            </div>
+
+            <div class="mt-0.5 text-stone-800 break-words leading-snug" data-card-label>
+              {{ s.label }}{% if s.is_current %}
+                <span class="ml-1 text-[9px] px-1 py-0.5 bg-stone-200 text-stone-700 rounded">current</span>
+              {% endif %}
+              {% if s.parent_timestamp %}
+                <span class="ml-1 text-[9px] px-1 py-0.5 bg-amber-100 text-amber-800 rounded" title="Forked from {{ s.parent_timestamp }}">fork</span>
+              {% endif %}
+            </div>
+
+            {% if s.ai_summary %}
+              <div class="mt-0.5 text-[11px] text-stone-500 italic break-words">
+                AI: {{ s.ai_summary }}
+              </div>
+            {% endif %}
+
+            <div class="mt-1.5 flex items-center gap-1 flex-wrap">
+              {% if not s.is_current %}
+                <form hx-post="/workflow/wireframe/{{ job_id }}/version-cards/restore/{{ s.timestamp }}"
+                      hx-swap="none"
+                      class="inline">
+                  <input type="hidden" name="kind" value="{{ s.kind }}">
+                  <button type="submit"
+                          class="text-[10px] px-1.5 py-0.5 rounded border border-stone-300 text-stone-700 hover:bg-amber-50 hover:border-amber-400 hover:text-amber-800">
+                    Restore
+                  </button>
+                </form>
+              {% endif %}
+              <button type="button"
+                      data-version-compare="{{ s.timestamp }}"
+                      data-version-kind="{{ s.kind }}"
+                      onclick="window._versionCompareSelect && window._versionCompareSelect(this)"
+                      class="text-[10px] px-1.5 py-0.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-100">
+                Compare
+              </button>
+              <button type="button"
+                      onclick="window._versionCardRename && window._versionCardRename(this)"
+                      data-rename-ts="{{ s.timestamp }}"
+                      data-rename-kind="{{ s.kind }}"
+                      data-rename-label="{{ s.label }}"
+                      data-rename-job="{{ job_id }}"
+                      class="text-[10px] px-1.5 py-0.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-100">
+                Rename
+              </button>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>
+
+<script>
+(function() {
+  // Rename inline: prompt-based to avoid extra UI templates.
+  window._versionCardRename = async function(btn) {
+    const ts = btn.dataset.renameTs;
+    const kind = btn.dataset.renameKind;
+    const current = btn.dataset.renameLabel || "";
+    const jobId = btn.dataset.renameJob;
+    const next = window.prompt("Rename version card", current);
+    if (next === null) return;
+    const fd = new FormData();
+    fd.append("kind", kind);
+    fd.append("timestamp", ts);
+    fd.append("label", next);
+    const r = await fetch(`/workflow/wireframe/${jobId}/version-cards/label`, { method: "POST", body: fd });
+    if (r.ok) {
+      const html = await r.text();
+      const rail = document.getElementById("version-cards-rail");
+      if (rail) {
+        rail.outerHTML = html;
+        if (window.htmx) window.htmx.process(document.getElementById("version-cards-rail"));
+      }
+    } else {
+      alert("Rename failed: " + r.status);
+    }
+  };
+
+  // Compare: pick first card, then second; navigate to /compare?a=&b=&kind=
+  window._versionComparePick = window._versionComparePick || null;
+  window._versionCompareSelect = function(btn) {
+    const ts = btn.dataset.versionCompare;
+    const kind = btn.dataset.versionKind;
+    if (!window._versionComparePick) {
+      window._versionComparePick = { ts, kind };
+      btn.classList.add("ring-1", "ring-amber-400", "bg-amber-50");
+      const rail = document.getElementById("version-cards-rail");
+      if (rail) {
+        const banner = document.createElement("div");
+        banner.id = "version-compare-banner";
+        banner.className = "mb-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1";
+        banner.textContent = "Pick a second card to compare with " + ts.slice(0, 15);
+        rail.insertBefore(banner, rail.children[1] || null);
+      }
+      return;
+    }
+    if (window._versionComparePick.kind !== kind) {
+      alert("Compare needs two cards of the same kind (deck or storyboard).");
+      return;
+    }
+    const a = window._versionComparePick.ts;
+    window._versionComparePick = null;
+    const path = window.location.pathname.split("/");
+    const jobId = path[path.length - 1];
+    window.open(`/workflow/wireframe/${jobId}/compare?a=${a}&b=${ts}&kind=${kind}`, "_blank");
+  };
+})();
+</script>
