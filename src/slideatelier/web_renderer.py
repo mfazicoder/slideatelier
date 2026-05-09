@@ -304,7 +304,43 @@ class WebRenderer:
     def _extra_svg(self, extra: SlideExtra, w_px: int, h_px: int) -> str:
         """Resolve a render_svg() impl from registry / catalog if available;
         otherwise fall back to a labelled placeholder. NEVER raise — extras
-        are decorative and a broken one shouldn't kill the whole page."""
+        are decorative and a broken one shouldn't kill the whole page.
+
+        Special case: `library_asset` extras reference an external .pptx slide
+        from the user's library (e.g. 'pyramid-diagram-powerpoint/...'). Those
+        aren't native AssetShapes — they have no render_svg() — but the
+        wireframe and library page already serve a PNG thumbnail at
+        /thumbnails/<asset_id>.png (rendered by LibreOffice during catalog
+        build). We embed that thumbnail as an <img> wrapped in an SVG so the
+        sizing math upstream still works.
+        """
+        cfg = extra.config or {}
+        if extra.type == "library_asset":
+            ref = cfg.get("asset_ref") or ""
+            if ref:
+                # Mirror the same URL pattern used by the wireframe slide-card:
+                # /thumbnails/<asset_ref-with-/-replaced-by-__>.png
+                thumb_path = "/thumbnails/" + ref.replace("/", "__") + ".png"
+                # Use foreignObject so the <img> inherits SVG sizing semantics
+                # without us having to re-implement object-fit. xmlns is
+                # required on the inner <div> for SVG XHTML inclusion to be
+                # well-formed.
+                return (
+                    f'<svg xmlns="http://www.w3.org/2000/svg" '
+                    f'width="{w_px}" height="{h_px}" '
+                    f'viewBox="0 0 {w_px} {h_px}">\n'
+                    f'  <foreignObject x="0" y="0" width="{w_px}" height="{h_px}">\n'
+                    f'    <div xmlns="http://www.w3.org/1999/xhtml" '
+                    f'style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">\n'
+                    f'      <img src="{html.escape(thumb_path)}" '
+                    f'alt="{html.escape(ref)}" '
+                    f'style="max-width:100%;max-height:100%;object-fit:contain;" '
+                    f'loading="lazy" />\n'
+                    f'    </div>\n'
+                    f'  </foreignObject>\n'
+                    f'</svg>'
+                )
+
         shape = self._resolve_shape_for_extra(extra)
         if shape is not None:
             render_svg = getattr(shape, "render_svg", None)
@@ -318,7 +354,6 @@ class WebRenderer:
                     )
         # Fallback placeholder.
         label = extra.type
-        cfg = extra.config or {}
         ref = cfg.get("asset_ref") or cfg.get("shape_id") or ""
         return _placeholder_svg(w_px, h_px, label=label, detail=str(ref))
 

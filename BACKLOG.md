@@ -25,6 +25,7 @@ Native-editable code-defined primitives are the moat (squares stay squares, char
 | Y — Freeform text blocks + typography | ✅ done (Y.1+Y.2+Y.3) — bbox + typography overrides; renderer honors both |
 | J — Hosted Web Deck publishing | ✅ done — SVG renderer for all 14 shapes + WebRenderer + routes + viewer + presenter mode + Publish button |
 | **K–X — Competitive-analysis gap-fill (below)** | newly queued |
+| Z — Selective text stripping on library_asset copy | ✅ done — chrome_only mode default; thumbnail re-render queued for v2 |
 
 ---
 
@@ -219,6 +220,43 @@ Fourth entry-point alongside the three-pronged chooser, optimised for "brief lan
 - slideAtelier emits a **draft deck** PR-style with a **diff against the brief's stated goals**, ready for stakeholder review.
 - Same Outline Plan Mode (Sprint M) gates the actual generation.
 - Reuses Sprint K brand tokens for instant brand fit.
+
+### Sprint Z — Selective text stripping on library_asset copy (✅ shipped 2026-05-08)
+*Source: user — observed mid-Sprint-J browser test 2026-05-08.*
+
+When attaching a library .pptx slide as an extra, current behaviour
+(Sprint A's `copy_slide_shapes_onto(strip_text=True)`) strips **every**
+text frame indiscriminately. That's blunter than the user wants: it
+deletes diagram annotations the user came for (quadrant labels, funnel
+step names, axis labels, callouts) along with the irrelevant outer chrome
+(original slide title, subtitle, source caption, page footer).
+
+**The fix**: distinguish *outer chrome* from *inline-to-diagram* text.
+
+Heuristics for v1:
+- **Strip**: text frames whose shape is at the slide periphery (top 12% / bottom 8% / outside the bounding box of the slide's "main" shape group), or whose font size ≥ 28pt and word count ≤ 8 (slide-title-like), or whose shape name matches `Title 1`/`Subtitle 1`/`Footer 1` placeholders.
+- **Keep**: text frames whose shape is INSIDE another shape's bounding rect (annotation on top of a primitive), or part of a group, or font size < 24pt and short (single-line callout), or whose shape is a `TEXT_BOX` adjacent to a primitive (within ~1cm).
+
+Implementation (shipped):
+- `copy_slide_shapes_onto` now accepts `strip_text: bool | str` with three
+  modes — `"none"` / `"chrome_only"` (default) / `"all"`. Backward-compat:
+  `True` → `"all"`, `False` → `"none"`.
+- New helpers in `asset_copier.py`: `_is_chrome_text(shape, w, h)` (4-layer
+  heuristic) and `_blank_shape_text(shape)`. Heuristic checks: (1) placeholder
+  type — TITLE/SUBTITLE/FOOTER/SLIDE_NUMBER/HEADER/DATE; (2) top-12% +
+  titlish-text (font ≥24pt OR ≤8 words); (3) vertical centre below 92%;
+  (4) shape-name pattern match.
+- Strip happens on python-pptx shape objects pre-scaling, so position
+  percentages reference the source slide's dimensions correctly.
+- `tests/test_strip_text_modes.py`: 11 tests building a synthetic source
+  slide with title + footer + page-number + 4 quadrant annotations + axis
+  label, verifying each strip mode behaves correctly + heuristic unit tests.
+
+**Queued for v2 (not shipped this turn):** thumbnail re-render with
+chrome_only mode. The library/ thumbnails are pre-rendered PNGs from the
+original .pptx via LibreOffice → PDF → PNG; replacing them requires running
+the chrome-strip through a fresh .pptx file then re-converting. Not blocking
+since runtime attach now produces clean output.
 
 ### Sprint X — Typography depth
 *Source: Design/creative cluster (Readymag 5,000 fonts + Adobe Fonts).*

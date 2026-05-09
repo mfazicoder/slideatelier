@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incorporate in DIFC: the Series A-ready path with bankable velocity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:#0f172a;
+  color:var(--brand-text,#222);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body.presenter{cursor:none}
+.deck{display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px 0;outline:none}
+.slide{
+  position:relative;
+  width:min(95vw,1280px);
+  aspect-ratio:16/9;
+  background:var(--brand-bg,#fff);
+  border-radius:8px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.25);
+  overflow:hidden;
+  scroll-margin-top:24px;
+  font-family:var(--type-body,Inter,sans-serif);
+  color:var(--brand-text,#222);
+}
+.slide-frame{position:relative;width:100%;height:100%}
+.block{
+  position:absolute;
+  font-family:var(--type-body,Inter,sans-serif);
+  color:var(--brand-text,#222);
+  line-height:1.3;
+}
+.block-title{
+  font-family:var(--type-display,Inter,sans-serif);
+  font-weight:700;
+  color:var(--brand-primary,#1F3A5F);
+  font-size:1.6em;
+  letter-spacing:-0.01em;
+}
+.size-title-title{font-size:2.6em;line-height:1.1}
+.size-section_divider-title{font-size:2.2em;line-height:1.15}
+.size-key_takeaway-title{font-size:2em;text-align:center;line-height:1.2}
+.block-strap{
+  color:var(--brand-muted,#6B6B6B);
+  font-size:0.9em;
+}
+.size-key_takeaway-strap{text-align:center}
+.block-body,.block-bullets{font-size:0.95em;color:var(--brand-text,#222)}
+.block-bullets{list-style:none;margin:0;padding:0}
+.block-bullets li{display:flex;gap:0.5em;margin-bottom:0.4em;align-items:baseline}
+.bullet-marker{color:var(--brand-accent,#C86E3C);font-weight:700;flex-shrink:0}
+.bullet-text{flex:1}
+.block-body-takeaway{
+  text-align:center;font-size:1.1em;color:var(--brand-muted,#6B6B6B);
+}
+.layout-key_takeaway .slide-frame{display:flex;align-items:center;justify-content:center}
+.extra{position:absolute;display:flex;align-items:center;justify-content:center}
+.extra svg{width:100%;height:100%;max-width:100%;max-height:100%}
+
+.deck-toolbar{
+  position:fixed;top:12px;right:16px;z-index:30;
+  display:flex;gap:14px;align-items:center;
+  font-size:11px;color:#cbd5e1;
+  background:rgba(15,23,42,0.7);
+  padding:6px 10px;border-radius:6px;
+  font-family:'Inter',sans-serif;
+  pointer-events:none;
+}
+.deck-toolbar .counter{font-variant-numeric:tabular-nums}
+
+.presenter-overlay{
+  position:fixed;left:0;right:0;bottom:0;
+  background:rgba(15,23,42,0.95);color:#f1f5f9;
+  padding:18px 24px;border-top:1px solid rgba(255,255,255,0.08);
+  font-family:'Inter',sans-serif;font-size:14px;line-height:1.5;
+  max-height:35vh;overflow-y:auto;z-index:40;
+}
+.presenter-overlay h2{margin:0 0 6px 0;font-size:11px;letter-spacing:0.08em;
+  text-transform:uppercase;color:#94a3b8;font-weight:600}
+.presenter-overlay .presenter-notes{white-space:pre-wrap}
+.presenter-overlay .presenter-hint{margin:8px 0 0 0;color:#64748b;font-size:11px}
+.presenter-overlay kbd{
+  background:#334155;color:#f1f5f9;padding:1px 6px;border-radius:3px;
+  font-family:ui-monospace,monospace;font-size:11px;
+}
+
+body.presenter-mode .deck{padding:0}
+body.presenter-mode .slide{
+  width:100vw;height:100vh;border-radius:0;
+  box-shadow:none;
+}
+body.presenter-mode .deck-toolbar{display:none}
+
+@media print{
+  body{background:#fff}
+  .deck{padding:0;gap:0}
+  .slide{box-shadow:none;page-break-after:always;border-radius:0;width:100%}
+  .deck-toolbar,.presenter-overlay{display:none}
+}
+</style>
+</head>
+<body data-slug="R2rmnAXd">
+  <div class="deck-toolbar" aria-hidden="true">
+    <span class="hint">← / → · space · f · p · esc</span>
+    <span class="counter" id="slide-counter">1 / 15</span>
+  </div>
+  <main class="deck" tabindex="0">
+    <section class="slide layout-title" id="slide-0" data-slide-index="0" data-speaker-notes="Set the tone: this is a recommendation meeting, not an options review. We&#x27;ve done the work and are asking the board to approve DIFC today so Series A stays on its Q2 close." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-title-title" data-block="title" style="position:absolute;left:7.5002%;top:37.3333%;width:84.7521%;height:20.0000%;">Incorporate in DIFC: the Series A-ready path with bankable velocity</div>
+        <div class="block block-strap size-title-strap" data-block="strap" style="position:absolute;left:7.5002%;top:58.6667%;width:84.7521%;height:10.6667%;">Founder &amp; board working session · Jurisdiction decision required</div>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:24.1526%;top:71.1817%;width:15.7822%;height:28.7806%;"><svg xmlns="http://www.w3.org/2000/svg" width="202" height="207" viewBox="0 0 202 207">
+  <foreignObject x="0" y="0" width="202" height="207">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/alphabet-powerpoint__alphabet-infographic__10.png" alt="alphabet-powerpoint/alphabet-infographic/10" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-key_takeaway" id="slide-1" data-slide-index="1" data-speaker-notes="State the answer first. Everything that follows is defense. If the board agrees here, the rest is confirmation; if they push back, we know exactly which criterion to argue." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-key_takeaway-title" data-block="title" style="position:absolute;left:11.2503%;top:33.3333%;width:77.2519%;height:33.3333%;">DIFC is the only jurisdiction that clears legal, banking, and investor tests before Series A</div>
+        <div class="block block-body block-body-takeaway" data-block="body" style="position:absolute;left:11.2503%;top:66.6667%;width:77.2519%;height:20.0000%;">Evidence: 4-criteria scorecard on slide 4, banking timeline on slide 8</div>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:0.0000%;top:100.0000%;width:100.0000%;height:1.0000%;"><svg xmlns="http://www.w3.org/2000/svg" width="1280" height="60" viewBox="0 0 1280 60">
+  <foreignObject x="0" y="0" width="1280" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/alphabet-powerpoint__alphabet-infographic__13.png" alt="alphabet-powerpoint/alphabet-infographic/13" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-content" id="slide-2" data-slide-index="2" data-speaker-notes="Frame urgency. The fundraise calendar is the binding constraint. Reference the lead investor&#x27;s diligence checklist which explicitly requires bank account and cap table in jurisdiction before signing." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-content-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Jurisdiction choice now determines whether Series A closes on schedule</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Lead investors require incorporated entity with banking before term sheet</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Wrong jurisdiction adds 3–6 months and forces redomicile mid-round</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Banking onboarding alone runs 4–9 months in mainland and offshore</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Q2 Series A close requires entity operational by end of Q1</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Deferring the decision past this month compresses every downstream workstream</span></li>
+        </ul>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:0.0000%;top:100.0000%;width:100.0000%;height:1.0000%;"><svg xmlns="http://www.w3.org/2000/svg" width="1280" height="60" viewBox="0 0 1280 60">
+  <foreignObject x="0" y="0" width="1280" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/alphabet-powerpoint__alphabet-infographic__11.png" alt="alphabet-powerpoint/alphabet-infographic/11" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-bullet_list" id="slide-3" data-slide-index="3" data-speaker-notes="These are the four criteria every Series A diligence pack tests. We picked them from our lead investor&#x27;s questionnaire and two recent comparable raises. The next slide judges every option against exactly these four." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-bullet_list-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Investors price four things into jurisdiction: law, banking, talent, exit optionality</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Law: English common law, enforceable courts, recognized share and SAFE structures</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Banking: corporate account opened in weeks with multi-currency and SWIFT</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Talent: employment visas, founder residency, access to senior operator pool</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Exit optionality: clean redomicile path to Cayman or Delaware at Series B+</span></li>
+        </ul>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:0.0000%;top:100.0000%;width:100.0000%;height:1.0000%;"><svg xmlns="http://www.w3.org/2000/svg" width="1280" height="60" viewBox="0 0 1280 60">
+  <foreignObject x="0" y="0" width="1280" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/alphabet-powerpoint__alphabet-infographic__7.png" alt="alphabet-powerpoint/alphabet-infographic/7" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-content" id="slide-4" data-slide-index="4" data-speaker-notes="Walk the scorecard. Anticipate the Cayman question — investors like it but we can&#x27;t run the company from there. Anticipate Delaware — flips when we have a US lead, but our lead is regional plus US, so we&#x27;d still need a regional entity." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-content-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Mainland UAE, ADGM, Cayman, and Delaware each fail at least one investor test</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Mainland UAE: civil law and 6–9 month banking — fails law and banking</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">ADGM: strong on law, thinner banking panel and ecosystem — fails banking velocity</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Cayman: investor-familiar but no talent, no visas, no operating substance</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Delaware: clean for US capital but no MENA banking or operating presence</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Only DIFC scores green on all four criteria simultaneously</span></li>
+        </ul>
+
+      </div>
+    </section>
+    <section class="slide layout-content" id="slide-5" data-slide-index="5" data-speaker-notes="ADGM is the default counter-proposal and deserves a head-to-head. The legal frameworks are genuinely close. The decisive gap is operational: banking timelines and the density of advisors, hires, and co-investors physically present." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-content-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">DIFC vs ADGM: similar on paper, decisive gap on banking and ecosystem density</div>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:0.0000%;top:43.0090%;width:100.0000%;height:56.9555%;"><svg xmlns="http://www.w3.org/2000/svg" width="1280" height="410" viewBox="0 0 1280 410">
+  <foreignObject x="0" y="0" width="1280" height="410">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/pyramid-diagram-powerpoint__pyramid-diagram-infographic-02__2.png" alt="pyramid-diagram-powerpoint/pyramid-diagram-infographic-02/2" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-two_column" id="slide-6" data-slide-index="6" data-speaker-notes="Pivot from elimination to affirmative case. The next three slides defend DIFC on law, banking, and talent in order." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-two_column-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Why DIFC wins on the criteria that gate Series A</div>
+
+      </div>
+    </section>
+    <section class="slide layout-content" id="slide-7" data-slide-index="7" data-speaker-notes="Term sheets hinge on enforceability of investor protections. DIFC removes that risk entirely — it&#x27;s the same legal grammar a London or Singapore investor expects. Have the lead&#x27;s counsel memo ready if asked." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-content-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">English common law and DIFC Courts give investors the enforceability they require</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">DIFC operates standalone English common law jurisdiction since 2004</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">DIFC Courts staffed by senior UK and Commonwealth judges</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Standard SHA, SAFE, and preferred share structures recognized natively</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Judgments enforceable across UAE and 30+ reciprocal jurisdictions</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Lead investor&#x27;s counsel has signed off on DIFC governance precedent</span></li>
+        </ul>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:26.8895%;top:66.0011%;width:34.5535%;height:30.3892%;"><svg xmlns="http://www.w3.org/2000/svg" width="442" height="218" viewBox="0 0 442 218">
+  <foreignObject x="0" y="0" width="442" height="218">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/alphabet-powerpoint__alphabet-infographic__14.png" alt="alphabet-powerpoint/alphabet-infographic/14" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-two_column" id="slide-8" data-slide-index="8" data-speaker-notes="Banking is where alternatives visibly break. This is the slide that wins the room. Cite the two recent comparable timelines — both are reference-checkable." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-two_column-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">DIFC banking partners onboard in weeks, not quarters — the real velocity unlock</div>
+        <ul class="block block-bullets" data-block="body" style="">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Emirates NBD, Mashreq, HSBC, Standard Chartered all onboard DIFC entities</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Typical timeline 2–4 weeks vs 4–9 months in mainland</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Multi-currency accounts, SWIFT, and USD wires available day one</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">DIFC license satisfies KYC source-of-funds review on first pass</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Two portfolio companies completed onboarding in 18 and 22 days last quarter</span></li>
+        </ul>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:0.0000%;top:100.0000%;width:100.0000%;height:1.0000%;"><svg xmlns="http://www.w3.org/2000/svg" width="1280" height="60" viewBox="0 0 1280 60">
+  <foreignObject x="0" y="0" width="1280" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/alphabet-powerpoint__alphabet-infographic__12.png" alt="alphabet-powerpoint/alphabet-infographic/12" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-bullet_list" id="slide-9" data-slide-index="9" data-speaker-notes="Closes the four-criterion case. Density matters because it compounds: closing a hire, a co-investor, and a counsel meeting in the same building cuts weeks off every workstream." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-bullet_list-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Talent, visas, and ecosystem density compound into faster hiring and closing</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Founder and employee visas issued in 2–3 weeks under DIFC sponsorship</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Senior operator pool concentrated in Gate District within 1km radius</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Top-tier law, audit, and tax advisors all maintain DIFC offices</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">60+ active VCs and family offices headquartered or co-located on-site</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Clean redomicile path to Cayman or Delaware preserved for Series B+</span></li>
+        </ul>
+
+      </div>
+    </section>
+    <section class="slide layout-bullet_list" id="slide-10" data-slide-index="10" data-speaker-notes="Neutralizes the cost objection. DIFC has a reputation for being expensive; the Innovation License changes that math materially. Compare to ADGM (~$75K) and Cayman+regional combo (~$140K)." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-bullet_list-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Total cost to incorporate and operate Year 1: bankable, predictable, Series A-defensible</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Incorporation and license: ~$25K one-time, all-in</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Office (Innovation Hub co-working): ~$18K Year 1</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Visas for 4 founders/employees: ~$12K</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Legal, accounting, compliance retainer: ~$35K Year 1</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Total Year 1: ~$90K — within board-approved formation budget</span></li>
+        </ul>
+
+      </div>
+    </section>
+    <section class="slide layout-closing" id="slide-11" data-slide-index="11" data-speaker-notes="Converts recommendation into a runnable project. Workstreams are parallelized — the 6–8 week range assumes counsel engaged within a week of board approval." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-closing-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Incorporation in 6–8 weeks across five sequenced workstreams</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Week 1–2: name reservation, license application, board resolutions</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Week 2–4: lease Innovation Hub seat, file visa applications</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Week 3–5: open bank accounts with two parallel partners</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Week 4–6: transfer IP, sign founder agreements, issue cap table</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Week 6–8: complete substance setup, finalize audit and tax registration</span></li>
+        </ul>
+
+      </div>
+    </section>
+    <section class="slide layout-section_divider" id="slide-12" data-slide-index="12" data-speaker-notes="Pre-empt the standard objections. The substance question always comes up; the answer is that we genuinely operate from DIFC, so it&#x27;s never been a stretch. Redomicile cost is real but small relative to a Series B round." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-section_divider-title" data-block="title" style="position:absolute;left:7.5002%;top:42.6667%;width:84.7521%;height:16.0000%;">Three risks — regulatory scope, substance requirements, redomicile cost — are mitigable</div>
+        <ul class="block block-bullets" data-block="body" style="">
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Regulatory scope: Innovation License covers our activity; legal opinion in hand</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Substance: 1 director and lease satisfy economic substance rules</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Redomicile cost at Series B: ~$40K, standard precedent and timeline</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">No risk identified is a deal-breaker on lead investor&#x27;s diligence checklist</span></li>
+          <li><span class="bullet-marker">•</span><span class="bullet-text">Mitigations cost &lt;$10K incremental and are baked into Year 1 budget</span></li>
+        </ul>
+        <div class="extra extra-library_asset" data-extra-type="library_asset" style="position:absolute;left:0.0000%;top:100.0000%;width:100.0000%;height:1.0000%;"><svg xmlns="http://www.w3.org/2000/svg" width="1280" height="60" viewBox="0 0 1280 60">
+  <foreignObject x="0" y="0" width="1280" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+      <img src="/thumbnails/alphabet-powerpoint__alphabet-infographic__6.png" alt="alphabet-powerpoint/alphabet-infographic/6" style="max-width:100%;max-height:100%;object-fit:contain;" loading="lazy" />
+    </div>
+  </foreignObject>
+</svg></div>
+      </div>
+    </section>
+    <section class="slide layout-key_takeaway" id="slide-13" data-slide-index="13" data-speaker-notes="Land the ask tied to the fundraising clock. The board&#x27;s mental model should be: approving today preserves the Q2 close; deferring two weeks puts it at risk." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-key_takeaway-title" data-block="title" style="position:absolute;left:11.2503%;top:33.3333%;width:77.2519%;height:33.3333%;">Approve DIFC incorporation now to keep Series A on the Q2 timeline</div>
+        <div class="block block-body block-body-takeaway" data-block="body" style="position:absolute;left:11.2503%;top:66.6667%;width:77.2519%;height:20.0000%;">Every week of delay compresses banking and diligence runway by the same amount</div>
+
+      </div>
+    </section>
+    <section class="slide layout-closing" id="slide-14" data-slide-index="14" data-speaker-notes="End with explicit commitments, not discussion. Each ask has an owner and a timeline. If any item slips, flag it now so we can adjust the Series A calendar in the same meeting." style="--brand-primary:#1F3A5F;--brand-accent:#C86E3C;--brand-text:#222222;--brand-muted:#6B6B6B;--brand-bg:#FFFFFF;--brand-success:#2E7D5B;--brand-warning:#C9941F;--brand-danger:#B23A3A;--type-display:'Calibri',Inter,sans-serif;--type-body:'Calibri',Inter,sans-serif;">
+      <div class="slide-frame">
+        <div class="block block-title size-closing-title" data-block="title" style="position:absolute;left:4.5001%;top:6.6667%;width:90.7523%;height:10.6667%;">Decisions required: jurisdiction approval, budget authorization, counsel engagement</div>
+        <ul class="block block-bullets" data-block="body" style="position:absolute;left:4.5001%;top:26.6667%;width:90.7523%;height:69.3333%;">
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Approve DIFC as incorporation jurisdiction — board resolution today</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Authorize $90K Year 1 formation and operating budget — CFO to release</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Engage Clifford Chance DIFC as formation counsel — sign engagement this week</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Appoint founder as filing director and authorized signatory — effective immediately</span></li>
+          <li><span class="bullet-marker">→</span><span class="bullet-text">Reconvene in 4 weeks for banking and visa milestone review</span></li>
+        </ul>
+
+      </div>
+    </section>
+  </main>
+  <aside class="presenter-overlay" id="presenter-overlay" hidden>
+    <h2>Speaker notes</h2>
+    <div class="presenter-notes" id="presenter-notes"></div>
+    <p class="presenter-hint">Press <kbd>p</kbd> to close.</p>
+  </aside>
+  <script>
+(function(){
+  const slides=Array.from(document.querySelectorAll('.slide'));
+  if(!slides.length)return;
+  const counter=document.getElementById('slide-counter');
+  const overlay=document.getElementById('presenter-overlay');
+  const notesEl=document.getElementById('presenter-notes');
+  let idx=0;
+  let presenter=false;
+
+  function clamp(i){return Math.max(0,Math.min(slides.length-1,i));}
+  function go(i){
+    idx=clamp(i);
+    slides[idx].scrollIntoView({behavior:'smooth',block:'start'});
+    if(counter)counter.textContent=(idx+1)+' / '+slides.length;
+    if(presenter)refreshNotes();
+  }
+  function refreshNotes(){
+    if(!notesEl)return;
+    const n=slides[idx].getAttribute('data-speaker-notes')||'';
+    notesEl.textContent=n||'(no speaker notes)';
+  }
+  function togglePresenter(){
+    presenter=!presenter;
+    document.body.classList.toggle('presenter-mode',presenter);
+    if(overlay){
+      overlay.hidden=!presenter;
+      if(presenter)refreshNotes();
+    }
+  }
+  function toggleFullscreen(){
+    if(!document.fullscreenElement){
+      (document.documentElement.requestFullscreen||(()=>{}))();
+    }else{
+      (document.exitFullscreen||(()=>{}))();
+    }
+  }
+  // Hash deep-link (#slide-3)
+  const hash=window.location.hash;
+  if(hash&&hash.indexOf('slide-')!==-1){
+    const m=hash.match(/slide-(\d+)/);
+    if(m){idx=clamp(parseInt(m[1],10));}
+  }
+  go(idx);
+
+  document.addEventListener('keydown',function(e){
+    if(e.target&&['INPUT','TEXTAREA'].indexOf(e.target.tagName)>=0)return;
+    const k=e.key;
+    if(k==='ArrowRight'||k==='PageDown'||k===' '){
+      e.preventDefault();go(idx+1);
+    }else if(k==='ArrowLeft'||k==='PageUp'||(k==='Backspace')){
+      e.preventDefault();go(idx-1);
+    }else if(e.shiftKey&&(k==='ArrowDown'||k==='ArrowUp')){
+      e.preventDefault();go(idx+(k==='ArrowDown'?1:-1));
+    }else if(k==='Escape'){
+      if(presenter)togglePresenter();
+    }else if(k==='f'||k==='F'){
+      toggleFullscreen();
+    }else if(k==='p'||k==='P'){
+      togglePresenter();
+    }else if(k==='Home'){
+      e.preventDefault();go(0);
+    }else if(k==='End'){
+      e.preventDefault();go(slides.length-1);
+    }
+  });
+
+  // Keep counter in sync as user scrolls manually.
+  const io=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting&&en.intersectionRatio>0.5){
+        const i=parseInt(en.target.getAttribute('data-slide-index'),10);
+        if(!isNaN(i)){idx=i;
+          if(counter)counter.textContent=(idx+1)+' / '+slides.length;
+          if(presenter)refreshNotes();
+        }
+      }
+    });
+  },{threshold:[0.5]});
+  slides.forEach(function(s){io.observe(s);});
+})();
+</script>
+</body>
+</html>

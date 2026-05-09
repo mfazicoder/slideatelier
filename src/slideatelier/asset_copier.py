@@ -145,7 +145,7 @@ def copy_slide_shapes_onto(
     target_top_emu: int,
     target_width_emu: int,
     target_height_emu: int,
-    strip_text: bool = True,
+    strip_text: "bool | str" = "chrome_only",
     recolor_to=None,  # RGBColor | None — when set, recolor dominant solid fill
 ):
     """Copy SHAPES from a library slide onto an EXISTING destination slide,
@@ -156,6 +156,17 @@ def copy_slide_shapes_onto(
     Unlike `copy_slide_into`, this does NOT add a new slide. It mutates the
     given dest_slide by appending the source's shapes (scaled and translated).
     Image relationships are rebound so embedded pictures travel with the copy.
+
+    `strip_text` modes (Sprint Z):
+        - "none" / False: keep all text as-is.
+        - "all" / True:   blank every text frame (legacy blunt strip — kills
+                          inline annotations along with chrome).
+        - "chrome_only" (DEFAULT): blank only outer slide chrome — title bar,
+                          subtitle, footer, page-number — but KEEP text that
+                          looks inline-to-the-diagram (quadrant labels,
+                          axis labels, callouts, step names). Heuristic in
+                          `_is_chrome_text`. This is what users actually want
+                          when attaching a library diagram as an extra.
     """
     from copy import deepcopy
 
@@ -193,21 +204,24 @@ def copy_slide_shapes_onto(
     # Rebind any image relationships so embedded pictures don't break
     _rebind_image_relationships(source_slide, dest_slide)
 
-    # Strip placeholder text from text frames in the copied shapes. Library
-    # slides ship with lorem-ipsum-style content ("Develop", "Authorize", etc.)
-    # which the user almost never wants to keep. We blank the text but leave
-    # the shape itself intact so it remains editable.
-    if strip_text:
-        from pptx.oxml.ns import qn
-        for new_el in new_top_level_elements:
-            for tf_xml in new_el.findall(".//" + qn("a:t")):
-                tf_xml.text = ""
+    # Resolve strip mode. Backward-compat: True → "all", False → "none".
+    if isinstance(strip_text, bool):
+        strip_mode = "all" if strip_text else "none"
+    else:
+        strip_mode = (strip_text or "none").lower()
+        if strip_mode not in {"all", "chrome_only", "none"}:
+            strip_mode = "chrome_only"  # safe default for unknown values
 
     # Now scale + translate each newly-added top-level shape. We need to
     # iterate dest_slide.shapes to get python-pptx's shape objects (which
     # expose left/top/width/height APIs) — but only the LAST N shapes are
     # the ones we just added. Walk dest_slide.shapes and pick the ones
     # whose underlying element is in our `new_top_level_elements` set.
+    #
+    # NOTE: we collect the new shapes BEFORE scaling, then apply text-strip
+    # (which may need pre-scale positions to detect chrome by source-slide
+    # percentage), THEN scale. Order matters: shape.left/top/width/height
+    # below are still in source-slide EMU when the strip step runs.
     new_set = set(id(e) for e in new_top_level_elements)
     new_shapes: list = []
     for shape in dest_slide.shapes:
@@ -217,6 +231,32 @@ def copy_slide_shapes_onto(
         except AttributeError:
             continue
         new_shapes.append(shape)
+
+    # Strip placeholder text from text frames in the copied shapes.
+    # - "all":          blunt — every text frame is blanked. Library slides
+    #                   ship with lorem-ipsum content the user almost never
+    #                   wants. Legacy behaviour.
+    # - "chrome_only":  smart — only outer slide chrome (title, subtitle,
+    #                   footer, page-number, peripheral title-bar text) is
+    #                   blanked; inline diagram annotations (quadrant labels,
+    #                   axis labels, callouts) survive. Sprint Z default.
+    # - "none":         no stripping.
+    if strip_mode == "all":
+        from pptx.oxml.ns import qn
+        for new_el in new_top_level_elements:
+            for tf_xml in new_el.findall(".//" + qn("a:t")):
+                tf_xml.text = ""
+    elif strip_mode == "chrome_only":
+        for shape in new_shapes:
+            try:
+                if _is_chrome_text(shape, src_w, src_h):
+                    _blank_shape_text(shape)
+            except Exception:  # noqa: BLE001 — chrome detection is best-effort
+                continue
+
+    # Apply scale + translate. AFTER strip so position-percent heuristics
+    # operate on source-slide coordinates.
+    for shape in new_shapes:
         try:
             shape.left = int(shape.left * scale_x) + target_left_emu
             shape.top = int(shape.top * scale_y) + target_top_emu
@@ -329,3 +369,131 @@ def _rebind_image_relationships(source_slide, dest_slide):
             blip.set(embed_attr, new_rid)
         elif blip.get(link_attr):
             blip.set(link_attr, new_rid)
+
+
+# ---------------------------------------------------------------------------
+# Sprint Z — selective text stripping helpers
+# ---------------------------------------------------------------------------
+
+# Placeholder types that always count as "outer chrome": title bar, subtitle,
+# footer, page numbers, header, date — all the slide-level scaffolding the
+# user does NOT want carried over when they attach a diagram as an extra.
+def _chrome_placeholder_types():
+    """Return the set of PP_PLACEHOLDER values to treat as chrome.
+    Returns an empty set if pptx isn't importable for any reason — caller
+    falls through to position/name heuristics."""
+    try:
+        from pptx.enum.text import PP_PLACEHOLDER
+    except ImportError:
+        return set()
+    out = set()
+    for name in (
+        "TITLE", "CENTER_TITLE", "SUBTITLE",
+        "FOOTER", "SLIDE_NUMBER", "DATE", "HEADER",
+    ):
+        v = getattr(PP_PLACEHOLDER, name, None)
+        if v is not None:
+            out.add(v)
+    return out
+
+
+def _is_chrome_text(shape, slide_w_emu: int, slide_h_emu: int) -> bool:
+    """Decide whether `shape`'s text is outer slide chrome (strip) versus
+    inline diagram annotation (keep). Sprint Z heuristic. Layered:
+
+      1. If shape is a title/subtitle/footer/page-number placeholder →
+         chrome (most reliable signal).
+      2. If shape is positioned in the top 12% of the slide AND looks
+         titlish (large font OR short text) → chrome.
+      3. If shape's vertical centre is below 88% of slide height → chrome
+         (footer / page-number zone — fonts are tiny but always peripheral).
+      4. If shape name pattern matches title/subtitle/footer/page → chrome.
+      5. Otherwise → keep (assume inline annotation).
+
+    `slide_w_emu` / `slide_h_emu` are the SOURCE slide's dimensions, since
+    the caller hasn't yet scaled positions to the destination rect.
+    Conservative: when the heuristic can't decide, returns False (keep).
+    """
+    if not getattr(shape, "has_text_frame", False):
+        return False
+    try:
+        if not shape.text_frame.text.strip():
+            return False  # already empty — nothing to strip
+    except (AttributeError, TypeError):
+        return False
+
+    # 1. Placeholder-based detection.
+    try:
+        ph = shape.placeholder_format
+        if ph is not None and ph.idx is not None:
+            ph_type = ph.type
+            if ph_type in _chrome_placeholder_types():
+                return True
+    except (AttributeError, ValueError):
+        pass
+
+    # 2 + 3. Position-based.
+    try:
+        top = shape.top
+        height = shape.height
+        if top is not None and height is not None and slide_h_emu > 0:
+            top_pct = top / slide_h_emu
+            v_centre_pct = (top + height / 2) / slide_h_emu
+            # Top 12%: title-bar zone — only counts as chrome if titlish.
+            if top_pct < 0.12 and _looks_titlish(shape):
+                return True
+            # Bottom 8% (centre below 92%): footer / page-number zone.
+            if v_centre_pct > 0.92:
+                return True
+    except (TypeError, AttributeError):
+        pass
+
+    # 4. Shape-name pattern (last resort — names like "Title 1", "Footer 1").
+    try:
+        name = (shape.name or "").lower()
+        for pat in ("title", "subtitle", "footer", "page number",
+                    "slide number", "header placeholder", "date placeholder"):
+            if pat in name:
+                return True
+    except AttributeError:
+        pass
+
+    return False
+
+
+def _looks_titlish(shape) -> bool:
+    """For text in the top 12% of a slide: distinguish a real title bar
+    from a small annotation that just happens to sit near the top.
+
+    Titlish if any run has font-size ≥ 24pt, OR text is short (≤8 words)
+    with no explicit sizing. Long text (>12 words) is never titlish even
+    in the top zone — probably a description band."""
+    try:
+        words = shape.text_frame.text.split()
+        if len(words) > 12:
+            return False
+        for para in shape.text_frame.paragraphs:
+            for run in para.runs:
+                size = run.font.size
+                if size is not None and size.pt >= 24:
+                    return True
+        return len(words) <= 8
+    except (AttributeError, TypeError, ValueError):
+        return True  # be permissive — better to over-strip a peripheral
+                     # title-zone shape than under-strip
+
+
+def _blank_shape_text(shape) -> None:
+    """Blank every text run in `shape` while leaving the shape itself
+    intact (so the rectangle/box still renders, just empty). Same XML
+    pathway as the legacy `strip_text=True` blunt path, but scoped to
+    one shape rather than the whole copied tree."""
+    if not getattr(shape, "has_text_frame", False):
+        return
+    try:
+        from pptx.oxml.ns import qn
+        txBody = shape.text_frame._txBody
+        for tf_xml in txBody.findall(".//" + qn("a:t")):
+            tf_xml.text = ""
+    except (AttributeError, ImportError):
+        pass
