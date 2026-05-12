@@ -30,6 +30,9 @@ Run as root on the sandbox host.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -44,6 +47,28 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def supabase_jwt(secret: str, role: str, expires_at: int) -> str:
+    """Mint a Supabase-compatible HS256 JWT.
+
+    Supabase's anon + service_role keys are just JWTs signed with the
+    project's JWT_SECRET, with `role` set to either `anon` or `service_role`
+    and a far-future `exp`. GoTrue / PostgREST / supabase-js all accept them
+    via the standard Bearer flow.
+    """
+    header = _b64url(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+    payload = _b64url(json.dumps(
+        {"role": role, "iss": "supabase", "iat": int(time.time()), "exp": expires_at},
+        separators=(",", ":"),
+    ).encode())
+    signing_input = f"{header}.{payload}".encode()
+    sig = hmac.new(secret.encode(), signing_input, hashlib.sha256).digest()
+    return f"{header}.{payload}.{_b64url(sig)}"
 
 # ─── Paths (sandbox host) ─────────────────────────────────────────────────
 SIGNUPS_DB = Path(os.environ.get("HATCHIK_SIGNUP_DB", "/var/lib/hatchik/signups.db"))
@@ -100,7 +125,11 @@ def slugify(name: str) -> str:
 
 
 def unique_slug(base: str, reg: dict[str, Any]) -> str:
-    taken = set(reg["tenants"].keys()) | SLUG_RESERVED
+    """Find a free slug. Decommissioned slugs are reusable; live + provisioning
+    + failed slugs are not (failed sticks because the user may want to inspect)."""
+    live_statuses = {"provisioning", "live", "failed"}
+    taken = {s for s, t in reg["tenants"].items() if t.get("status") in live_statuses}
+    taken |= SLUG_RESERVED
     if base not in taken:
         return base
     for i in range(2, 100):
@@ -158,20 +187,54 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
         if text != original:
             path.write_text(text)
 
-    # Write the tenant .env from .env.example with secrets generated
+    # Write the tenant .env from .env.example with secrets generated.
+    # Critical: SUPABASE_ANON_KEY + SUPABASE_SERVICE_ROLE_KEY must be JWTs
+    # signed with the same JWT_SECRET. lib/supabase.ts throws at module
+    # load if VITE_SUPABASE_ANON_KEY is empty (the frontend won't render).
     env_example = target / ".env.example"
     env_file = target / ".env"
     if env_example.exists():
         env_text = env_example.read_text()
+
+        jwt_secret = secrets.token_hex(32)
+        # Far-future exp: ~10 years from now (Supabase uses 10y by default)
+        exp = int(time.time()) + 10 * 365 * 24 * 3600
+        anon_jwt = supabase_jwt(jwt_secret, "anon", exp)
+        service_jwt = supabase_jwt(jwt_secret, "service_role", exp)
+        pg_password = secrets.token_urlsafe(24).replace("-", "x")  # strip - to avoid URL-encoding pain
+
         env_text = env_text.replace(
             'JWT_SECRET="change-me-32-chars-or-more-please-do-not-keep-this-default"',
-            f'JWT_SECRET="{secrets.token_hex(32)}"',
+            f'JWT_SECRET="{jwt_secret}"',
+        )
+        env_text = env_text.replace(
+            'SUPABASE_ANON_KEY=""',
+            f'SUPABASE_ANON_KEY="{anon_jwt}"',
+        )
+        env_text = env_text.replace(
+            'SUPABASE_SERVICE_ROLE_KEY=""',
+            f'SUPABASE_SERVICE_ROLE_KEY="{service_jwt}"',
         )
         env_text = env_text.replace(
             'POSTGRES_PASSWORD="postgres"',
-            f'POSTGRES_PASSWORD="{secrets.token_urlsafe(24)}"',
+            f'POSTGRES_PASSWORD="{pg_password}"',
+        )
+        # Public URLs for VITE_* — the frontend uses these to call back
+        # through host Caddy → tenant Caddy → supabase-auth/rest/etc.
+        env_text = env_text.replace(
+            f'SITE_URL="https://{slug}.{DOMAIN}"',
+            f'SITE_URL="https://{slug}.{DOMAIN}"',
         )
         env_file.write_text(env_text)
+
+        # Also append explicit VITE_ vars in case .env.example doesn't have
+        # them (the docker-compose `environment:` block reads ${SUPABASE_ANON_KEY}
+        # but we set VITE_SUPABASE_URL explicitly below so it matches the
+        # public sandbox URL rather than localhost).
+        with env_file.open("a") as f:
+            f.write(f'\nVITE_SUPABASE_URL="https://{slug}.{DOMAIN}"\n')
+            f.write(f'VITE_SUPABASE_ANON_KEY="{anon_jwt}"\n')
+            f.write(f'VITE_PRODUCT_NAME="{product_name}"\n')
 
     # Override the Caddy port mapping in docker-compose to bind the tenant
     # Caddy to the allocated host port instead of the hardcoded 8080.
