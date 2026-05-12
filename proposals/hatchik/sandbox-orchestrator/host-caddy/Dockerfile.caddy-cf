@@ -1,0 +1,10 @@
+# Caddy with the Cloudflare DNS module compiled in.
+# Used by host-level Caddy to solve DNS-01 challenges for the wildcard
+# *.hatchik.com cert (and per-subdomain ones if we ever drop the wildcard).
+
+FROM caddy:2.8-builder-alpine AS builder
+RUN xcaddy build \
+    --with github.com/caddy-dns/cloudflare
+
+FROM caddy:2.8-alpine
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy

@@ -1,0 +1,23 @@
+# Host-level Caddy. Sits at port 80/443, terminates TLS for *.hatchik.com
+# via Cloudflare DNS-01 challenges, and reverse-proxies each subdomain to
+# the tenant's compose stack on localhost:<port>.
+
+services:
+  caddy:
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy-cf
+    restart: unless-stopped
+    network_mode: host    # need host net to reach localhost:18000..18099 tenants
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      CF_API_TOKEN: ${CF_API_TOKEN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

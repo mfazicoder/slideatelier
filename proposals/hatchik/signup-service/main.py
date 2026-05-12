@@ -570,10 +570,41 @@ async def create_signup(req: SignupRequest, request: Request) -> SignupResponse:
     await send_founder_notification(req, signup_id, ip)
     await send_customer_acknowledgement(req)
 
+    # If this is a Sandbox signup, trigger provisioning in the background.
+    # We don't await it — provision.py is slow (substrate build + compose up
+    # + healthcheck = ~60-90s) and the signup endpoint must return fast.
+    # provision.py sends its own "your sandbox is ready" email once live.
+    if req.tier == "sandbox":
+        trigger_sandbox_provision(signup_id)
+
     return SignupResponse(
         ok=True,
         message="Thanks. We're setting your Hatchik up — check your email within the hour.",
     )
+
+
+def trigger_sandbox_provision(signup_id: int) -> None:
+    """Fire-and-forget provisioning. Logs errors but never raises."""
+    import subprocess
+    script = os.environ.get("HATCHIK_PROVISION_SCRIPT", "/opt/hatchik-orchestrator/provision.py")
+    if not Path(script).exists():
+        log.warning("provision script not found at %s — skipping (concierge MVP)", script)
+        return
+    try:
+        # Detach completely from this process — provision.py runs to completion
+        # even if uvicorn restarts. stdout/stderr go to a log file per signup.
+        log_dir = Path("/var/log/hatchik")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / f"provision-{signup_id}.log"
+        subprocess.Popen(
+            [script, str(signup_id)],
+            stdout=log_file.open("ab"),
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        log.info("Provisioning kicked off for signup #%s → %s", signup_id, log_file)
+    except Exception as e:  # noqa: BLE001
+        log.error("Failed to kick off provisioning for #%s: %s", signup_id, e)
 
 
 @app.get("/api/signup/stats")

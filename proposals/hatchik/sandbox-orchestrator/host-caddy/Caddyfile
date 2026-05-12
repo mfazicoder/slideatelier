@@ -1,0 +1,39 @@
+# Host Caddy — wildcard TLS + subdomain routing for Hatchik sandboxes.
+#
+# Tenant routes are MAINTAINED BY provision.py. Each tenant gets its own
+# `import` block written to /etc/caddy/tenants.d/<slug>.caddy and the
+# `import tenants.d/*` directive pulls them in.
+#
+# To reload after provision.py writes a new tenant file:
+#   docker exec hatchik-caddy caddy reload --config /etc/caddy/Caddyfile
+
+{
+    email hello@hatchik.com
+    # Use the staging CA while you're testing (no rate limits, untrusted certs)
+    # then comment this out and `caddy reload` for real Let's Encrypt certs.
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ─── Wildcard cert for *.hatchik.com (solved via Cloudflare DNS-01) ──────
+# Catch-all that handles any subdomain we haven't explicitly templated.
+# Returns a friendly 404 for unknown subdomains.
+*.hatchik.com {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    @unknown {
+        not host prepsheet.hatchik.com  # placeholder — provision.py rewrites
+    }
+    respond @unknown "Sandbox not found. Visit https://hatchik.com to create one." 404
+}
+
+# ─── Per-tenant routes — injected here by provision.py ───────────────────
+import tenants.d/*.caddy
+
+# ─── Apex (hatchik.com) — placeholder; marketing page deploys here later ──
+hatchik.com, www.hatchik.com {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    respond "Hatchik — coming soon at https://loftik.namaasol.com (interim)" 200
+}

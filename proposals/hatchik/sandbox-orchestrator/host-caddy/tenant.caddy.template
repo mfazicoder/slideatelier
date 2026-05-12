@@ -1,0 +1,23 @@
+# Tenant route template — provision.py renders one of these per sandbox
+# into /etc/caddy/tenants.d/<slug>.caddy.
+#
+# Substituted vars:
+#   {{SLUG}}          → prepsheet
+#   {{TENANT_PORT}}   → 18000
+
+{{SLUG}}.hatchik.com {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    encode gzip zstd
+    reverse_proxy localhost:{{TENANT_PORT}} {
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
