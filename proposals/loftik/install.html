@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Install Hatchik — connect your AI to your stack</title>
+<meta name="description" content="Paste this snippet into Claude, Cursor or Windsurf and your AI tool talks directly to your Hatchik project. Deploys, previews, rollbacks — all from chat." />
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; --amber: #f59e0b; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .grain {
+    background-image:
+      radial-gradient(at 12% 8%, rgba(79,70,229,0.10) 0px, transparent 50%),
+      radial-gradient(at 88% 4%, rgba(245,158,11,0.08) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(79,70,229,0.06) 0px, transparent 50%);
+  }
+  .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .65rem; border-radius:9999px; font-size:.75rem; font-weight:500; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+  .chip-amber { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+  .chip-slate { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+  .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:1.5rem; transition:all .2s; }
+  .card:hover { border-color:#c7d2fe; box-shadow: 0 8px 30px rgba(79,70,229,0.08); }
+  .btn-primary { background: var(--indigo); color:white; padding:.85rem 1.4rem; border-radius:12px; font-weight:600; display:inline-flex; align-items:center; gap:.5rem; transition:all .15s; }
+  .btn-primary:hover { background:#4338ca; transform: translateY(-1px); box-shadow: 0 10px 25px rgba(79,70,229,0.35); }
+  .btn-ghost { color: var(--ink); padding:.85rem 1.2rem; border-radius:12px; font-weight:600; display:inline-flex; align-items:center; gap:.5rem; border:1px solid #e5e7eb; background:white; }
+  .btn-ghost:hover { border-color:#4f46e5; color:#4f46e5; }
+  .tick { color:#10b981; }
+  .gradient-text {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .code-window {
+    background:#0b1020; border-radius:14px; padding:1.25rem 1.5rem; color:#e2e8f0;
+    font-family:'JetBrains Mono',monospace; font-size:.85rem; line-height:1.6;
+    box-shadow: 0 20px 60px rgba(11,16,32,0.35);
+    position: relative;
+  }
+  .code-window .dot { width:.6rem; height:.6rem; border-radius:9999px; display:inline-block; margin-right:.35rem; }
+  .code-window pre { white-space: pre; overflow-x: auto; margin: 0; }
+  .code-window .tok-key { color: #a5b4fc; }
+  .code-window .tok-str { color: #fcd34d; }
+  .code-window .tok-com { color: #64748b; font-style: italic; }
+  .code-window .tok-pun { color: #94a3b8; }
+  .copy-btn {
+    position: absolute;
+    top: .9rem;
+    right: .9rem;
+    background: rgba(255,255,255,0.06);
+    color: #cbd5e1;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: .3rem .6rem;
+    font-size: .7rem;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.12); color: white; }
+  .copy-btn.is-copied { background: #10b981; color: white; border-color: #10b981; }
+
+  /* Tile picker */
+  .tile {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .tile:hover { border-color: #c7d2fe; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(79,70,229,0.10); }
+  .tile.is-active {
+    border-color: #4f46e5;
+    background: linear-gradient(180deg, #eef2ff 0%, #ffffff 80%);
+    box-shadow: 0 10px 30px rgba(79,70,229,0.18);
+  }
+  .tile-logo {
+    width: 2.5rem; height: 2.5rem; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; color: white; font-size: 1.1rem;
+  }
+  .tile-logo.claude { background: linear-gradient(135deg, #c1542d, #d97706); }
+  .tile-logo.cursor { background: linear-gradient(135deg, #111827, #374151); }
+  .tile-logo.windsurf { background: linear-gradient(135deg, #0891b2, #4f46e5); }
+
+  /* Panels */
+  .panel { display: none; }
+  .panel.is-active { display: block; }
+
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem; height: 1.75rem;
+    border-radius: 9999px;
+    background: #4f46e5;
+    color: white;
+    font-weight: 700;
+    font-size: .85rem;
+    flex-shrink: 0;
+  }
+
+  .file-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: .35rem .65rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem;
+    color: #334155;
+  }
+</style>
+</head>
+<body class="bg-white antialiased">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 backdrop-blur bg-white/80 border-b border-slate-100">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-lg">
+      <span class="inline-block w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+      Hatchik
+    </a>
+    <div class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-700">
+      <a href="/#how" class="hover:text-indigo-600">How it works</a>
+      <a href="/#included" class="hover:text-indigo-600">What's included</a>
+      <a href="/#pricing" class="hover:text-indigo-600">Pricing</a>
+      <a href="/#faq" class="hover:text-indigo-600">FAQ</a>
+      <a href="https://app.hatchik.com/login" class="hover:text-indigo-600">Sign in</a>
+    </div>
+    <a href="/#signup" class="btn-primary text-sm py-2">Try free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="grain">
+  <div class="max-w-4xl mx-auto px-6 pt-16 pb-10 text-center">
+    <span class="chip mb-5">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      One snippet · talks to your stack
+    </span>
+    <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">
+      Plug your AI into <span class="gradient-text">your Hatchik</span>.
+    </h1>
+    <p class="mt-5 text-lg text-slate-600 max-w-2xl mx-auto">
+      Paste one block of config into the AI tool you already use. From then on, your AI can ship code,
+      check deploys, run migrations and roll things back — straight from chat. No CLI to learn.
+    </p>
+    <p class="mt-4 text-sm text-slate-500">
+      Takes ~2 minutes. You'll need the API key from your Hatchik welcome email.
+    </p>
+  </div>
+</section>
+
+<!-- TOOL PICKER -->
+<section class="max-w-5xl mx-auto px-6 -mt-2 pb-8">
+  <div class="text-center mb-6">
+    <h2 class="text-xl font-bold">Which AI tool are you using?</h2>
+    <p class="text-sm text-slate-500 mt-1">Pick one. The steps are slightly different for each.</p>
+  </div>
+
+  <div class="grid md:grid-cols-3 gap-4" id="toolPicker">
+    <button class="tile is-active" data-tool="claude" type="button">
+      <div class="flex items-center gap-3">
+        <span class="tile-logo claude">C</span>
+        <div>
+          <div class="font-bold">Claude</div>
+          <div class="text-xs text-slate-500">Desktop or Code</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mt-1">If you chat with Claude on your Mac/PC, or use Claude Code in your terminal.</p>
+    </button>
+
+    <button class="tile" data-tool="cursor" type="button">
+      <div class="flex items-center gap-3">
+        <span class="tile-logo cursor">Cu</span>
+        <div>
+          <div class="font-bold">Cursor</div>
+          <div class="text-xs text-slate-500">The AI code editor</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mt-1">If you write code (or have your AI write code) inside Cursor.</p>
+    </button>
+
+    <button class="tile" data-tool="windsurf" type="button">
+      <div class="flex items-center gap-3">
+        <span class="tile-logo windsurf">W</span>
+        <div>
+          <div class="font-bold">Windsurf</div>
+          <div class="text-xs text-slate-500">Codeium's editor</div>
+        </div>
+      </div>
+      <p class="text-sm text-slate-600 mt-1">If you've moved to Windsurf for its Cascade agent mode.</p>
+    </button>
+  </div>
+</section>
+
+<!-- PANELS -->
+<section class="max-w-4xl mx-auto px-6 pb-16">
+
+  <!-- CLAUDE PANEL -->
+  <div class="panel is-active" data-panel="claude">
+    <div class="card">
+      <div class="flex items-center gap-3 mb-6">
+        <span class="tile-logo claude">C</span>
+        <div>
+          <h3 class="text-xl font-bold">Connect Claude to Hatchik</h3>
+          <p class="text-sm text-slate-500">Works with Claude Desktop on macOS and Windows, and with Claude Code.</p>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">1</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Open the config file</h4>
+          <p class="text-sm text-slate-600 mb-3">If it doesn't exist yet, create it. The folder might be hidden — in Finder, press <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Shift+.</span> to show hidden files.</p>
+          <div class="space-y-2">
+            <div>
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">macOS</span>
+              <div class="mt-1"><span class="file-pill">~/Library/Application Support/Claude/claude_desktop_config.json</span></div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Windows</span>
+              <div class="mt-1"><span class="file-pill">%APPDATA%\Claude\claude_desktop_config.json</span></div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Claude Code (any OS)</span>
+              <div class="mt-1"><span class="file-pill">~/.claude/mcp.json</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">2</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Paste this in</h4>
+          <p class="text-sm text-slate-600 mb-3">Replace <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_LOFTIK_API_KEY</span> with the key from your welcome email. If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"loftik"</span> entry inside it.</p>
+          <div class="code-window">
+            <div class="mb-3">
+              <span class="dot" style="background:#ef4444"></span>
+              <span class="dot" style="background:#eab308"></span>
+              <span class="dot" style="background:#22c55e"></span>
+              <span class="ml-2 text-xs text-slate-400">claude_desktop_config.json</span>
+            </div>
+            <button class="copy-btn" data-copy="claude-snippet" type="button">Copy</button>
+<pre id="claude-snippet">{
+  <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
+    <span class="tok-key">"loftik"</span><span class="tok-pun">:</span> {
+      <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
+      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@loftik/mcp"</span><span class="tok-pun">],</span>
+      <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
+        <span class="tok-key">"LOFTIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_LOFTIK_API_KEY"</span><span class="tok-pun">,</span>
+        <span class="tok-key">"LOFTIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
+      }
+    }
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">3</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Restart Claude</h4>
+          <p class="text-sm text-slate-600">Quit it completely (<span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Q</span> on Mac) and reopen. Claude reads MCP servers on launch.</p>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">4</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Test it</h4>
+          <p class="text-sm text-slate-600 mb-2">Start a new chat and type:</p>
+          <div class="code-window">
+<pre><span class="tok-com">// You:</span>
+Are you connected to Hatchik? What project am I on?</pre>
+          </div>
+          <p class="text-sm text-slate-600 mt-3">Claude should reply with your project name, the domain you launched, and which region the server is in. If it says it doesn't know about Hatchik, the config didn't load — double-check the file path and that you fully quit and reopened the app.</p>
+        </div>
+      </div>
+
+      <!-- What this does -->
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
+        <strong class="text-indigo-900">What this does, in plain English:</strong>
+        you're telling Claude that there's a service called "loftik" it's allowed to talk to.
+        When you ask Claude to ship a feature, check why the site is slow, or roll back yesterday's
+        change, it can now do that directly — Claude calls our MCP server, our server checks your API
+        key, and the action runs against your Hatchik project. Anything that costs money or could
+        break things (payments, deletes, rollbacks) still bounces through your browser for a click-to-confirm.
+      </div>
+    </div>
+  </div>
+
+  <!-- CURSOR PANEL -->
+  <div class="panel" data-panel="cursor">
+    <div class="card">
+      <div class="flex items-center gap-3 mb-6">
+        <span class="tile-logo cursor">Cu</span>
+        <div>
+          <h3 class="text-xl font-bold">Connect Cursor to Hatchik</h3>
+          <p class="text-sm text-slate-500">Tested with Cursor 0.45 and later.</p>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">1</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Open MCP settings</h4>
+          <p class="text-sm text-slate-600 mb-3">In Cursor: <strong>Cursor</strong> menu &rarr; <strong>Settings</strong> &rarr; <strong>Cursor Settings</strong> &rarr; <strong>MCP</strong>. Or open the command palette (<span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Shift+P</span>) and search "MCP".</p>
+          <p class="text-sm text-slate-600">You can either click "Add new MCP server" in the UI, or edit the config file directly:</p>
+          <div class="mt-2"><span class="file-pill">~/.cursor/mcp.json</span></div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">2</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Paste this in</h4>
+          <p class="text-sm text-slate-600 mb-3">Same shape as Claude — Cursor uses the same MCP standard. Replace the placeholder with your real key.</p>
+          <div class="code-window">
+            <div class="mb-3">
+              <span class="dot" style="background:#ef4444"></span>
+              <span class="dot" style="background:#eab308"></span>
+              <span class="dot" style="background:#22c55e"></span>
+              <span class="ml-2 text-xs text-slate-400">~/.cursor/mcp.json</span>
+            </div>
+            <button class="copy-btn" data-copy="cursor-snippet" type="button">Copy</button>
+<pre id="cursor-snippet">{
+  <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
+    <span class="tok-key">"loftik"</span><span class="tok-pun">:</span> {
+      <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
+      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@loftik/mcp"</span><span class="tok-pun">],</span>
+      <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
+        <span class="tok-key">"LOFTIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_LOFTIK_API_KEY"</span><span class="tok-pun">,</span>
+        <span class="tok-key">"LOFTIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
+      }
+    }
+  }
+}</pre>
+          </div>
+          <p class="text-sm text-slate-600 mt-3">Tip: you can also drop this in a <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">.cursor/mcp.json</span> file at the root of a project to scope the connection to that project only.</p>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">3</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Reload</h4>
+          <p class="text-sm text-slate-600">Back in the MCP settings panel, you should see "loftik" appear with a green dot. If it's red, click the refresh icon. If it's still red, check the API key for typos.</p>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">4</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Test it</h4>
+          <p class="text-sm text-slate-600 mb-2">Open the chat panel (<span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+L</span>) and ask:</p>
+          <div class="code-window">
+<pre><span class="tok-com">// You:</span>
+Are you connected to Hatchik? Show me my recent deploys.</pre>
+          </div>
+          <p class="text-sm text-slate-600 mt-3">Cursor's agent should call the Hatchik MCP and come back with a list of your last few deploys, plus their status. If it instead apologises or hallucinates, the MCP isn't connected — recheck the settings panel.</p>
+        </div>
+      </div>
+
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
+        <strong class="text-indigo-900">What this does, in plain English:</strong>
+        Cursor's AI now knows about your live Hatchik project. When it writes code on your laptop, it can also
+        push that code, watch the deploy land, and tell you if it broke anything — without you ever opening a
+        dashboard. The money/data-risky actions still pop a confirm page in your browser before running.
+      </div>
+    </div>
+  </div>
+
+  <!-- WINDSURF PANEL -->
+  <div class="panel" data-panel="windsurf">
+    <div class="card">
+      <div class="flex items-center gap-3 mb-6">
+        <span class="tile-logo windsurf">W</span>
+        <div>
+          <h3 class="text-xl font-bold">Connect Windsurf to Hatchik</h3>
+          <p class="text-sm text-slate-500">Works with Windsurf's Cascade agent.</p>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">1</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Open the MCP config</h4>
+          <p class="text-sm text-slate-600 mb-3">In Windsurf: click the <strong>Cascade</strong> icon in the side panel, then the hammer/tools icon at the top of the Cascade pane, then <strong>Configure</strong>. Or edit the file directly:</p>
+          <div><span class="file-pill">~/.codeium/windsurf/mcp_config.json</span></div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">2</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Paste this in</h4>
+          <p class="text-sm text-slate-600 mb-3">Replace the placeholder with the key from your welcome email.</p>
+          <div class="code-window">
+            <div class="mb-3">
+              <span class="dot" style="background:#ef4444"></span>
+              <span class="dot" style="background:#eab308"></span>
+              <span class="dot" style="background:#22c55e"></span>
+              <span class="ml-2 text-xs text-slate-400">mcp_config.json</span>
+            </div>
+            <button class="copy-btn" data-copy="windsurf-snippet" type="button">Copy</button>
+<pre id="windsurf-snippet">{
+  <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
+    <span class="tok-key">"loftik"</span><span class="tok-pun">:</span> {
+      <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
+      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@loftik/mcp"</span><span class="tok-pun">],</span>
+      <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
+        <span class="tok-key">"LOFTIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_LOFTIK_API_KEY"</span><span class="tok-pun">,</span>
+        <span class="tok-key">"LOFTIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
+      }
+    }
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">3</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Refresh Cascade</h4>
+          <p class="text-sm text-slate-600">Back in the Cascade pane, click <strong>Refresh</strong> on the tools panel. Hatchik should appear in the available servers list with a green status.</p>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="flex gap-4 mb-6">
+        <span class="step-num">4</span>
+        <div class="flex-1">
+          <h4 class="font-bold mb-1">Test it</h4>
+          <p class="text-sm text-slate-600 mb-2">Open Cascade and ask:</p>
+          <div class="code-window">
+<pre><span class="tok-com">// You:</span>
+Are you connected to Hatchik? What's the URL of my preview deploy?</pre>
+          </div>
+          <p class="text-sm text-slate-600 mt-3">Cascade should hit the Hatchik MCP and reply with your preview URL. If it says it has no Hatchik tools, the config didn't load — check the file path and reload Windsurf.</p>
+        </div>
+      </div>
+
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
+        <strong class="text-indigo-900">What this does, in plain English:</strong>
+        Cascade can now reach into your Hatchik project. Ask it to "ship the branch I just pushed" or
+        "tell me why production is throwing 500s" and it does the work — same MCP standard as Claude
+        and Cursor, just exposed through Cascade's interface.
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- OTHER TOOLS -->
+<section class="max-w-4xl mx-auto px-6 pb-16">
+  <div class="card" style="background: #fafafa;">
+    <h3 class="font-bold text-lg mb-2">Using something else?</h3>
+    <p class="text-sm text-slate-600 mb-4">
+      Hatchik speaks the standard Model Context Protocol. Any MCP-capable client works the same way — find that client's MCP config
+      file, paste the same <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">loftik</span> server block, restart.
+    </p>
+    <div class="grid sm:grid-cols-3 gap-3 text-sm">
+      <div class="flex items-start gap-2">
+        <span class="tick">&#10003;</span>
+        <div>
+          <div class="font-semibold">Cline</div>
+          <div class="text-xs text-slate-500">VS Code extension &mdash; MCP settings panel</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="tick">&#10003;</span>
+        <div>
+          <div class="font-semibold">Continue</div>
+          <div class="text-xs text-slate-500">edit <span class="mono">~/.continue/config.json</span></div>
+        </div>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="tick">&#10003;</span>
+        <div>
+          <div class="font-semibold">Aider</div>
+          <div class="text-xs text-slate-500">via <span class="mono">aider.mcp.servers</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="text-xs text-slate-500 mt-4">Tested-and-supported list grows weekly. If your tool isn't listed, try it anyway &mdash; if it speaks MCP, it works.</p>
+  </div>
+</section>
+
+<!-- HELP -->
+<section class="max-w-4xl mx-auto px-6 pb-20">
+  <div class="card bg-gradient-to-br from-amber-50 to-white border-amber-200">
+    <div class="flex flex-col md:flex-row items-start md:items-center gap-4 justify-between">
+      <div>
+        <h3 class="font-bold text-lg">Stuck on a step?</h3>
+        <p class="text-sm text-slate-600 mt-1 max-w-xl">
+          Reply to your welcome email or write to us &mdash; a real person reads every message and usually
+          replies inside an hour during UK working hours.
+        </p>
+      </div>
+      <a href="mailto:hello@hatchik.com" class="btn-primary">
+        Email hello@hatchik.com
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="border-t border-slate-100 py-10 bg-white">
+  <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-sm text-slate-500">
+    <div class="flex items-center gap-2 font-bold text-slate-700">
+      <span class="inline-block w-6 h-6 rounded-md bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+      Hatchik
+    </div>
+    <div class="flex flex-wrap gap-x-6 gap-y-2">
+      <a href="/privacy" class="hover:text-indigo-600">Privacy</a>
+      <a href="/terms" class="hover:text-indigo-600">Terms</a>
+      <a href="https://status.hatchik.com" class="hover:text-indigo-600">Status</a>
+      <a href="https://docs.hatchik.com" class="hover:text-indigo-600">Docs</a>
+      <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+    </div>
+    <div class="text-xs text-slate-400">Host anywhere &middot; You own your code &middot; Built for founders, not engineers</div>
+  </div>
+</footer>
+
+<script>
+(function() {
+  // Tile picker
+  const tiles = document.querySelectorAll('#toolPicker .tile');
+  const panels = document.querySelectorAll('.panel');
+
+  function select(tool) {
+    tiles.forEach(t => t.classList.toggle('is-active', t.dataset.tool === tool));
+    panels.forEach(p => p.classList.toggle('is-active', p.dataset.panel === tool));
+    // Update URL hash without scroll jump
+    if (history.replaceState) {
+      history.replaceState(null, '', '#' + tool);
+    }
+  }
+
+  tiles.forEach(tile => {
+    tile.addEventListener('click', () => select(tile.dataset.tool));
+  });
+
+  // Honour hash on load
+  const hash = (window.location.hash || '').replace('#', '');
+  if (['claude', 'cursor', 'windsurf'].includes(hash)) {
+    select(hash);
+  }
+
+  // Copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const target = document.getElementById(btn.dataset.copy);
+      if (!target) return;
+      const text = target.innerText;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        // Fallback: select the text
+        const range = document.createRange();
+        range.selectNode(target);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        try { document.execCommand('copy'); } catch (_) {}
+        sel.removeAllRanges();
+      }
+      const original = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('is-copied');
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove('is-copied');
+      }, 1600);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

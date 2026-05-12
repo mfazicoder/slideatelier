@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hatchik — Invoice [[INVOICE_NUMBER]]</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; --amber: #f59e0b; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); background: #f8fafc; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .gradient-text {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .invoice-sheet {
+    background: white;
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 3rem 3.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(11,16,32,0.06);
+  }
+  .label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+  }
+  .field-value {
+    font-size: 0.95rem;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  table.lines {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.25rem;
+  }
+  table.lines thead th {
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1.5px solid #0b1020;
+    padding: 0.65rem 0.5rem;
+  }
+  table.lines thead th.num { text-align: right; }
+  table.lines tbody td {
+    padding: 0.85rem 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.9rem;
+    vertical-align: top;
+  }
+  table.lines tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .totals-row td {
+    padding: 0.55rem 0.5rem !important;
+    border-bottom: none !important;
+  }
+  .totals-row td.label-cell {
+    text-align: right;
+    color: #475569;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+  .totals-row td.value-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-width: 7rem;
+  }
+  .total-final td {
+    border-top: 1.5px solid #0b1020 !important;
+    padding-top: 0.85rem !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+  }
+  .pay-block {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.4rem 1.5rem;
+    margin-top: 2rem;
+  }
+  .pay-block .label { color: #4338ca; }
+  .pay-row {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 0.5rem 1rem;
+    font-size: 0.9rem;
+    margin-top: 0.4rem;
+  }
+  .pay-row .k { color: #64748b; }
+  .pay-row .v { font-family: 'JetBrains Mono', monospace; color: var(--ink); word-break: break-all; }
+  .legal {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.5;
+    text-align: center;
+  }
+  .tax-note {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 0.6rem;
+    font-style: italic;
+  }
+  .ref-note {
+    font-size: 0.85rem;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    margin-top: 1rem;
+  }
+  @media print {
+    body { background: white; }
+    .invoice-sheet {
+      margin: 0;
+      padding: 1.5cm 1.8cm;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      max-width: 100%;
+    }
+    @page { size: A4; margin: 0; }
+    .gradient-text { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pay-block, .ref-note { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="invoice-sheet">
+
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-10">
+    <div>
+      <div class="text-3xl font-extrabold gradient-text tracking-tight">Hatchik</div>
+      <div class="text-xs text-slate-500 mt-1">hatchik.com</div>
+    </div>
+    <div class="text-right">
+      <div class="text-2xl font-extrabold tracking-tight">INVOICE</div>
+      <div class="mono text-sm text-slate-600 mt-1">[[INVOICE_NUMBER]]</div>
+    </div>
+  </div>
+
+  <!-- Parties + dates -->
+  <div class="grid grid-cols-2 gap-10 mb-10">
+    <div>
+      <div class="label">From</div>
+      <div class="field-value">
+        <div class="font-semibold">Hatchik</div>
+        <div class="text-slate-600">Operated by [[OMANI_ENTITY_NAME]]</div>
+        <div class="text-slate-600">Muscat, Sultanate of Oman</div>
+        <div class="text-slate-600 mt-1">hello@hatchik.com</div>
+      </div>
+    </div>
+    <div>
+      <div class="label">Billed to</div>
+      <div class="field-value">
+        <div class="font-semibold">[[CUSTOMER_NAME]]</div>
+        <div class="text-slate-600">[[CUSTOMER_EMAIL]]</div>
+        <div class="text-slate-600 whitespace-pre-line">[[CUSTOMER_ADDRESS]]</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-6 mb-10 pb-6 border-b border-slate-200">
+    <div>
+      <div class="label">Invoice number</div>
+      <div class="mono text-sm">[[INVOICE_NUMBER]]</div>
+    </div>
+    <div>
+      <div class="label">Issued</div>
+      <div class="field-value">[[ISSUE_DATE]]</div>
+    </div>
+    <div>
+      <div class="label">Due (Net 7)</div>
+      <div class="field-value font-semibold">[[DUE_DATE]]</div>
+    </div>
+  </div>
+
+  <!-- Line items -->
+  <table class="lines">
+    <thead>
+      <tr>
+        <th style="width:38%">Description</th>
+        <th style="width:24%">Period</th>
+        <th class="num" style="width:10%">Qty</th>
+        <th class="num" style="width:14%">Unit price</th>
+        <th class="num" style="width:14%">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="font-semibold">Hatchik Launch — Setup</div>
+          <div class="text-slate-500 text-xs mt-1">One-time provisioning: domain, server, mailboxes, repo, Stripe, Linear board.</div>
+        </td>
+        <td class="text-slate-600">One-time</td>
+        <td class="num">1</td>
+        <td class="num">£79.00</td>
+        <td class="num">£79.00</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="font-semibold">Hatchik Launch — Monthly</div>
+          <div class="text-slate-500 text-xs mt-1">Hosting, mail, monitoring, backups, support. Month 2 onwards.</div>
+        </td>
+        <td class="text-slate-600">[[BILLING_PERIOD]]</td>
+        <td class="num">1</td>
+        <td class="num">£9.00</td>
+        <td class="num">£9.00</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr class="totals-row">
+        <td colspan="3"></td>
+        <td class="label-cell">Subtotal</td>
+        <td class="value-cell">£88.00</td>
+      </tr>
+      <tr class="totals-row total-final">
+        <td colspan="3"></td>
+        <td class="label-cell">Total due</td>
+        <td class="value-cell">£88.00</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="tax-note">
+    Tax not included. Recipient is responsible for any applicable VAT, GST, or sales tax in their jurisdiction.
+  </div>
+
+  <!-- Payment instructions -->
+  <div class="pay-block">
+    <div class="label">Payment — bank transfer via Wise</div>
+    <div class="text-sm text-slate-600 mb-3">
+      Wise multi-currency account — pay in GBP, USD, EUR, or your local currency; Wise handles the conversion.
+    </div>
+    <div class="pay-row">
+      <div class="k">Account holder</div>
+      <div class="v">[[WISE_ACCOUNT_HOLDER]]</div>
+      <div class="k">IBAN (GBP)</div>
+      <div class="v">[[WISE_GBP_IBAN]]</div>
+      <div class="k">SWIFT / BIC</div>
+      <div class="v">[[WISE_SWIFT]]</div>
+    </div>
+    <div class="ref-note">
+      <strong>Important:</strong> please include invoice number <span class="mono">[[INVOICE_NUMBER]]</span> as your transfer reference so we can match the payment to your account.
+    </div>
+  </div>
+
+  <!-- Thank you -->
+  <div class="text-center mt-10 mb-2 text-sm text-slate-700">
+    Thank you for choosing Hatchik. Reply to <span class="mono">hello@hatchik.com</span> if anything on this invoice needs clarifying.
+  </div>
+
+  <!-- Legal footer -->
+  <div class="legal">
+    Hatchik is operated by [[OMANI_ENTITY_NAME]]. Commercial Registration: [[OMANI_CR_NUMBER]]. Muscat, Sultanate of Oman.
+  </div>
+
+</div>
+
+</body>
+</html>

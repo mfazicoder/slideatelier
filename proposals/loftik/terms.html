@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Terms of Service — Hatchik</title>
+<meta name="description" content="Hatchik's terms of service. Plain English. The rules of engagement." />
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+  .prose h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1rem; }
+  .prose h3 { font-size: 1.15rem; font-weight: 600; margin-top: 1.75rem; margin-bottom: 0.75rem; }
+  .prose p, .prose ul, .prose ol { margin-bottom: 1rem; line-height: 1.7; color: #334155; }
+  .prose ul, .prose ol { padding-left: 1.5rem; }
+  .prose li { margin-bottom: 0.35rem; }
+  .prose a { color: #4f46e5; text-decoration: underline; }
+  .prose a:hover { color: #3730a3; }
+  .prose strong { font-weight: 600; color: #0b1020; }
+  .prose code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.9em; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+</style>
+</head>
+<body class="bg-white antialiased">
+
+<nav class="sticky top-0 z-50 backdrop-blur bg-white/80 border-b border-slate-100">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-lg">
+      <span class="inline-block w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+      Hatchik
+    </a>
+    <div class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-700">
+      <a href="/" class="hover:text-indigo-600">Home</a>
+      <a href="/privacy" class="hover:text-indigo-600">Privacy</a>
+      <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+    </div>
+    <a href="/#signup" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">Try free →</a>
+  </div>
+</nav>
+
+<main class="max-w-3xl mx-auto px-6 py-16">
+
+  <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Terms of Service</p>
+  <h1 class="mt-2 text-4xl md:text-5xl font-extrabold tracking-tight">The rules of engagement.</h1>
+  <p class="mt-4 text-sm text-slate-500">Last updated: <span id="lastUpdated">{{LAUNCH_DATE}}</span></p>
+
+  <div class="prose mt-10 max-w-none">
+
+    <p>Plain English, intentionally short. These cover Hatchik for the launch cohort; we'll expand them as the product matures.</p>
+
+    <h2>1. About these terms</h2>
+    <p>These terms apply to your use of Hatchik, including the website at <a href="https://hatchik.com">hatchik.com</a> and the Hatchik service.</p>
+    <p>Hatchik is operated by <strong>{{LEGAL_ENTITY_NAME}}</strong> ({{COMPANIES_HOUSE_NO}}), registered in the United Kingdom at {{REGISTERED_ADDRESS}}. Email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a>.</p>
+    <p>These terms are governed by the laws of England and Wales. Disputes go to the courts of England and Wales unless you're a consumer in another EU/EEA country, in which case you can also use your local courts.</p>
+
+    <h2>2. What Hatchik is</h2>
+    <p>Hatchik is a SaaS substrate-as-a-service. We provision a working software stack on infrastructure you control: domain, server, database, payments, email, mobile shells, plus integrations to your AI coder of choice.</p>
+    <p>You build your product on top. We keep the foundation running.</p>
+
+    <h2>3. Signing up &amp; using Hatchik</h2>
+    <p>By signing up you confirm:</p>
+    <ul>
+      <li>You're 16 or older</li>
+      <li>The email address is yours, or you have authority to use it</li>
+      <li>Any payment method is yours, or you're authorised to use it</li>
+      <li>You'll use Hatchik in good faith and within the law</li>
+    </ul>
+    <p>You can cancel at any time — see §10.</p>
+
+    <h2>4. Pricing &amp; billing</h2>
+    <p>The price ladder is on the marketing page. In summary:</p>
+    <ul>
+      <li><strong>Sandbox — £0.</strong> Free forever, capped at 3 users and 100MB.</li>
+      <li><strong>Launch — £79 one-time + £9/month.</strong> Setup fee covers month 1. Monthly billing starts at month 2.</li>
+      <li><strong>Growth — £24/month.</strong> Automatic graduation after your app's 15th sign-up. We email a month before the change.</li>
+    </ul>
+    <p>Setup fee is non-refundable after 14 days. Within 14 days, full refund if we haven't yet provisioned your stack. Monthly fees are pro-rated on cancellation.</p>
+    <p>Stripe handles payments. We never see your card details.</p>
+
+    <h2>5. What we provide</h2>
+    <p>See the marketing page's "What's included" section for the canonical list — domain, server, mail, payments, mobile shells, etc.</p>
+    <p>We aim for 99.5% uptime on the Launch tier and 99.9% on Growth. No SLA credits in v1 — if you have persistent issues, email us and we refund the most recent month.</p>
+
+    <h2>6. What you provide</h2>
+    <ul>
+      <li>An accurate email address you can receive mail at</li>
+      <li>A product idea that doesn't break the law or our acceptable use policy (no scams, no malware, no illegal content, no spam apps)</li>
+      <li>If on the Launch / Growth tier: a working Stripe Connect account for taking payments from your customers</li>
+      <li>If submitting mobile apps to stores: your own Apple Developer and Google Play accounts (we don't submit on your behalf — see §8)</li>
+    </ul>
+
+    <h2>7. Your code, your data, your infrastructure</h2>
+    <p>Hatchik's substrate code is licensed permissively to you. Your product code (everything you build on top) is yours alone.</p>
+    <p>Your Hatchik runs on infrastructure provisioned in your name. If you cancel, you keep:</p>
+    <ul>
+      <li>The GitHub repo (already under your account)</li>
+      <li>The domain (already in your name)</li>
+      <li>The server (root credentials transferred to you)</li>
+      <li>The database (full export to your email)</li>
+      <li>Customer data (unchanged on your server)</li>
+      <li>Mailboxes (Infomaniak credentials transferred to you)</li>
+    </ul>
+    <p>No exit fee. No data extraction charge. Walk away with everything.</p>
+
+    <h2>8. App stores</h2>
+    <p>We build iOS and Android shells from your code, ready to submit. We don't submit on your behalf. You're responsible for:</p>
+    <ul>
+      <li>Apple Developer Program account ($99/year)</li>
+      <li>Google Play Console account ($25 one-time)</li>
+      <li>Store metadata, screenshots, privacy declarations</li>
+      <li>Compliance with each store's review guidelines</li>
+      <li>Submission, review responses, and rollout</li>
+    </ul>
+
+    <h2>9. AI inside your app</h2>
+    <p>Two options for runtime AI:</p>
+    <ul>
+      <li><strong>Bring your own key (default).</strong> Your Anthropic / OpenAI / OpenRouter account, billed directly by the provider. No Hatchik involvement.</li>
+      <li><strong>Hatchik passthrough (optional).</strong> One bill, included token allowance, vendor switching without code changes, built-in cost caps. We mark up provider rates; the markup is internal — your invoice shows a single line.</li>
+    </ul>
+    <p>You can switch between the two at any time.</p>
+
+    <h2>10. Cancellation &amp; termination</h2>
+    <p>Cancel any time from your Hatchik dashboard. Standard offboarding takes 7 days — you keep the grace period to change your mind. After 7 days the handover is final.</p>
+    <p>We can terminate your account if you:</p>
+    <ul>
+      <li>Use Hatchik for illegal purposes</li>
+      <li>Send spam or malicious content from Hatchik infrastructure</li>
+      <li>Attempt to compromise Hatchik's security or other customers' instances</li>
+      <li>Fail to pay an outstanding invoice for more than 30 days after multiple reminders</li>
+    </ul>
+    <p>If we terminate you for cause, you still keep your code, domain, server, and data — we just stop billing and providing service. We don't hold things hostage.</p>
+
+    <h2>11. Liability</h2>
+    <p>Our liability is limited to the amount you've paid Hatchik in the previous 12 months. We're not liable for indirect, consequential, or special damages.</p>
+    <p>This doesn't affect your statutory rights as a consumer under UK or EU law.</p>
+
+    <h2>12. Changes to these terms</h2>
+    <p>We may update these terms as the product evolves. When we make a material change we'll email everyone with a Hatchik account before it takes effect.</p>
+
+    <h2>13. Contact</h2>
+    <p>For anything terms-related: <a href="mailto:hello@hatchik.com">hello@hatchik.com</a>.</p>
+
+  </div>
+</main>
+
+<footer class="border-t border-slate-100 py-10 bg-white mt-16">
+  <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-sm text-slate-500">
+    <div class="flex items-center gap-2 font-bold text-slate-700">
+      <span class="inline-block w-6 h-6 rounded-md bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+      Hatchik
+    </div>
+    <div class="flex flex-wrap gap-x-6 gap-y-2">
+      <a href="/privacy" class="hover:text-indigo-600">Privacy</a>
+      <a href="/terms" class="hover:text-indigo-600">Terms</a>
+      <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+    </div>
+    <div class="text-xs text-slate-400">Host anywhere · You own your code</div>
+  </div>
+</footer>
+
+</body>
+</html>

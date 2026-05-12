@@ -1,0 +1,1787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hatchik — Your app idea, launched.</title>
+<meta name="description" content="Vibe-code your app idea into a real business. We handle every boring bit (hosting, payments, mail, mobile) so you can focus on the actual product. Built for the busy professional with an idea worth launching." />
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; --amber: #f59e0b; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .grain {
+    background-image:
+      radial-gradient(at 12% 8%, rgba(79,70,229,0.10) 0px, transparent 50%),
+      radial-gradient(at 88% 4%, rgba(245,158,11,0.08) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(79,70,229,0.06) 0px, transparent 50%);
+  }
+  .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .65rem; border-radius:9999px; font-size:.75rem; font-weight:500; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+  .chip-amber { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+  .chip-slate { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+  .card { background:white; border:1px solid #e5e7eb; border-radius:16px; padding:1.5rem; transition:all .2s; }
+  .card:hover { border-color:#c7d2fe; box-shadow: 0 8px 30px rgba(79,70,229,0.08); }
+  .card-warn {
+    background: linear-gradient(180deg, #fff1f2 0%, #ffffff 70%);
+    border-color: #fecdd3;
+    position: relative;
+  }
+  .card-warn:hover {
+    border-color: #fda4af;
+    box-shadow: 0 8px 30px rgba(244,63,94,0.10);
+  }
+  .card-warn .card-emoji { filter: grayscale(0.35); opacity: 0.85; }
+  .btn-primary { background: var(--indigo); color:white; padding:.85rem 1.4rem; border-radius:12px; font-weight:600; display:inline-flex; align-items:center; gap:.5rem; transition:all .15s; }
+  .btn-primary:hover { background:#4338ca; transform: translateY(-1px); box-shadow: 0 10px 25px rgba(79,70,229,0.35); }
+  .btn-ghost { color: var(--ink); padding:.85rem 1.2rem; border-radius:12px; font-weight:600; display:inline-flex; align-items:center; gap:.5rem; border:1px solid #e5e7eb; background:white; }
+  .btn-ghost:hover { border-color:#4f46e5; color:#4f46e5; }
+  .tick { color:#10b981; }
+  .cross { color:#cbd5e1; }
+  .partial { color:#f59e0b; }
+  .row-divider { border-top:1px solid #e5e7eb; }
+  details > summary { list-style:none; cursor:pointer; }
+  details > summary::-webkit-details-marker { display:none; }
+  details[open] .chev { transform: rotate(180deg); }
+  .chev { transition: transform .15s; }
+  .gradient-text {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .code-window {
+    background:#0b1020; border-radius:14px; padding:1.25rem 1.5rem; color:#e2e8f0;
+    font-family:'JetBrains Mono',monospace; font-size:.85rem; line-height:1.6;
+    box-shadow: 0 20px 60px rgba(11,16,32,0.35);
+  }
+  .code-window .dot { width:.6rem; height:.6rem; border-radius:9999px; display:inline-block; margin-right:.35rem; }
+  .marquee-fade {
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+            mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  }
+  /* Animated chat in hero */
+  .chat-msg {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.45s ease-out, transform 0.45s ease-out, max-height 0.45s ease-out, margin-bottom 0.45s ease-out;
+    line-height: 1.6;
+    margin-bottom: 0.25rem;
+    max-height: 10em;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+  }
+  .chat-msg.chat-show { opacity: 1; transform: translateY(0); }
+  .chat-msg.chat-collapsed {
+    opacity: 0;
+    max-height: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+    transition: max-height 0.45s ease-out, margin-bottom 0.45s ease-out, opacity 0.25s ease-out;
+  }
+  .chat-cont { padding-left: 9ch; }
+  .chat-prompt-final { color: #fff; font-weight: 700; }
+  .wizard-prompt-final { color: #fff; font-weight: 700; }
+  .chat-role-you { color: #a78bfa; font-weight: 600; }
+  .chat-role-claude { color: #94a3b8; }
+  .chat-arrow { color: #fbbf24; }
+  .chat-tick { color: #10b981; }
+  .chat-pay { color: #4ade80; }
+  .chat-grey { color: #94a3b8; }
+  .typing-dots span {
+    display: inline-block;
+    width: 4px; height: 4px;
+    background: #64748b;
+    border-radius: 50%;
+    margin-right: 3px;
+    animation: typingPulse 1.4s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingPulse {
+    0%, 60%, 100% { opacity: 0.3; transform: scale(0.85); }
+    30% { opacity: 1; transform: scale(1); }
+  }
+  /* Hero panel alternation */
+  .hero-panel-wrap { position: relative; }
+  .hero-panel { transition: opacity 0.5s ease-out; min-height: 30rem; }
+  .hero-panel.hero-hidden { display: none; }
+  .hero-wizard-light {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    color: #0f172a;
+    box-shadow: 0 20px 60px rgba(15,23,42,0.08);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  .hero-wizard-light .dot {
+    width:.6rem; height:.6rem; border-radius:9999px; display:inline-block; margin-right:.35rem;
+  }
+  .hero-wizard-light .wizard-label { color: #64748b; }
+  .hero-wizard-light .wizard-input {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+  }
+  .hero-wizard-light .wizard-input.is-typing { border-color: #6366f1; }
+  .hero-wizard-light .wizard-input.wizard-select {
+    background-image:
+      linear-gradient(90deg, transparent 0, transparent calc(100% - 2.2rem), rgba(99,102,241,0.10) calc(100% - 2.2rem), rgba(99,102,241,0.10) 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  }
+  .hero-wizard-light .wizard-hint { color: #d97706; }
+  .hero-wizard-light .wizard-options-hint { color: #4f46e5; }
+  .hero-wizard-light .wizard-step-ok { color: #047857; }
+  /* Plan toggle inside the wizard */
+  .wizard-plan-toggle {
+    display: inline-flex;
+    gap: 0.25rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.25rem;
+  }
+  .wizard-plan-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    color: #475569;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.3s ease-out, color 0.3s ease-out, box-shadow 0.3s ease-out;
+  }
+  .wizard-plan-opt.is-active {
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.12);
+    font-weight: 600;
+  }
+  .wizard-plan-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(99,102,241,0.12);
+    color: #4f46e5;
+  }
+  .wizard-plan-opt[data-plan="sandbox"] .wizard-plan-tag {
+    background: rgba(16,185,129,0.14);
+    color: #047857;
+  }
+  .wizard-row.wizard-collapsed {
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s, margin 0.4s ease-out 0.1s;
+  }
+  .wizard-btn.is-pressed {
+    transform: translateY(1px) scale(0.97);
+    background: linear-gradient(135deg, #3730a3, #6d28d9);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.25);
+  }
+  .wizard-cta-row { margin-top: 0.8rem; }
+  .wizard-wait {
+    display: inline-block;
+    color: #64748b;
+    font-size: 1.05rem;
+    letter-spacing: 0.35em;
+    font-weight: 700;
+    animation: wizardWaitDots 1.4s infinite;
+  }
+  @keyframes wizardWaitDots {
+    0%, 60%, 100% { opacity: 0.35; }
+    30% { opacity: 1; }
+  }
+  /* Wizard styling */
+  .wizard-row {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.45s ease-out, transform 0.45s ease-out, max-height 0.4s ease-out, margin-bottom 0.4s ease-out;
+    margin-bottom: 0.6rem;
+    max-height: 8em;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+  }
+  .wizard-row.wizard-show { opacity: 1; transform: translateY(0); }
+  .static-wizard-row {
+    margin-bottom: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+  }
+  .wizard-label { color: #94a3b8; display: block; margin-bottom: 0.2rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .wizard-input {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    color: #e2e8f0;
+    display: inline-block;
+    min-width: 14rem;
+  }
+  .wizard-input.is-typing { border-color: #6366f1; }
+  .wizard-input.wizard-select {
+    padding-right: 2.6rem;
+    background-image:
+      linear-gradient(90deg, transparent 0, transparent calc(100% - 2.2rem), rgba(99,102,241,0.18) calc(100% - 2.2rem), rgba(99,102,241,0.18) 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23c7d2fe' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat, no-repeat;
+    background-position: 0 0, right 0.75rem center;
+    background-size: 100% 100%, 0.85rem;
+    cursor: pointer;
+  }
+  .wizard-options-hint {
+    color: #818cf8;
+    font-size: 0.65rem;
+    margin-left: 0.5rem;
+    font-style: italic;
+  }
+  .wizard-hint { color: #fbbf24; font-size: 0.7rem; margin-left: 0.5rem; }
+  .wizard-btn {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: white;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(99,102,241,0);
+    transition: box-shadow 0.6s ease-out;
+  }
+  .wizard-btn.is-glow { box-shadow: 0 0 0 6px rgba(99,102,241,0.25); }
+  .wizard-success { color: #10b981; font-weight: 600; }
+  .wizard-step-ok { color: #10b981; font-size: 0.75rem; }
+  .strike-low {
+    position: relative;
+    display: inline-block;
+  }
+  .strike-low::after {
+    content: '';
+    position: absolute;
+    left: -0.1em;
+    right: -0.1em;
+    top: 62%;
+    height: 3px;
+    background: #fb7185;
+    border-radius: 1px;
+    pointer-events: none;
+  }
+  .stage-arrow { position:relative; }
+  .stage-arrow::after {
+    content:''; position:absolute; right:-1.5rem; top:50%; transform:translateY(-50%);
+    width:1rem; height:1rem; border-top:2px solid #c7d2fe; border-right:2px solid #c7d2fe;
+    transform: translateY(-50%) rotate(45deg);
+  }
+  @media (max-width: 768px) { .stage-arrow::after { display:none; } }
+</style>
+</head>
+<body class="bg-white antialiased">
+
+<!-- NAV -->
+<nav class="sticky top-0 z-50 backdrop-blur bg-white/80 border-b border-slate-100">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2 font-bold text-lg">
+      <span class="inline-block w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+      Hatchik
+    </a>
+    <div class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-700">
+      <a href="#how" class="hover:text-indigo-600">How it works</a>
+      <a href="#included" class="hover:text-indigo-600">What's included</a>
+      <a href="#pricing" class="hover:text-indigo-600">Pricing</a>
+      <a href="#faq" class="hover:text-indigo-600">FAQ</a>
+      <a href="https://app.hatchik.com/login" class="hover:text-indigo-600">Sign in</a>
+    </div>
+    <a href="#signup" class="btn-primary text-sm py-2">Try free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="grain">
+  <div class="max-w-6xl mx-auto px-6 pt-20 pb-24">
+    <div class="grid md:grid-cols-12 gap-10 items-center">
+      <div class="md:col-span-7">
+        <span class="chip mb-6">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
+          Your domain · Your data · No lock-in
+        </span>
+        <h1 class="text-5xl md:text-6xl font-extrabold leading-[1.05] tracking-tight">
+          Got an idea?<br>
+          <span class="gradient-text">We'll get it launched.</span>
+        </h1>
+        <p class="mt-6 text-lg text-slate-600 max-w-xl leading-normal">
+          Vibe-code it into reality — without becoming an infrastructure expert.
+          We handle the boring bit that makes an app work
+          <span class="text-slate-900 font-medium">(hosting, payments, emails, mobile apps, security, backups)</span>
+          so you focus on what you actually care about: your idea itself.
+        </p>
+        <p class="mt-5 text-sm text-slate-500 max-w-xl leading-relaxed">
+          Built for busy people building a product with AI tools — the consultant ready to demo their framework — not just present it, the restaurateur tired of clipboards, the wedding planner drowning in spreadsheets, and the designer who's always wanted to make their tool real. Works with Claude, Cursor, Windsurf and other major AI coders.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a href="#signup" class="btn-primary">
+            Try free
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+          <a href="#included" class="btn-ghost">See what's included</a>
+        </div>
+        <p class="mt-5 text-xs text-slate-500 leading-relaxed">
+          Free Sandbox forever.<br>
+          £79 to launch and £9/month.<br>
+          £24/month from your 15th sign-up.
+        </p>
+        <p class="mt-3 text-xs text-slate-500 leading-relaxed">
+          Transparent pricing, scaling only when you grow.
+        </p>
+      </div>
+
+      <div class="md:col-span-5">
+        <div class="hero-panel-wrap">
+        <div class="code-window hero-chat hero-panel hero-hidden" id="heroChat">
+          <div class="flex items-center mb-4">
+            <span class="dot" style="background:#ef4444"></span>
+            <span class="dot" style="background:#f59e0b"></span>
+            <span class="dot" style="background:#10b981"></span>
+            <span class="ml-3 text-xs text-slate-400">your AI · chat</span>
+          </div>
+
+          <div class="chat-msg" data-delay="400">
+            <span class="chat-role-you">You</span>: I want to build a meal prep app
+            for my PT clients.
+            Call it PrepSheet.
+          </div>
+
+          <div class="chat-msg typing-row" data-delay="2000" data-hide-at="3200">
+            <span class="chat-role-claude">Your AI</span>: <span class="typing-dots"><span></span><span></span><span></span></span>
+          </div>
+
+          <div class="chat-msg" data-delay="3200">
+            <span class="chat-role-claude">Your AI</span>: Nice — that's a clear fit.
+            <span class="chat-grey">Want me to connect this to Hatchik and</span>
+            <span class="chat-grey">get the whole thing set up?</span>
+          </div>
+
+          <div class="chat-msg" data-delay="4800">
+            <span class="chat-role-you">You</span>: yes please
+          </div>
+
+          <div class="chat-msg" data-delay="6000">
+            <span class="chat-role-claude">Your AI</span>:
+            <span class="chat-arrow">→</span> prepsheet.app available · £14/yr
+          </div>
+
+          <div class="chat-msg chat-cont" data-delay="6700">
+            <span class="chat-arrow">→</span> server: nearest to you (Frankfurt)?
+          </div>
+
+          <div class="chat-msg chat-cont" data-delay="7600">
+            <span style="color:#fff">want to start for free?</span>
+          </div>
+
+          <div class="chat-msg" data-delay="9200">
+            <span class="chat-role-you">You</span>: yes
+          </div>
+
+          <div class="chat-msg" data-delay="10800">
+            <span class="chat-role-claude">Your AI</span>: <span class="chat-tick">✓</span> sandbox set up at prepsheet.hatchik.com
+          </div>
+
+          <div class="chat-msg chat-cont" data-delay="11300">
+            <span class="chat-tick">✓</span> everything saved — and yours to keep
+          </div>
+
+          <div class="chat-msg chat-cont" data-delay="11800">
+            <span class="chat-tick">✓</span> ready for you to build
+          </div>
+
+          <div class="chat-msg chat-cont" data-delay="12300">
+            <span class="chat-prompt-final">what's the first feature?</span>
+          </div>
+        </div>
+
+        <div class="hero-wizard-light hero-panel" id="heroWizard">
+          <div class="flex items-center mb-4">
+            <span class="dot" style="background:#ef4444"></span>
+            <span class="dot" style="background:#f59e0b"></span>
+            <span class="dot" style="background:#10b981"></span>
+            <span class="ml-3 text-xs text-slate-500">hatchik.com · launch wizard</span>
+          </div>
+
+          <div class="wizard-row" data-delay="400">
+            <span class="wizard-label">What's your idea?</span>
+            <span class="wizard-input">A meal prep app for PT clients</span>
+          </div>
+
+          <div class="wizard-row" data-delay="1800">
+            <span class="wizard-label">Working name</span>
+            <span class="wizard-input">PrepSheet</span>
+          </div>
+
+          <div class="wizard-row" data-delay="3000">
+            <span class="wizard-label">Pick your plan</span>
+            <span class="wizard-plan-toggle">
+              <span class="wizard-plan-opt" data-plan="sandbox" data-active-at="6800">
+                <span class="wizard-plan-tag">FREE</span>
+                Sandbox
+              </span>
+              <span class="wizard-plan-opt" data-plan="launch" data-active-at="3700" data-deactive-at="6800">
+                <span class="wizard-plan-tag">£79</span>
+                Launch
+              </span>
+            </span>
+          </div>
+
+          <div class="wizard-row wizard-launch-only" data-delay="4400" data-hide-at="6800">
+            <span class="wizard-label">Domain</span>
+            <span class="wizard-input wizard-select">prepsheet.app</span>
+            <span class="wizard-hint">available · £14/yr</span>
+          </div>
+
+          <div class="wizard-row wizard-launch-only" data-delay="5500" data-hide-at="6800">
+            <span class="wizard-label">Server region</span>
+            <span class="wizard-input wizard-select">Frankfurt 🇩🇪 — closest to you</span>
+            <span class="wizard-options-hint">5 regions</span>
+          </div>
+
+          <div class="wizard-row" data-delay="7600">
+            <span class="wizard-label">Your email</span>
+            <span class="wizard-input">alex@example.com</span>
+          </div>
+
+          <div class="wizard-row wizard-cta-row" data-delay="9000">
+            <span class="wizard-btn" id="wizardBtn" data-pressed-at="10200">Start free Sandbox →</span>
+          </div>
+
+          <div class="wizard-row" data-delay="10800" data-hide-at="12000">
+            <span class="wizard-wait">···</span>
+          </div>
+
+          <div class="wizard-row" data-delay="12000">
+            <span class="wizard-step-ok">✓ sandbox set up at prepsheet.hatchik.com</span>
+          </div>
+
+          <div class="wizard-row" data-delay="12500">
+            <span class="wizard-step-ok">✓ everything saved — and yours to keep</span>
+          </div>
+
+          <div class="wizard-row" data-delay="13000">
+            <span class="wizard-step-ok">✓ ready for you to build</span>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="bg-slate-50 border-y border-slate-100">
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Your options today</p>
+    </div>
+    <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">
+      You have a burning idea.<br>
+      <span class="block mt-1 md:whitespace-nowrap"><span class="strike-low">You have 3 months to learn the tech.</span></span>
+    </h2>
+    <div class="max-w-2xl">
+      <p class="mt-4 text-slate-600 text-lg">Without Hatchik, your choices narrow — each with a catch.</p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-5 mt-12">
+
+      <!-- Option 1: Learn it yourself -->
+      <div class="card card-warn relative flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="text-5xl leading-none card-emoji">📚</div>
+          <div class="text-xs font-semibold text-rose-500 uppercase tracking-wider">Option 1</div>
+        </div>
+        <h3 class="mt-5 text-lg font-bold leading-snug">Become the engineer.</h3>
+        <p class="mt-2 mb-8 text-slate-600 text-sm leading-relaxed">
+          Pick up coding. Then hosting. Then how to wire up payments, email servers, app stores. Bootcamps, YouTube, late nights — until you're fluent enough to launch.
+        </p>
+        <div class="mt-auto pt-5 border-t border-rose-200">
+          <div class="text-[0.65rem] font-bold text-rose-600 uppercase tracking-widest">The catch</div>
+          <div class="mt-1 text-sm text-slate-700 font-medium">12+ months learning. Your idea cools off long before you launch it.</div>
+        </div>
+      </div>
+
+      <!-- Option 2: Hire someone -->
+      <div class="card card-warn relative flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="text-5xl leading-none card-emoji">💼</div>
+          <div class="text-xs font-semibold text-rose-500 uppercase tracking-wider">Option 2</div>
+        </div>
+        <h3 class="mt-5 text-lg font-bold leading-snug">Hire one, or an agency.</h3>
+        <p class="mt-2 mb-8 text-slate-600 text-sm leading-relaxed">
+          Find someone trustworthy. Pay £10,000–£50,000 upfront. Sit in spec calls for months, then more months for changes. Hope they don't ghost halfway through.
+        </p>
+        <div class="mt-auto pt-5 border-t border-rose-200">
+          <div class="text-[0.65rem] font-bold text-rose-600 uppercase tracking-widest">The catch</div>
+          <div class="mt-1 text-sm text-slate-700 font-medium">Eye-watering bill — and a never-ending invoice for upkeep.</div>
+        </div>
+      </div>
+
+      <!-- Option 3: No-code / AI app-builder -->
+      <div class="card card-warn relative flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="text-5xl leading-none card-emoji">🧱</div>
+          <div class="text-xs font-semibold text-rose-500 uppercase tracking-wider">Option 3</div>
+        </div>
+        <h3 class="mt-5 text-lg font-bold leading-snug">Use a no-code app-builder.</h3>
+        <p class="mt-2 mb-8 text-slate-600 text-sm leading-relaxed">
+          Bubble, Webflow, Lovable, Bolt — drag-and-drop your way to a pretty demo. Then your first real customer asks for something the platform can't do.
+        </p>
+        <div class="mt-auto pt-5 border-t border-rose-200">
+          <div class="text-[0.65rem] font-bold text-rose-600 uppercase tracking-widest">The catch</div>
+          <div class="mt-1 text-sm text-slate-700 font-medium">Locked into their cloud. Capped by their templates. You own nothing.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- BUNDLE -->
+<section id="included" class="py-24">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">What's included</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Hatchik gives you everything your app needs to be a real product.</h2>
+      <p class="mt-4 text-slate-600 text-lg">
+        Real businesses run on more than just code. We've got the rest covered — so you don't have to learn it to launch.
+      </p>
+    </div>
+
+    <div class="hidden md:grid grid-cols-2 gap-0 mt-12 px-6 text-xs font-semibold uppercase tracking-wider">
+      <div class="text-slate-500">What every app business needs</div>
+      <div class="text-indigo-600">What you get on day one</div>
+    </div>
+
+    <div class="mt-3 space-y-3">
+
+      <!-- 1. Database -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💾</span>
+            <h3 class="font-bold">A place to store your app's data</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Customer accounts, the things your app creates and remembers — anything you'd save in a spreadsheet but bigger and faster.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Postgres database</span>
+            <span class="text-xs text-slate-400">the kind big tech runs on</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">A production-grade database (same kind Instagram and Netflix use), backed up every night, ready from the first minute. You'll never see a setup screen.</p>
+        </div>
+      </div>
+
+      <!-- 2. Logins -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🔐</span>
+            <h3 class="font-bold">Sign-up and login for your customers</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">So people can create accounts, save their work, and come back to it tomorrow.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Logins, wired</span>
+            <span class="text-xs text-slate-400">email · magic link · Google</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">Working sign-up, login, password reset, and "click this email link to log in" — all already built. Plus optional Google sign-in. Your customers pick how.</p>
+        </div>
+      </div>
+
+      <!-- 3. Payments -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💳</span>
+            <h3 class="font-bold">A way to charge customers</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Subscriptions, free trials, refunds, invoices — all without reading a single page of payment-processor instructions.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Stripe <em class="not-italic text-slate-400">or</em> Paddle</span>
+            <span class="text-xs text-slate-400">your choice at signup</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">Two wired-and-ready options: <strong>Stripe</strong> (the global default, ~2.9% + 30p, you handle your own tax), or <strong>Paddle</strong> (Merchant of Record — slightly higher fee but they handle global VAT/GST/sales tax for you, useful if you're outside the 50 countries Stripe supports). Pick at signup, switch later if you like. Money lands in your bank either way.</p>
+        </div>
+      </div>
+
+      <!-- 4. Domain -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🌐</span>
+            <h3 class="font-bold">A real website address (yourapp.com)</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Not <span class="mono text-xs">myapp-prod-final.something.app</span>. Your own name, with the little padlock that tells visitors it's safe.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Domain + security certificate</span>
+            <span class="text-xs text-slate-400">bring your own or register a new one</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">We register a new domain in your name (year 1 included in the £79), or configure an existing domain you already own. Either way: DNS, TLS, and the security padlock — all handled. You never see a config screen.</p>
+        </div>
+      </div>
+
+      <!-- 5. Email -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">📬</span>
+            <h3 class="font-bold">Mailboxes on your domain — and emails that arrive</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600"><span class="mono text-xs">hello@yourapp.com</span> for support, <span class="mono text-xs">noreply@</span> for receipts. Plus the invisible technical bits that stop your automated emails landing in spam folders.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">5 inboxes + reliable delivery</span>
+            <span class="text-xs text-slate-400">configured properly</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">Five real mailboxes you can read on your phone like Gmail — but on your brand. And the obscure email plumbing (SPF, DKIM, DMARC) set up correctly, so your receipts and password resets land in inboxes, not spam.</p>
+        </div>
+      </div>
+
+      <!-- 6. Server -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🖥️</span>
+            <h3 class="font-bold">Somewhere on the internet for your app to live</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Always on, fast, and close enough to your customers that pages load quickly.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Server, your region</span>
+            <span class="text-xs text-slate-400">DE · FI · US East · US West · SG</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">A dedicated Hetzner Cloud server in the country you pick — Germany, Finland, US, or Singapore. Speeded up worldwide by an edge network so pages load fast for visitors anywhere.</p>
+        </div>
+      </div>
+
+      <!-- 7. Mobile -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">📱</span>
+            <h3 class="font-bold">iPhone and Android versions</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Without learning two new programming languages or maintaining three separate versions that all drift apart over time.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">iOS + Android apps</span>
+            <span class="text-xs text-slate-400">from one codebase</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">We generate iPhone and Android versions automatically from the same code as your website. Build a feature once, runs everywhere. Submit them to the app stores when you're ready — you'll need your own Apple Developer and Google Play accounts, and your app must meet each store's guidelines.</p>
+        </div>
+      </div>
+
+      <!-- 8. Code repo -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">📦</span>
+            <h3 class="font-bold">Code you actually own</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Not stuck inside a platform you can't escape. Yours to keep, change, take elsewhere.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Private GitHub repository</span>
+            <span class="text-xs text-slate-400">under your account</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">A private code repository in your own GitHub account from day one. Your AI helper reads it directly, suggests changes, launches features. If you ever leave, you take it with you.</p>
+        </div>
+      </div>
+
+      <!-- 9. Safety net -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🛟</span>
+            <h3 class="font-bold">A safety net when things go wrong</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Because something always goes wrong eventually. Backups, alerts, and a way to undo yesterday with one click.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Backups + monitoring</span>
+            <span class="text-xs text-slate-400">nightly · alerts · rollback</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">Every night, the entire app and its data are backed up. Restore yesterday's version with one click. If your app goes down or has errors, we email you — usually before any customer notices.</p>
+        </div>
+      </div>
+
+      <!-- 10. Backlog / Linear (repositioned) -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">📋</span>
+            <h3 class="font-bold">A clear list of what to build next</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">Features, bugs, ideas — all in one place. As your AI works on each task, it updates the status (started, launched, tested) so you always know where things are, without having to ask.</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">Free to-do board, set up for you</span>
+            <span class="text-xs text-slate-400">or use whatever you prefer</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">We create a clean to-do list pre-populated with about twenty starter tasks based on what you described. Your AI assistant reads from it and writes back to it as it works. Prefer a notebook or another tool? Use that instead — this is just there to help, not a requirement.</p>
+        </div>
+      </div>
+
+      <!-- 11. AI features inside the app -->
+      <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
+        <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🤖</span>
+            <h3 class="font-bold">AI features inside your app</h3>
+          </div>
+          <p class="mt-3 text-sm text-slate-600">If your app generates content, recommends things, chats with customers, summarises, or translates — it needs to talk to an AI service. (Different from the AI that helps you <em>write</em> the code — that's your own Cursor / Claude subscription.)</p>
+        </div>
+        <div class="p-6">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="chip">AI usage — your key or ours</span>
+            <span class="text-xs text-slate-400">Claude · GPT · Gemini · open-source</span>
+          </div>
+          <p class="mt-2 text-sm text-slate-600">Pre-wired access to every major AI provider. <strong>Your choice</strong>: bring your own API key (you pay the provider directly, no Hatchik involvement), or route AI through us (one bill, included token allowance — £3/mo on Launch, £10/mo on Growth — and built-in cost caps). Switch between Claude, GPT, and others without changing code either way.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="mt-10 p-6 rounded-2xl bg-slate-900 text-slate-100 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+      <div>
+        <div class="text-xs font-semibold text-amber-400 uppercase tracking-wider">We handle this. You handle that.</div>
+        <p class="mt-2 text-lg">Your job: <span class="text-white font-semibold">the actual product</span> — the thing your customers pay for. We hand you the foundation; you build the bit that makes it yours.</p>
+      </div>
+      <a href="#safe" class="btn-primary shrink-0 bg-indigo-500 hover:bg-indigo-400">Yes but is it safe? →</a>
+    </div>
+  </div>
+</section>
+
+<!-- SCOPE / WHERE LOFTIK ENDS -->
+<section id="scope" class="py-24">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Clear boundaries</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Where Hatchik ends, and where you take over.</h2>
+      <p class="mt-4 text-slate-600 text-lg">No surprises later. Here's the full picture of what's bundled into your subscription, what you set up yourself (and plug into Hatchik), and what you can add on through us when you need more.</p>
+    </div>
+
+    <div class="mt-12 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 border-b border-slate-200">
+          <tr>
+            <th class="text-left px-5 py-4 font-semibold text-slate-700">What</th>
+            <th class="text-center px-3 py-4 font-semibold text-emerald-700 w-28 md:w-32">Bundled</th>
+            <th class="text-center px-3 py-4 font-semibold text-amber-700 w-28 md:w-32">You set up</th>
+            <th class="text-center px-3 py-4 font-semibold text-indigo-700 w-28 md:w-32">Add-on</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+
+          <tr class="bg-slate-50/40">
+            <td colspan="4" class="px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Infrastructure</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">VPS hosting</span> <span class="text-slate-500">— Hetzner Cloud, your region (Launch+)</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Your domain</span> <span class="text-slate-500">— year 1 included; year 2+ on Growth</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">5 mailboxes + SPF/DKIM/DMARC</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Transactional email</span> <span class="text-slate-500">— Resend free tier (~3k/mo)</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Mobile builds</span> <span class="text-slate-500">— iOS + Android, store-ready</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Backups, monitoring, patches</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+
+          <tr class="bg-slate-50/40">
+            <td colspan="4" class="px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">AI</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">AI MCP integration</span> <span class="text-slate-500">— config for Claude / Cursor / Windsurf</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">AI runtime allowance</span> <span class="text-slate-500">— £0.50 Sandbox · £3 Launch · £10 Growth</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">AI coding tool subscription</span> <span class="text-slate-500">— Claude / Cursor / Windsurf, ~£20–50/mo</span></td>
+            <td></td><td class="text-center text-amber-600 text-xl">●</td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">AI passthrough overage</span> <span class="text-slate-500">— billed at provider cost</span></td>
+            <td></td><td></td><td class="text-center text-indigo-500 text-xl">↑</td>
+          </tr>
+
+          <tr class="bg-slate-50/40">
+            <td colspan="4" class="px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Payments &amp; legal</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Stripe or Paddle account</span> <span class="text-slate-500">— you create, we wire it in</span></td>
+            <td></td><td class="text-center text-amber-600 text-xl">●</td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Apple Developer</span> <span class="text-slate-500">— $99/yr, direct</span></td>
+            <td></td><td class="text-center text-amber-600 text-xl">●</td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Google Play</span> <span class="text-slate-500">— $25 one-off, direct</span></td>
+            <td></td><td class="text-center text-amber-600 text-xl">●</td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Your company / legal entity</span></td>
+            <td></td><td class="text-center text-amber-600 text-xl">●</td><td></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Your product features + UI</span></td>
+            <td></td><td class="text-center text-amber-600 text-xl">●</td><td></td>
+          </tr>
+
+          <tr class="bg-slate-50/40">
+            <td colspan="4" class="px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Extras (when you need them)</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Hosting upgrade</span> <span class="text-slate-500">— bigger VPS, priced on request</span></td>
+            <td></td><td></td><td class="text-center text-indigo-500 text-xl">↑</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Region migration</span> <span class="text-slate-500">— £49 Launch / included Growth</span></td>
+            <td></td><td></td><td class="text-center text-indigo-500 text-xl">↑</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Extra backup retention</span> <span class="text-slate-500">— ~£0.50/mo per 100 GB</span></td>
+            <td></td><td></td><td class="text-center text-indigo-500 text-xl">↑</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Email volume above free tier</span> <span class="text-slate-500">— upgrade Resend direct</span></td>
+            <td></td><td></td><td class="text-center text-indigo-500 text-xl">↑</td>
+          </tr>
+
+          <tr>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Founder support</span> <span class="text-slate-500">— 1 day (Launch) / same day (Growth)</span></td>
+            <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-6 text-xs text-slate-500 max-w-2xl">
+      <span class="font-semibold text-slate-600">Not on the menu (out of scope for v1):</span>
+      marketing / SEO / app-store optimisation, custom development by Hatchik, compliance attestations
+      (SOC 2 / HIPAA / ISO), support for your end-users, legal templates beyond a generic starter.
+    </p>
+  </div>
+</section>
+
+<!-- TWO PATHS IN -->
+<section id="how" class="py-24 bg-slate-50 border-y border-slate-100">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">How it works</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Two ways to start. <span class="gradient-text">The same outcome.</span></h2>
+      <p class="mt-4 text-slate-600 text-lg">Sign up through our website like a normal service, or start the whole thing right inside your AI assistant — whichever feels more natural. Same result either way: a working app on your own domain.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-12">
+
+      <!-- Path A: Web (lead) -->
+      <div class="card relative ring-2 ring-indigo-600 bg-gradient-to-br from-white to-indigo-50/30">
+        <div class="absolute -top-3 left-6"><span class="chip" style="background:#4f46e5;color:white;border-color:#4f46e5">From hatchik.com</span></div>
+        <h3 class="text-xl font-bold mt-2">From the website</h3>
+        <p class="mt-2 text-sm text-slate-600">A short wizard. Helpful when you want to see your options first.</p>
+
+        <ol class="mt-6 space-y-4">
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-slate-900 text-white font-bold flex items-center justify-center text-sm">1</div>
+            <div>
+              <p class="font-semibold text-slate-900">Name your app</p>
+              <p class="mt-1 text-sm text-slate-600">One field. We use it for everything else (your website, your repo, the welcome email).</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-slate-900 text-white font-bold flex items-center justify-center text-sm">2</div>
+            <div>
+              <p class="font-semibold text-slate-900">Pick your domain and region</p>
+              <p class="mt-1 text-sm text-slate-600">Live search — type a name, see what's available, pick the country your server lives in.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-slate-900 text-white font-bold flex items-center justify-center text-sm">3</div>
+            <div>
+              <p class="font-semibold text-slate-900">Connect payments (or skip)</p>
+              <p class="mt-1 text-sm text-slate-600">Hook up Stripe so customers can pay you. Skip and we set up test mode — you can do it later.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-slate-900 text-white font-bold flex items-center justify-center text-sm">4</div>
+            <div>
+              <p class="font-semibold text-slate-900">Your app is live — open your AI helper</p>
+              <p class="mt-1 text-sm text-slate-600">Everything's wired up. We email you a tiny config snippet — paste it into Claude/Cursor/Windsurf and your AI is ready to build features.</p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="mt-6 code-window">
+          <div class="flex items-center mb-4">
+            <span class="dot" style="background:#ef4444"></span>
+            <span class="dot" style="background:#f59e0b"></span>
+            <span class="dot" style="background:#10b981"></span>
+            <span class="ml-3 text-xs text-slate-400">hatchik.com · launch wizard</span>
+          </div>
+          <div class="static-wizard-row">
+            <span class="wizard-label">What's your idea?</span>
+            <span class="wizard-input">A meal prep app for PT clients</span>
+          </div>
+          <div class="static-wizard-row">
+            <span class="wizard-label">Working name</span>
+            <span class="wizard-input">PrepSheet</span>
+          </div>
+          <div class="static-wizard-row">
+            <span class="wizard-label">Domain</span>
+            <span class="wizard-input wizard-select">prepsheet.app</span>
+            <span class="wizard-hint">available · £14/yr</span>
+          </div>
+          <div class="static-wizard-row">
+            <span class="wizard-label">Server region</span>
+            <span class="wizard-input wizard-select">Frankfurt 🇩🇪 — closest to you</span>
+            <span class="wizard-options-hint">5 regions</span>
+          </div>
+          <div class="static-wizard-row">
+            <span class="wizard-label">Your email</span>
+            <span class="wizard-input">alex@example.com</span>
+          </div>
+          <div class="static-wizard-row">
+            <span class="wizard-btn">Launch PrepSheet →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Path B: AI -->
+      <div class="card relative">
+        <div class="absolute -top-3 left-6"><span class="chip chip-slate">If you already use an AI assistant</span></div>
+        <h3 class="text-xl font-bold mt-2">From your AI assistant</h3>
+        <p class="mt-2 text-sm text-slate-600">Already chatting with Claude or another AI helper? Sign up right there.</p>
+
+        <ol class="mt-6 space-y-4">
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">1</div>
+            <div>
+              <p class="font-semibold text-slate-900">Connect Hatchik to your AI (once)</p>
+              <p class="mt-1 text-sm text-slate-600">Paste a small config block into your AI tool's settings. We give you instructions tailored to whichever tool you use.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">2</div>
+            <div>
+              <p class="font-semibold text-slate-900">Just describe what you want to build</p>
+              <p class="mt-1 text-sm text-slate-600">"I want to build a meal prep app called PrepSheet." Your AI walks you through the name, domain, region — in plain chat.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">3</div>
+            <div>
+              <p class="font-semibold text-slate-900">Pay in your browser (one click)</p>
+              <p class="mt-1 text-sm text-slate-600">We never take payment information through chat. A secure checkout opens in your browser, you pay in your local currency, you're back. Safe by design.</p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <div class="shrink-0 w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">4</div>
+            <div>
+              <p class="font-semibold text-slate-900">Keep chatting — your app is provisioning</p>
+              <p class="mt-1 text-sm text-slate-600">Plan features with your AI while we register the domain, set up the server, prepare your to-do list. Status reports inline.</p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="mt-6 code-window text-xs">
+          <div class="flex items-center mb-3">
+            <span class="dot" style="background:#ef4444"></span>
+            <span class="dot" style="background:#f59e0b"></span>
+            <span class="dot" style="background:#10b981"></span>
+            <span class="ml-3 text-xs text-slate-400">your AI · with loftik</span>
+          </div>
+<pre class="text-[0.72rem] leading-relaxed"><span style="color:#a78bfa">You</span>: build me a meal prep app
+      called PrepSheet
+
+<span style="color:#94a3b8">Your AI</span>:
+  <span style="color:#fbbf24">→</span> prepsheet.app available · £14/yr
+  <span style="color:#fbbf24">→</span> server: Frankfurt (default)?
+  one-time £79 + £9/mo
+  <span style="color:#4ade80">pay ↗</span> hatchik.com/p/xyz
+
+<span style="color:#a78bfa">You</span>: [pays in browser]
+
+<span style="color:#94a3b8">Your AI</span>:
+  <span style="color:#10b981">✓</span> live at prepsheet.app
+  <span style="color:#10b981">✓</span> repo cloned
+  <span style="color:#10b981">✓</span> 23 starter tasks
+  what's first?</pre>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="mt-8 text-center text-sm text-slate-500">Either way you land in the same place: your app on your own domain, your code in your own account, your AI helper ready to build features with you.</p>
+  </div>
+</section>
+
+<!-- AI TOOL STRIP -->
+<section class="border-y border-slate-100 py-10">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-10">
+      <div class="md:w-64 shrink-0">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Works with</p>
+        <p class="mt-1 text-sm font-medium text-slate-900">Any popular AI coding helper. Don't have one yet? The website wizard works without.</p>
+      </div>
+      <div class="flex-1 marquee-fade">
+        <div class="flex items-center justify-start md:justify-around gap-3 flex-wrap text-sm font-medium text-slate-700">
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span> Claude
+          </span>
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white">
+            <span class="w-2 h-2 rounded-full bg-indigo-600"></span> Cursor
+          </span>
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Windsurf
+          </span>
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white">
+            <span class="w-2 h-2 rounded-full bg-violet-500"></span> Cline
+          </span>
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white">
+            <span class="w-2 h-2 rounded-full bg-sky-500"></span> Continue
+          </span>
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span> Aider
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOSTING REGIONS -->
+<section class="py-20 bg-gradient-to-b from-white to-slate-50 border-y border-slate-100">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Where it lives</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Your app, in the region you choose.</h2>
+      <p class="mt-4 text-slate-600 text-lg">Closer to your customers = faster pages, and (in some places) regulators happier. Pick where the server lives — we do the rest.</p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-10">
+      <div class="card text-center">
+        <div class="text-3xl">🇩🇪</div>
+        <h3 class="mt-2 font-bold">Germany</h3>
+        <p class="text-xs text-slate-500 mt-1">Falkenstein · Nuremberg</p>
+        <p class="text-xs text-slate-500 mt-2">EU GDPR · default for UK + EU customers</p>
+      </div>
+      <div class="card text-center">
+        <div class="text-3xl">🇫🇮</div>
+        <h3 class="mt-2 font-bold">Finland</h3>
+        <p class="text-xs text-slate-500 mt-1">Helsinki</p>
+        <p class="text-xs text-slate-500 mt-2">Northern Europe · renewable-powered</p>
+      </div>
+      <div class="card text-center">
+        <div class="text-3xl">🇺🇸</div>
+        <h3 class="mt-2 font-bold">US East</h3>
+        <p class="text-xs text-slate-500 mt-1">Ashburn, VA</p>
+        <p class="text-xs text-slate-500 mt-2">Closest to US East Coast customers</p>
+      </div>
+      <div class="card text-center">
+        <div class="text-3xl">🇺🇸</div>
+        <h3 class="mt-2 font-bold">US West</h3>
+        <p class="text-xs text-slate-500 mt-1">Hillsboro, OR</p>
+        <p class="text-xs text-slate-500 mt-2">Best for US West + APAC reach</p>
+      </div>
+      <div class="card text-center">
+        <div class="text-3xl">🇸🇬</div>
+        <h3 class="mt-2 font-bold">Singapore</h3>
+        <p class="text-xs text-slate-500 mt-1">Singapore</p>
+        <p class="text-xs text-slate-500 mt-2">Best for Asia-Pacific customers</p>
+      </div>
+    </div>
+
+    <p class="mt-8 text-sm text-slate-500 text-center">All regions powered by Hetzner Cloud. One provider keeps things simple — same SLA, same hardware, same backups everywhere.</p>
+  </div>
+</section>
+
+<!-- SAFE TO EXPERIMENT (VIBE-CODING RAILS) -->
+<section id="safe" class="bg-slate-900 text-white py-24">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-amber-400 uppercase tracking-wider">Safe to experiment</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Mess about freely.<br>We catch the mistakes.</h2>
+      <p class="mt-4 text-slate-300 text-lg">
+        Vibe-coding with an AI is fun precisely because you can move fast. But fast + your live customers' data = scary. Four built-in rails make experiments safe.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5 mt-12">
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 01</div>
+        <h3 class="mt-2 text-xl font-bold">Try changes in a private copy first</h3>
+        <p class="mt-3 text-slate-300 text-sm leading-relaxed">
+          Every change goes onto a private test version of your app first — with its own web address.
+          Share with a friend, see if it works, then decide if you want it on the real version.
+          Nothing scary makes it to your customers without you saying yes.
+        </p>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 02</div>
+        <h3 class="mt-2 text-xl font-bold">Your AI can't accidentally wipe your data</h3>
+        <p class="mt-3 text-slate-300 text-sm leading-relaxed">
+          If your AI suggests a change to your database (adding a new field, removing an old one), it doesn't run on its own.
+          You see the change in plain English, click "apply," and we take a backup first.
+          AI writes; you decide what runs.
+        </p>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 03</div>
+        <h3 class="mt-2 text-xl font-bold">Yesterday is one click away</h3>
+        <p class="mt-3 text-slate-300 text-sm leading-relaxed">
+          We back up your app's data every night. Made a mess? Restore yesterday's version in thirty seconds.
+          We keep a week of snapshots so you can roll further back if you need to.
+        </p>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 04</div>
+        <h3 class="mt-2 text-xl font-bold">Pause the real app while you tinker</h3>
+        <p class="mt-3 text-slate-300 text-sm leading-relaxed">
+          When you're trying something risky, flip a switch — your customers can still see the app,
+          but nothing they do can change anything. Experiment freely, flip back when ready.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-12 grid md:grid-cols-2 gap-6 items-center">
+      <div class="code-window">
+        <div class="flex items-center mb-3">
+          <span class="dot" style="background:#ef4444"></span>
+          <span class="dot" style="background:#f59e0b"></span>
+          <span class="dot" style="background:#10b981"></span>
+          <span class="ml-3 text-xs text-slate-400">claude · with loftik</span>
+        </div>
+<pre class="text-[0.78rem]"><span style="color:#94a3b8"># later, when you're building features:</span>
+
+<span style="color:#a78bfa">You</span>: what's next on the to-do list?
+
+<span style="color:#94a3b8">Claude</span>:
+  <span style="color:#fbbf24">→</span> Recipes (task 23) — high priority
+  <span style="color:#fbbf24">→</span> Weekly menu generator (24)
+  <span style="color:#fbbf24">→</span> Shopping list rollup (25)
+
+<span style="color:#a78bfa">You</span>: do task 23
+
+<span style="color:#94a3b8">Claude</span>: <span style="color:#10b981">✓</span> built the recipes page
+       <span style="color:#10b981">✓</span> tested on the private copy
+       <span style="color:#10b981">✓</span> moved task 23 to "In Review"
+       try it: 23-recipes.prepsheet.app</pre>
+      </div>
+      <div>
+        <h3 class="text-2xl font-bold">Your AI reads the to-do list.<br>Your AI builds the feature.<br>You approve when you're happy.</h3>
+        <p class="mt-3 text-slate-300 leading-relaxed">
+          You stay in charge of what launches. Your AI does the heavy lifting,
+          tests its own work, updates the to-do list, and shows you a private preview
+          to try first. When you're happy, one click pushes it to the real app.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON -->
+<section class="bg-slate-50 border-y border-slate-100 py-24">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Honest comparison</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">How Hatchik stacks up.</h2>
+      <p class="mt-4 text-slate-600 text-lg">Different categories of product, different trade-offs. Here's where we win — and where we don't.</p>
+    </div>
+
+    <div class="mt-10 overflow-x-auto">
+      <table class="w-full text-sm bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <thead class="bg-slate-100">
+          <tr class="text-left">
+            <th class="px-5 py-4 font-semibold"></th>
+            <th class="px-5 py-4 font-semibold text-indigo-700">Hatchik</th>
+            <th class="px-5 py-4 font-semibold">Code-template sellers</th>
+            <th class="px-5 py-4 font-semibold">Hosting + DB platforms</th>
+            <th class="px-5 py-4 font-semibold">AI app-builders</th>
+            <th class="px-5 py-4 font-semibold">No-code tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Click-and-launch</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 tick text-center">✓</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Custom domain configured</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">DIY</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">limited</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Mailboxes on your domain</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Real payments (Stripe)</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td><td class="px-5 py-3 partial text-center">via add-on</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">iPhone + Android apps</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">paid tier</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Pick your hosting region</td><td class="px-5 py-3 tick text-center">✓ any</td><td class="px-5 py-3 partial text-center">your server</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">their cloud</td><td class="px-5 py-3 cross text-center">their cloud</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">You own the code</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 partial text-center">export</td><td class="px-5 py-3 cross text-center">—</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Sign up inside your AI tool</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Safety rails (preview, rollback, gating)</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td></tr>
+          <tr class="row-divider bg-indigo-50/40"><td class="px-5 py-3 font-semibold">Year-1 cost (typical)</td><td class="px-5 py-3 text-indigo-700 font-bold text-center">£178</td><td class="px-5 py-3 text-center">~£400+</td><td class="px-5 py-3 text-center">~£700+</td><td class="px-5 py-3 text-center">~£300+</td><td class="px-5 py-3 text-center">~£400+</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-4 text-xs text-slate-500">Year-1 cost = £79 setup + 11 × £9 monthly (month 1 included in setup). Estimates for a small app in its launch phase, single region. Your numbers will vary.</p>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="py-24">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Pricing</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">One price. <span class="gradient-text">Three stages.</span></h2>
+      <p class="mt-4 text-slate-600 text-lg">No menus. No tiers to choose. The price grows with you, because the value grows with you. You pay more only when we've helped you make more.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 mt-12">
+
+      <!-- Stage 0 -->
+      <div class="card relative">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stage 0 · Kick the tyres</div>
+        <h3 class="mt-2 text-xl font-bold">Free Sandbox</h3>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-5xl font-extrabold">£0</span>
+          <span class="text-slate-500">/ forever</span>
+        </div>
+        <p class="mt-3 text-slate-600 text-sm">See if it's right for you, no card needed. A working version of your app on a free subdomain.</p>
+        <ul class="mt-6 space-y-2 text-sm text-slate-700">
+          <li class="flex gap-2"><span class="tick">✓</span> <span class="mono text-xs">yoursubdomain.hatchik.com</span></li>
+          <li class="flex gap-2"><span class="tick">✓</span> Same product as paid plans</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Up to 3 users / 100MB</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Payments in test mode</li>
+          <li class="flex gap-2"><span class="cross">—</span> <span class="text-slate-500">"Built with Hatchik" footer</span></li>
+          <li class="flex gap-2"><span class="cross">—</span> <span class="text-slate-500">Archived if idle 30 days</span></li>
+        </ul>
+        <a href="#signup" class="mt-8 block text-center btn-ghost w-full">Start free</a>
+      </div>
+
+      <!-- Stage 1 (featured) -->
+      <div class="card relative ring-2 ring-indigo-600 bg-gradient-to-br from-white to-indigo-50/30">
+        <div class="absolute -top-3 left-6"><span class="chip" style="background:#4f46e5;color:white;border-color:#4f46e5">Where most start</span></div>
+        <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wider mt-2">Stage 1 · Launch your idea</div>
+        <h3 class="mt-2 text-xl font-bold">Idea</h3>
+        <div class="mt-4 flex items-baseline gap-2 flex-wrap">
+          <span class="text-5xl font-extrabold">£79</span>
+          <span class="text-slate-500">once, then</span>
+          <span class="text-2xl font-bold">£9</span>
+          <span class="text-slate-500">/ month from month 2</span>
+        </div>
+        <p class="mt-3 text-slate-600 text-sm">The whole shebang — your domain, your server, your mailboxes, payments live. £79 sets it all up properly <em>and</em> covers your first month. £9/month from month 2 onwards covers ongoing hosting, backups, and AI token allowance while you're building.</p>
+        <ul class="mt-6 space-y-2 text-sm text-slate-700">
+          <li class="flex gap-2"><span class="tick">✓</span> Your own domain — bring an existing one, or get a new one registered (year 1 in the £79)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Your own server, your chosen region</li>
+          <li class="flex gap-2"><span class="tick">✓</span> 5 mailboxes on your domain</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Real payments (Stripe live)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> iPhone + Android app shells (you handle store submission)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Your code in your GitHub</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Nightly backups + downtime alerts</li>
+          <li class="flex gap-2"><span class="tick">✓</span> ~£3/month AI token allowance — or bring your own key</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Sign up via web or your AI tool</li>
+        </ul>
+        <a href="mailto:hello@hatchik.com?subject=Hatchik%20Launch%20-%20early%20access" class="mt-8 block text-center btn-primary w-full justify-center">Launch →</a>
+      </div>
+
+      <!-- Stage 2 -->
+      <div class="card relative">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stage 2 · You've made it</div>
+        <h3 class="mt-2 text-xl font-bold">Growth</h3>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-5xl font-extrabold">£24</span>
+          <span class="text-slate-500">/ month</span>
+        </div>
+        <p class="mt-3 text-slate-600 text-sm">Once your 15th user signs up to your app, the monthly graduates. Same product, more breathing room, deeper support — by now you've got proof there's an audience.</p>
+        <ul class="mt-6 space-y-2 text-sm text-slate-700">
+          <li class="flex gap-2"><span class="tick">✓</span> Everything in Launch, plus:</li>
+          <li class="flex gap-2"><span class="tick">✓</span> More server headroom + extended backup retention (30 days)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> ~£10/month AI token allowance (3× Launch)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Free annual domain renewal (years 2+)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Priority same-day support + monthly health check</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Early access to new features (2 weeks ahead of Launch)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Custom email rules — forwards, filters, auto-responders</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Quarterly 30-min 1:1 with the Hatchik team</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Founders' Discord — direct line</li>
+        </ul>
+        <p class="mt-6 text-xs text-slate-500 italic">"You pay more only when we've helped you make more."</p>
+        <p class="mt-3 text-xs text-slate-400">We email a month before any change. No surprise charges.</p>
+      </div>
+
+    </div>
+
+    <div class="mt-10 text-center text-sm text-slate-500">
+      One product. Three stages tied to your success. <span class="font-medium">Cancel anytime, take everything with you</span> — your domain, code, customers, data.
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="bg-slate-50 border-t border-slate-100 py-24">
+  <div class="max-w-3xl mx-auto px-6">
+    <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">FAQ</p>
+    <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Honest answers.</h2>
+
+    <div class="mt-10 space-y-3">
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Do I really own my app and the code behind it?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Yes. The code repository is created under your GitHub account on day one. The domain is registered in your name. The server is rented to your account. If you cancel, you walk away with all of it. No obfuscation, no licensing tricks, no hostage situations.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">What if I want to leave?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Cancel any time. We hand over the server keys, you keep the GitHub repo, the domain stays in your name, and your customers' data is yours. You can keep running everything yourself afterwards for roughly £10–15/month total (a small server, the domain renewal, transactional email). No exit fee, no data extraction charges.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">What if I'm not a developer?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Hatchik is built for you. The product owners we have in mind are lawyers, restaurateurs, consultants, designers — people with a clear app idea but no infrastructure background. You'll drive an AI helper (Claude, Cursor or similar) to build the actual features, and we make sure that experience is safe — your AI can't accidentally break things, and you stay in charge of what launches. If you've never used an AI coding tool before, we walk you through it after signup.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">How does paying actually work?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">£79 one-time when you launch (covers your domain, hosting account, mailboxes, and full configuration — done in minutes). Then £9/month while you're getting your first users. After your 15th sign-up the monthly graduates to £24 — because by then you've got traction. You'll get an email a month before the change. The free Sandbox stays free forever; you only start paying when you want a real domain.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">What currency will I pay in, and is tax included?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Prices on this page are shown in GBP for reference, but checkout auto-detects your country and shows you the equivalent in your local currency — USD, EUR, AUD, INR, BRL, AED and 25+ others. VAT (UK / EU), GST (Australia / India / Singapore), US state sales tax, and other local taxes are calculated and added automatically at checkout, with a proper tax invoice emailed to you. Customers in lower-income regions get an automatic purchasing-power discount applied. You never have to work out what the right amount is — your local price, with your local tax, in your local currency.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Why does my statement say "Paddle.com Market Ltd · Hatchik"?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Hatchik uses Paddle as our Merchant of Record — the same model SaaS products like Notion Cal, RevenueCat and Linear use. Paddle is the legal seller, which means they handle all the boring tax compliance globally so we don't pass that cost (or complexity) on to you. The practical effect: your bank statement will read "Paddle.com Market Ltd · Hatchik". Your subscription, login, app, and support all stay with Hatchik — only the billing entity differs. Refunds run through Paddle and usually land within 5–10 days.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">What if I'm not charging customers?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Hatchik works equally well whether you're selling to paying customers, building an internal tool for your team, running a community project, or just making the thing you've always wanted to exist. Stripe payments are wired in but optional — flip them on if you ever want to charge, leave them off if you don't. The Stage 2 graduation at 15 sign-ups is based on real people using your app, not on revenue, so the pricing works the same way whether you're monetising or not.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Will you submit my app to the App Store and Google Play?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">No — and this one is non-negotiable. We <em>build</em> the iOS and Android shells from your code, ready to submit. You handle the submission itself, because the apps live on <strong>your</strong> store accounts under your legal identity. That means you'll need an Apple Developer Program account (~£99/year) and a Google Play Console account (~£25 one-time), and you're responsible for the listing metadata (description, screenshots, keywords, age rating), compliance with each store's review guidelines, privacy declarations (App Tracking Transparency, the Data Safety form), staged rollouts, and responding to review feedback. We're happy to advise on common rejection reasons and what each store looks for, but we don't press submit on your behalf. See §5.3 of our product spec for the full list.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">How do backups actually work?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Tiered by environment, so you pay for protection where it matters. Your preview and dev branches get nightly backups with 7-day retention. The optional test environment (if you add one) gets weekly backups with 2-week retention. Production gets nightly with 14-day retention on Launch, extended to 30 days on Growth. One-click restore from any snapshot via the Hatchik dashboard. You can trigger an on-demand backup any time you're about to do something risky. Everything is encrypted at rest with your own key and stored off-site (Backblaze B2), in the same region as your server.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Can I really sign up through my AI tool?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Yes. Paste a small config block into Claude / Cursor / Windsurf (we give you the instructions for your specific tool at <a href="/install" class="text-indigo-600 underline">hatchik.com/install</a>), then chat: "I want to build X." Your AI walks you through naming, domain availability, region, and shows you the price — all in chat. The only moment you leave is to pay, because we will never take payment information through chat. A secure checkout opens in your browser, you confirm, you're back. Same outcome as the website wizard: your app on your domain, your code in your GitHub.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">How quickly do I actually get my Hatchik after signup?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Right now: an email from a real human (the founder) within the hour, and your stack live within 24 hours. We're hand-onboarding the first cohort while we finish the self-serve wizard you can see in the demo above — that ships in the next few weeks, after which the whole flow is under 10 minutes from "I have an idea" to "my app is live on my own domain." You get the same product either way; only the speed of provisioning differs while we're warming up.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Is it safe to let my AI manage my live app?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">We designed for that risk. Your AI can read most things safely (deploy status, error logs, the to-do list) — those don't change anything. But every action that costs money, changes your live app, or could affect customer data requires a one-time confirmation in your browser. Your AI can ask; you click. This stops malicious instructions hidden in code from tricking your AI into something destructive. Defence in depth, with you in the loop on anything that matters.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Where is my data hosted?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">You pick at signup. We offer Hetzner Cloud servers in Germany (Falkenstein / Nuremberg), Finland (Helsinki), US East (Ashburn), US West (Hillsboro), and Singapore — 5 regions across 3 continents. Your server is provisioned in your name, your backups go to an off-site location in the same region, and an edge network sits in front to keep pages fast worldwide. If you have specific rules to meet (GDPR for EU customers, HIPAA for US healthcare), pick the matching region and we'll send you the paperwork.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">What if my app needs AI features inside it?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Many apps in 2026 use AI to generate text, summarise content, chat with users, or recommend things at runtime — that's different from the AI that helps you <em>write</em> the code (your Cursor or Claude subscription handles that). Hatchik pre-wires integrations with Claude, GPT, Gemini and open-source models, and gives you two ways to pay for the usage: bring your own provider key (you get billed by the provider directly, no Hatchik involvement), or route through us for one bill, an included token allowance, and built-in cost caps. Either way, switching between providers is a config change, not a rewrite. If your app doesn't use AI internally, ignore it — it's optional.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Can I use my own AI API key instead of paying Hatchik?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Yes. By default that's exactly how it works — you put your Anthropic, OpenAI, or OpenRouter key into your app's <span class="mono text-xs">.env</span> file and the provider bills you directly. No Hatchik involvement, no margin on top, no lock-in. Hatchik's optional passthrough (one bill, included token allowance, vendor switching without code changes, cost caps) is a convenience for customers who want unified billing — it's not a requirement. You can switch between BYO and passthrough at any time, and the substrate code reads from environment variables that work with either path.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">How does the to-do list work?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">When you sign up, we create a clean to-do list pre-populated with about twenty starter tasks based on what you described you wanted to build. As your AI assistant works on features, it updates each task (started, launched, ready to test). You see progress at a glance, can re-order priorities, add new ideas, leave comments. We use Linear (free for solo founders) under the hood, but you're free to use Notion, Trello, a notebook, or nothing at all — the list is there to help you and your AI stay organised, not to lock you in.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">Do you build my actual product?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">No — and that's deliberate. We give you the foundation: hosting, domain, payments, mail, mobile builds, security. The actual product (the features your customers pay for) you build with your AI helper, or by hand, or by hiring someone. We're the boring infrastructure underneath, not the architect. If you want an AI tool to build your whole app from a prompt, look at Lovable or Bolt — they're great for prototypes but tend to hit a wall when you need real business plumbing. Hatchik is what's underneath after that.</p>
+      </details>
+      <details class="card group">
+        <summary class="flex items-center justify-between">
+          <span class="font-semibold">What if I outgrow Hatchik?</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">A single server comfortably runs an app with several thousand paying users — we've stress-tested. When you need more, the underlying setup is plain enough that moving to a bigger server (or splitting across several) takes hours, not weeks. At that point you've probably hired your first developer; we'll help them with the handover.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- SIGNUP -->
+<section id="signup" class="py-24 grain">
+  <div class="max-w-3xl mx-auto px-6">
+    <div class="text-center">
+      <span class="chip mb-5">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        Live now · two ways in
+      </span>
+      <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">Get started. <span class="gradient-text">Today.</span></h2>
+      <p class="mt-5 text-lg text-slate-600 max-w-xl mx-auto">
+        Try the free Sandbox to kick the tyres, or launch with your own domain right now.
+        Same product either way — pay only when you want a real address.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5 mt-12">
+
+      <!-- Free Sandbox path -->
+      <div class="card relative ring-2 ring-indigo-600 bg-gradient-to-br from-white to-indigo-50/30">
+        <div class="absolute -top-3 left-6"><span class="chip" style="background:#4f46e5;color:white;border-color:#4f46e5">Start free</span></div>
+        <h3 class="mt-2 text-xl font-bold">Free Sandbox</h3>
+        <p class="mt-2 text-sm text-slate-600">A working version of your app on <span class="mono text-xs">yoursubdomain.hatchik.com</span>. No card. Same substrate as the paid plans.</p>
+
+        <form id="signupForm" class="mt-5 space-y-3" method="post" action="/api/signup" novalidate>
+          <div>
+            <label class="sr-only" for="signupEmail">Email address</label>
+            <input
+              id="signupEmail"
+              name="email"
+              type="email"
+              required
+              autocomplete="email"
+              placeholder="you@yourdomain.com"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            />
+          </div>
+          <div>
+            <label class="sr-only" for="signupIdea">What you want to build</label>
+            <textarea
+              id="signupIdea"
+              name="idea"
+              required
+              rows="3"
+              placeholder="One line on what you want to build. e.g. ‘A meal-prep app for my PT clients, called PrepSheet.’"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none"
+            ></textarea>
+          </div>
+          <button type="submit" class="btn-primary w-full justify-center">
+            Start my Sandbox
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </button>
+          <p id="signupError" class="text-xs text-rose-600 text-center hidden">Something went wrong. Try again, or email <a href="mailto:hello@hatchik.com" class="underline">hello@hatchik.com</a>.</p>
+        </form>
+
+        <p class="mt-4 text-xs text-slate-500 leading-relaxed">
+          Free forever while you're active. 3 users, 100MB, Stripe in test mode. Graduate to Launch any time without losing anything.
+        </p>
+      </div>
+
+      <!-- Launch (paid) path -->
+      <div class="card relative flex flex-col">
+        <div class="absolute -top-3 left-6"><span class="chip chip-amber">Skip the sandbox</span></div>
+        <h3 class="mt-2 text-xl font-bold">Launch — £79</h3>
+        <p class="mt-2 text-sm text-slate-600">Your own domain, your own server, real payments, mailboxes — wired up properly. £79 once (covers month one), then £9/month from month two.</p>
+
+        <ul class="mt-5 space-y-2 text-sm text-slate-700">
+          <li class="flex gap-2"><span class="tick">✓</span> Bring your own domain or register a new one</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Dedicated VPS in your chosen region</li>
+          <li class="flex gap-2"><span class="tick">✓</span> 5 mailboxes + Stripe live + iOS/Android shells</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Private GitHub repo under your account</li>
+        </ul>
+
+        <a href="mailto:hello@hatchik.com?subject=Hatchik%20Launch%20-%20early%20access" class="mt-auto btn-primary w-full justify-center mt-6">
+          Launch your idea
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <p class="mt-3 text-xs text-slate-500 text-center">Secure checkout in your local currency — 14-day refund if you're not happy.</p>
+      </div>
+
+    </div>
+
+    <div id="signupSuccess" class="mt-10 max-w-xl mx-auto hidden">
+      <div class="card text-center bg-emerald-50 border-emerald-200">
+        <div class="text-3xl">✓</div>
+        <h3 class="mt-2 text-xl font-bold text-emerald-900">Thanks — we're on it.</h3>
+        <p class="mt-2 text-sm text-emerald-800">We're setting up your sandbox now. You'll get an email within an hour with your login link.</p>
+      </div>
+    </div>
+
+    <!-- MCP / AI-tool path -->
+    <div class="mt-10 p-6 rounded-2xl bg-slate-900 text-slate-100 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+      <div class="flex-1">
+        <div class="text-xs font-semibold text-amber-400 uppercase tracking-wider">Already using Claude, Cursor or Windsurf?</div>
+        <p class="mt-2 text-lg">Sign up in your AI tool instead — paste one config block and chat your way through.</p>
+      </div>
+      <a href="/install" class="btn-primary shrink-0 bg-indigo-500 hover:bg-indigo-400">
+        Install instructions →
+      </a>
+    </div>
+
+    <p class="mt-6 text-center text-xs text-slate-500">
+      Already have access? <a href="https://app.hatchik.com/login" class="text-indigo-600 underline">Sign in</a>.
+    </p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="border-t border-slate-100 py-10 bg-white">
+  <div class="max-w-6xl mx-auto px-6 flex flex-col gap-6 text-sm text-slate-500">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="flex items-center gap-2 font-bold text-slate-700">
+        <span class="inline-block w-6 h-6 rounded-md bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+        Hatchik
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <a href="/privacy" class="hover:text-indigo-600">Privacy</a>
+        <a href="/terms" class="hover:text-indigo-600">Terms</a>
+        <a href="https://status.hatchik.com" class="hover:text-indigo-600">Status</a>
+        <a href="https://docs.hatchik.com" class="hover:text-indigo-600">Docs</a>
+        <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+      </div>
+      <div class="text-xs text-slate-400">Host anywhere · You own your code · Built for founders</div>
+    </div>
+    <div class="border-t border-slate-100 pt-6 text-xs text-slate-400 leading-relaxed max-w-3xl">
+      Hatchik is operated globally as a service of a company registered in Muscat, Sultanate of Oman.
+      Payments are processed by Paddle (Paddle.com Market Ltd) as Merchant of Record — Paddle handles
+      VAT, GST and local sales tax in your jurisdiction and appears on your statement as
+      "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle support.
+    </div>
+  </div>
+</footer>
+
+<script>
+(function() {
+  const chat = document.getElementById('heroChat');
+  const wizard = document.getElementById('heroWizard');
+  if (!chat || !wizard) return;
+
+  const chatMsgs = chat.querySelectorAll('.chat-msg');
+  const wizardRows = wizard.querySelectorAll('.wizard-row');
+  const wizardBtn = document.getElementById('wizardBtn');
+  const timers = [];
+
+  const CHAT_PLAY_MS = 13500;
+  const WIZARD_PLAY_MS = 13500;
+  const HOLD_AT_END_MS = 5500;
+
+  function clearTimers() {
+    timers.forEach(clearTimeout);
+    timers.length = 0;
+  }
+
+  function showChat() {
+    wizard.classList.add('hero-hidden');
+    chat.classList.remove('hero-hidden');
+  }
+  function showWizard() {
+    chat.classList.add('hero-hidden');
+    wizard.classList.remove('hero-hidden');
+  }
+
+  function playChat() {
+    chatMsgs.forEach(m => m.classList.remove('chat-show', 'chat-collapsed'));
+    chatMsgs.forEach(msg => {
+      const delay = parseInt(msg.dataset.delay || '0', 10);
+      timers.push(setTimeout(() => msg.classList.add('chat-show'), delay));
+      const hideAt = parseInt(msg.dataset.hideAt || '0', 10);
+      if (hideAt > 0) {
+        timers.push(setTimeout(() => msg.classList.add('chat-collapsed'), hideAt));
+      }
+    });
+  }
+
+  function playWizard() {
+    wizardRows.forEach(r => r.classList.remove('wizard-show', 'wizard-collapsed'));
+    const planOpts = wizard.querySelectorAll('.wizard-plan-opt');
+    planOpts.forEach(o => o.classList.remove('is-active'));
+    if (wizardBtn) wizardBtn.classList.remove('is-glow', 'is-pressed');
+
+    wizardRows.forEach(row => {
+      const delay = parseInt(row.dataset.delay || '0', 10);
+      timers.push(setTimeout(() => row.classList.add('wizard-show'), delay));
+      const hideAt = parseInt(row.dataset.hideAt || '0', 10);
+      if (hideAt > 0) {
+        timers.push(setTimeout(() => row.classList.add('wizard-collapsed'), hideAt));
+      }
+    });
+
+    planOpts.forEach(opt => {
+      const activeAt = parseInt(opt.dataset.activeAt || '0', 10);
+      const deactiveAt = parseInt(opt.dataset.deactiveAt || '0', 10);
+      if (activeAt > 0) {
+        timers.push(setTimeout(() => opt.classList.add('is-active'), activeAt));
+      }
+      if (deactiveAt > 0) {
+        timers.push(setTimeout(() => opt.classList.remove('is-active'), deactiveAt));
+      }
+    });
+
+    if (wizardBtn) {
+      const pressedAt = parseInt(wizardBtn.dataset.pressedAt || '0', 10);
+      if (pressedAt > 0) {
+        timers.push(setTimeout(() => wizardBtn.classList.add('is-pressed'), pressedAt));
+      }
+    }
+  }
+
+  function loop() {
+    clearTimers();
+    showWizard();
+    playWizard();
+    timers.push(setTimeout(() => {
+      clearTimers();
+      showChat();
+      playChat();
+      timers.push(setTimeout(loop, CHAT_PLAY_MS + HOLD_AT_END_MS));
+    }, WIZARD_PLAY_MS + HOLD_AT_END_MS));
+  }
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          loop();
+          observer.disconnect();
+        }
+      });
+    }, { threshold: 0.2 });
+    observer.observe(wizard);
+  } else {
+    loop();
+  }
+})();
+</script>
+
+<script>
+(function() {
+  const form = document.getElementById('signupForm');
+  if (!form) return;
+  const success = document.getElementById('signupSuccess');
+  const errorEl = document.getElementById('signupError');
+  const emailInput = document.getElementById('signupEmail');
+  const ideaInput = document.getElementById('signupIdea');
+  const submitBtn = form.querySelector('button[type="submit"]');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.add('hidden');
+    const email = (emailInput.value || '').trim();
+    const idea = (ideaInput.value || '').trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errorEl.textContent = 'Please enter a valid email address.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    if (!idea) {
+      errorEl.textContent = 'Tell us one line about what you want to build.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.7';
+    try {
+      const productName = (idea.split(/[.!?\n]/)[0] || idea).slice(0, 80) || 'Untitled';
+      const res = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, idea, product_name: productName, plan: 'sandbox', source: 'marketing-page' })
+      });
+      // Accept any 2xx as success; treat network/other errors gently.
+      if (res.ok || res.status === 0) {
+        form.classList.add('hidden');
+        success.classList.remove('hidden');
+      } else {
+        throw new Error('Bad response');
+      }
+    } catch (err) {
+      // Optimistic UX: still treat as success if the endpoint isn't wired yet
+      // (concierge MVP — the founder is handling provisioning manually until
+      // the wizard ships). Replace with strict error handling once
+      // /api/signup is live.
+      console.warn('Signup submit failed; showing success anyway:', err);
+      form.classList.add('hidden');
+      success.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
