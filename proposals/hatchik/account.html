@@ -546,7 +546,10 @@
           </section>
         `);
       } catch (e) {
-        sections.push(`<div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 p-4 text-sm text-rose-700">Couldn't load services for <span class="font-mono">${escapeHtml(s.slug)}</span>.</div>`);
+        const msg = e.status === 503
+          ? `Services info is temporarily unavailable for <span class="font-mono">${escapeHtml(s.slug)}</span>. The orchestrator is offline &mdash; this usually clears within a minute. Try again shortly.`
+          : `Couldn't load services for <span class="font-mono">${escapeHtml(s.slug)}</span>.`;
+        sections.push(`<div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 p-4 text-sm text-rose-700">${msg}</div>`);
       }
     }
     body.innerHTML = sections.join('');
