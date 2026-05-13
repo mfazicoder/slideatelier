@@ -28,7 +28,7 @@ gated features. **Every tier ships the same substrate.**
 | **Database** | **3 users, 100 MB cap** |
 | **Payments** | Stripe **or** Paddle, test mode only (customer picks at signup) |
 | **Mailboxes** | Single shared sender (`noreply@hatchik.com`) |
-| **Repo** | Read-only template fork in customer's GitHub |
+| **Repo** | Private repo in **hatchik-sandboxes** org, customer added as collaborator with write access |
 | **Backups** | 24h retention |
 | **Mobile shells** | iOS + Android, store-submittable (customer handles submission — see §5.3). Cloud builds via GitHub Actions, **rate-limited to 3 builds/hour per tenant** |
 | **AI tool integration** | Full MCP setup |
@@ -53,7 +53,7 @@ co-founder and a friend) properly test the experience.
 | **Database** | Unlimited size, unlimited users |
 | **Payments** | Stripe **or** Paddle, live mode (customer's choice — see §4.3) |
 | **Mailboxes** | 5 inboxes on customer's domain |
-| **Repo** | Private GitHub repo under customer's account |
+| **Repo** | Same private repo from Sandbox carries over (in **hatchik-sandboxes** org, customer keeps collaborator write access) |
 | **Backups** | Tiered by environment — see §6 |
 | **Mobile shells** | Same scaffold as Sandbox; same 3 cloud builds/hour per tenant — Launch differs in support/SLA, not mobile capability |
 | **AI tool integration** | Full MCP setup, both signup and ongoing ops |

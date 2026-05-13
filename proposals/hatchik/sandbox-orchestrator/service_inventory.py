@@ -193,6 +193,16 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
         "category": "deploy",
     },
     {
+        "name": "AI token allowance",
+        "detail": (
+            "£0.50/month included (~50k Claude Haiku tokens) — enough to taste "
+            "the passthrough flow before upgrading. Bring your own key any time."
+        ),
+        "status": "live",
+        "configure_url": None,
+        "category": "ai",
+    },
+    {
         "name": "BACKLOG.md",
         "detail": (
             f"~{BACKLOG_STARTER_TASKS} starter tasks tailored to your idea, "

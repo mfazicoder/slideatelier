@@ -31,7 +31,6 @@ def launch_inventory(growth: bool = False) -> dict[str, Any]:
     server_class = "CAX41 (8 vCPU, 16 GB RAM)" if growth else "CAX31 (4 vCPU, 8 GB RAM)"
     ai_allowance = "£10/month included (~500k tokens)" if growth else "£3/month included (~150k tokens)"
     support_sla = "Same business day" if growth else "1 business day"
-    backup_retention = "30 days rolling + monthly archive (12 months)" if growth else "14 days rolling"
     domain_renewal = "Free annual renewal from year 2" if growth else "First year included; £14/yr from year 2 (passthrough)"
 
     return {
@@ -95,8 +94,8 @@ def launch_inventory(growth: bool = False) -> dict[str, Any]:
             },
             {
                 "name": "Backups",
-                "detail": backup_retention,
-                "quota": "Off-site to Backblaze B2",
+                "detail": "Hetzner Cloud snapshot on-demand today; automated off-site backups on the near-term roadmap",
+                "quota": "Customer-triggered + nightly Hetzner snapshot",
             },
             {
                 "name": "Domain renewal",
@@ -122,7 +121,7 @@ def launch_inventory(growth: bool = False) -> dict[str, Any]:
                  "detail": "CAX41 (8 vCPU, 16 GB) — Growth tier"},
                 {"tier": "growth",
                  "name": "Extended retention",
-                 "detail": "30-day rolling backups + 12-month monthly archive"},
+                 "detail": "Longer backup retention once automated off-site backups land (roadmap)"},
                 {"tier": "growth",
                  "name": "More AI allowance",
                  "detail": "£10/month (~500k tokens) included"},

@@ -49,7 +49,7 @@ I'm provisioning your Hatchik right now. The pieces in flight:
   • 5 mailboxes on @{{domain}} — being set up
   • Stripe live mode wired into your app
   • Your code repo in your GitHub (you'll get an invite)
-  • Your to-do list in Linear with 20 starter tasks
+  • BACKLOG.md at the repo root with 20 starter tasks tailored to your idea
 
 You'll get the full handover email within 24 hours — earlier if
 nothing breaks. If anything needs your input (Google OAuth
@@ -80,7 +80,7 @@ Your Hatchik sandbox is up. Have a look:
   Your app:        https://{{slug}}.hatchik.com
   Log in with:     {{email}} (we'll send a magic link)
   Admin password:  {{password}}
-  Your to-do list: {{linear_project_url}}
+  Your to-do list: BACKLOG.md in your repo
   Your code:       {{github_repo_url}}
 
 What to do first:
@@ -90,8 +90,9 @@ What to do first:
   2. Open your favourite AI tool (Claude, Cursor, Windsurf — anything
      that supports MCP) and add the Hatchik MCP — instructions at
      https://hatchik.com/install
-  3. In your AI, ask: "What's next on the backlog?" It'll read your
-     Linear board and walk you through the first feature.
+  3. In your AI, ask: "What's next on the backlog?" It'll read
+     BACKLOG.md at the repo root and walk you through the first feature.
+     Tick items off in the same commit as the feature ships.
 
 A few things to know:
 
@@ -121,7 +122,7 @@ Your Hatchik is fully set up. Here's everything:
   Your live app:     https://{{domain}}
   Customer logins:   real, working (sign-up, magic link, Google OAuth)
   Payments:          Stripe LIVE — you can take real money today
-  Your to-do list:   {{linear_project_url}}
+  Your to-do list:   BACKLOG.md in your repo
   Your code:         {{github_repo_url}}
   Your mailboxes:    {{webmail_url}}
                      hello@{{domain}}     — general
@@ -139,8 +140,9 @@ What to do first:
   1. Log in at https://{{domain}}/login — your admin account is
      {{email}}. Use the magic link or reset password.
   2. Add the Hatchik MCP to your AI coder: https://hatchik.com/install
-  3. Ask your AI "what's next on the backlog?" — it'll read your
-     Linear board and ship the first feature.
+  3. Ask your AI "what's next on the backlog?" — it'll read
+     BACKLOG.md at the repo root and ship the first feature. Tick
+     items off in the same commit as the feature lands.
   4. Pause when you've shipped one feature, look at the preview
      deploy URL (any branch deploys to {branch}.{{domain}}
      automatically), and merge to prod when you're happy.
@@ -183,8 +185,8 @@ Welcome to Hatchik.
 ```
 Hi {{first_name}},
 
-How's it going with {{product_name}}? Have you had a chance to use
-the Linear backlog with your AI coder yet?
+How's it going with {{product_name}}? Have you had a chance to
+work through BACKLOG.md in your repo with your AI coder yet?
 
 If you've hit anything you couldn't figure out, reply with the
 specifics and I'll dig in. If everything's smooth, just write back
