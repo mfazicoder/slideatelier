@@ -49,6 +49,7 @@ from typing import Any
 import httpx
 
 from github_repo import GITHUB_ORG, create_tenant_repo
+from service_inventory import email_lines, html_blocks, sandbox_inventory
 
 
 # Auto-load /opt/hatchik-orchestrator/.env if present so the script can be
@@ -647,7 +648,15 @@ def provision_owner_user(slug: str, port: int, email: str, target: Path) -> str 
         return None
 
 
-def send_sandbox_ready_email(to: str, slug: str, product_name: str, first_name: str = "", signin_link: str | None = None) -> bool:
+def send_sandbox_ready_email(
+    to: str,
+    slug: str,
+    product_name: str,
+    first_name: str = "",
+    signin_link: str | None = None,
+    tenant_dir: Path | None = None,
+    repo_url: str = "",
+) -> bool:
     if not RESEND_API_KEY:
         print("WARN: no RESEND_API_KEY, skipping email")
         return False
@@ -658,6 +667,20 @@ def send_sandbox_ready_email(to: str, slug: str, product_name: str, first_name: 
     # back to the bare URL if pre-provisioning the owner failed.
     primary_link = signin_link or url
     primary_link_label = "Sign in to your sandbox" if signin_link else f"Open your sandbox: {url}"
+
+    # Pull the canonical "what ships" inventory and render plain-text /
+    # HTML blocks. Customers reading the email should know exactly what
+    # they have, with the same quantification as /account and the docs.
+    inventory = sandbox_inventory(
+        sandbox_url=url,
+        repo_url=repo_url,
+        tenant_dir=tenant_dir,
+    )
+    wired_text_lines, upgrade_text_lines = email_lines(inventory)
+    wired_html, upgrade_html = html_blocks(inventory)
+    wired_block_text = "\n".join(f"  {line}" for line in wired_text_lines)
+    upgrade_block_text = "\n".join(f"  {line}" for line in upgrade_text_lines)
+
     text = f"""{greeting}
 
 Your sandbox for {product_name} is live.
@@ -672,6 +695,14 @@ It's a real working version of your app stack (database, auth, payments
 in test mode, mailboxes). When your end-users sign up, they get their
 own accounts inside it — your owner account stays separate.
 
+What's set up for you (Sandbox tier)
+
+{wired_block_text}
+
+What's NOT yet wired (you can add at any time)
+
+{upgrade_block_text}
+
 What to do next:
 1. Click the link above to open your sandbox as the owner
 2. Have a play, kick the tyres
@@ -680,7 +711,7 @@ What to do next:
    hatchik.com/account.
 
 To manage your Hatchik subscription (delete sandbox, upgrade, edit your
-name) go to https://hatchik.com/account.
+name, see the full live service list) go to https://{DOMAIN}/account.
 
 Further information can be found at {faq_url} if you need it.
 
@@ -708,13 +739,20 @@ Further information can be found at {faq_url} if you need it.
               <p style="margin:0 0 16px 0;"><a href="{primary_link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Sign in to your sandbox &rarr;</a></p>
               <p style="margin:0 0 16px 0;color:#555;font-size:14px;">You&rsquo;re pre-set as the owner &mdash; this link signs you straight in. No password to remember (you can set one later from Settings if you want).</p>
               <p style="margin:24px 0 16px 0;">It&rsquo;s a real working version of your app stack (database, auth, payments in test mode, mailboxes). When your end-users sign up, they get their own accounts inside it &mdash; your owner account stays separate.</p>
+
+              <p style="margin:28px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">What&rsquo;s set up for you (Sandbox tier)</p>
+              {wired_html}
+
+              <p style="margin:24px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">What&rsquo;s NOT yet wired (you can add at any time)</p>
+              {upgrade_html}
+
               <p style="margin:24px 0 8px 0;font-weight:600;">What to do next</p>
               <ol style="margin:0 0 16px 0;padding-left:20px;">
                 <li style="margin:0 0 8px 0;">Click the button above to open your sandbox</li>
                 <li style="margin:0 0 8px 0;">Have a play, kick the tyres</li>
                 <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, the mobile scaffold ready to build), upgrade to Launch from <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">your Hatchik account</a>.</li>
               </ol>
-              <p style="margin:24px 0 16px 0;color:#555;font-size:14px;">To manage your Hatchik subscription (delete sandbox, upgrade, edit your name) go to <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">hatchik.com/account</a>.</p>
+              <p style="margin:24px 0 16px 0;color:#555;font-size:14px;">To manage your Hatchik subscription (delete sandbox, upgrade, edit your name, see the full live service list) go to <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">hatchik.com/account</a>.</p>
               <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Further information can be found <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
               <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
               <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
@@ -986,17 +1024,16 @@ def main() -> None:
         else:
             print(f"     (failed — sandbox-ready email will use plain URL)")
 
-        if not args.no_email:
-            print("  7. send sandbox-ready email")
-            send_sandbox_ready_email(email, slug, product_name, first_name, signin_link)
-
         # GitHub handoff — create per-tenant repo, push the rendered
         # substrate, invite the customer if they gave us their GH handle.
         # Resilient: any failure here is logged and the customer still
         # has a working sandbox + the AI_CONTEXT.md file written locally.
-        print("  8. create GitHub repo + push substrate")
+        # Run BEFORE the sandbox-ready email so the "What's set up" block
+        # in the email can deep-link to the repo (and so the customer's
+        # inbox shows both emails in a consistent order).
+        print("  7. create GitHub repo + push substrate")
         gh_result = create_tenant_repo(slug, target, product_name, idea, github_username, deploy_token)
-        repo_url = gh_result.get("repo_url")
+        repo_url = gh_result.get("repo_url") or ""
         if repo_url:
             print(
                 f"     ✓ repo at {repo_url} "
@@ -1005,6 +1042,18 @@ def main() -> None:
             )
         else:
             print(f"     (skipped: {gh_result.get('skipped_reason')})")
+
+        if not args.no_email:
+            print("  8. send sandbox-ready email")
+            send_sandbox_ready_email(
+                email,
+                slug,
+                product_name,
+                first_name,
+                signin_link,
+                tenant_dir=target,
+                repo_url=repo_url,
+            )
 
         # Walkthrough email — only useful if the repo actually exists, so
         # skip silently when GitHub was unavailable.

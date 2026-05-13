@@ -35,6 +35,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, field_validator
 
+# ─── service_inventory import shim ────────────────────────────────────────
+# service_inventory.py is the canonical "what ships in a sandbox" data
+# source. It lives in sandbox-orchestrator/ (used by provision.py for the
+# sandbox-ready email) and we need it here too (for
+# /api/account/services/<slug>). On the sandbox host both directories are
+# /opt/hatchik-orchestrator/ and /opt/hatchik-signup/. The path is
+# overrideable for tests / dev.
+import sys as _sys
+
+_ORCHESTRATOR_DIR = os.environ.get(
+    "HATCHIK_ORCHESTRATOR_DIR", "/opt/hatchik-orchestrator"
+)
+if _ORCHESTRATOR_DIR and _ORCHESTRATOR_DIR not in _sys.path:
+    _sys.path.insert(0, _ORCHESTRATOR_DIR)
+try:
+    from service_inventory import sandbox_inventory  # type: ignore
+except ImportError:  # pragma: no cover — orchestrator dir missing in this env
+    sandbox_inventory = None  # type: ignore[assignment]
+
 # ─── Config ──────────────────────────────────────────────────────────────
 DB_PATH = Path(os.environ.get("HATCHIK_SIGNUP_DB", "/var/lib/hatchik/signups.db"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
@@ -2618,6 +2637,47 @@ async def trigger_mobile_build(
         status_code=502,
         detail="GitHub didn't accept the dispatch — try again in a moment.",
     )
+
+
+# ─── Services inventory ──────────────────────────────────────────────────
+# GET /api/account/services/<slug> — what ships with this sandbox, with
+# tenant-specific overlays (Stripe live vs test, Google OAuth wired or
+# not, custom Resend key in .env, etc.). The /account Services tab calls
+# this; the sandbox-ready email pulls the same data via provision.py so
+# the email and the dashboard tell the same story.
+@app.get("/api/account/services/{slug}")
+async def get_services(
+    slug: str,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> dict[str, Any]:
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    tenant = _tenant_for_session(slug, session["email"])
+    if not tenant:
+        raise HTTPException(status_code=404, detail="sandbox not found")
+    if sandbox_inventory is None:
+        # Best-effort fallback if the orchestrator module isn't on
+        # sys.path. The UI handles a missing payload gracefully.
+        raise HTTPException(
+            status_code=503,
+            detail="service inventory not available on this host",
+        )
+
+    sandbox_url = tenant.get("url") or f"https://{slug}.hatchik.com"
+    repo_url = tenant.get("repo_url") or ""
+    tenant_dir = TENANTS_DIR / slug
+    inventory = sandbox_inventory(
+        sandbox_url=sandbox_url,
+        repo_url=repo_url,
+        tenant_dir=tenant_dir if tenant_dir.exists() else None,
+    )
+    return {
+        "slug": slug,
+        "sandbox_url": sandbox_url,
+        "repo_url": repo_url or None,
+        **inventory,
+    }
 
 
 @app.get("/healthz")

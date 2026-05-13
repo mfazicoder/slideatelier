@@ -74,6 +74,8 @@
     <a href="/ai-tool-setup" class="sidebar-link">AI tool setup</a>
     <a href="/deploying-changes" class="sidebar-link">Deploying changes</a>
     <a href="/what-is-included" class="sidebar-link is-active">What's included</a>
+    <a href="/what-is-included#sandbox-inventory" class="sidebar-link" style="padding-left:1.5rem;">Sandbox inventory (quantified)</a>
+    <a href="/what-is-included#not-yet-wired" class="sidebar-link" style="padding-left:1.5rem;">Not yet wired</a>
 
     <div class="sidebar-section">Manage</div>
     <a href="/account-management" class="sidebar-link">Account management</a>
@@ -91,6 +93,60 @@
     <p class="text-lg text-slate-600 mt-4 leading-relaxed">
       Every Hatchik sandbox ships with the same substrate code. The differences between tiers are about <em>where</em> it runs (your own subdomain vs your own domain) and <em>what's switched on</em> (test mode vs live payments, no mailboxes vs real mailboxes). Here's the honest list.
     </p>
+
+    <h2 id="sandbox-inventory">What ships with a Sandbox — the quantified list</h2>
+    <p>
+      The same enumeration you see in your "your sandbox is ready" email and the Services tab on <a href="https://hatchik.com/account">your account</a>. Three views, one source of truth (<code>service_inventory.py</code>), same words, same numbers.
+    </p>
+
+    <table class="tier">
+      <thead>
+        <tr>
+          <th style="width:22%;">Capability</th>
+          <th>What ships</th>
+          <th style="width:32%;">Quantification</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Subdomain</td><td><span class="mono">&lt;your-slug&gt;.hatchik.com</span> with wildcard TLS</td><td>1 subdomain. Custom domain is Launch tier only.</td></tr>
+        <tr><td>Postgres database</td><td>Supabase-managed Postgres 15, isolated per sandbox</td><td>512 MB RAM cap. Disk shares the host budget &mdash; ~10 GB practical before we'd ask you to upgrade.</td></tr>
+        <tr><td>Authentication</td><td>Supabase Auth &mdash; magic-link + email/password</td><td>Unlimited test users. Google OAuth: not configured (you can add when ready).</td></tr>
+        <tr><td>File storage</td><td>Supabase Storage (S3-compatible)</td><td>128 MB working RAM; bucket size shares the tenant disk budget.</td></tr>
+        <tr><td>Realtime</td><td>Supabase Realtime row-change subscriptions</td><td>Included; same Supabase auth flow.</td></tr>
+        <tr><td>API backend</td><td>FastAPI under <code>apps/api/</code></td><td>You add the routes; redeploys on push.</td></tr>
+        <tr><td>Web frontend</td><td>React + Vite under <code>apps/web/</code></td><td>Hot-reloaded; redeploys on push.</td></tr>
+        <tr><td>Transactional email</td><td>Resend SMTP from <span class="mono">noreply@hatchik.com</span> (shared, test mode)</td><td><strong>~100 emails/day soft cap on Sandbox</strong> (Resend free tier 3K/mo across all sandboxes). Bring your own <code>RESEND_API_KEY</code> for production sends &mdash; no cap, your sender domain.</td></tr>
+        <tr><td>Payments</td><td>Stripe SDK wired in test mode</td><td>Live Stripe is customer self-serve: swap the keys in <code>.env</code>.</td></tr>
+        <tr><td>Mobile builds</td><td>Unsigned iOS IPA + Android APK via GitHub Actions</td><td><strong>3 builds/hour</strong> per tenant. GitHub free tier: 500 macOS min/mo, 2000 Linux min/mo. Binaries are unsigned &mdash; signing + store submission require your own developer accounts.</td></tr>
+        <tr><td>GitHub repo</td><td>Private repo under <span class="mono">hatchik-sandboxes/&lt;slug&gt;</span></td><td>1 per active sandbox.</td></tr>
+        <tr><td>Push-to-deploy</td><td>Redeploy webhook fires on every <code>git push</code></td><td>~30 seconds end-to-end. Rate-limited to 6 redeploys per 5 minutes.</td></tr>
+        <tr><td><code>BACKLOG.md</code></td><td>~20 starter tasks tailored to your idea</td><td>Seeded once at provision; read+write by any AI tool.</td></tr>
+        <tr><td><code>AI_CONTEXT.md</code></td><td>Substrate map + deploy token + first-prompt template</td><td>Seeded once at provision; safe to commit (no service-role secrets).</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="not-yet-wired">Not yet wired on Sandbox tier (you can add at any time)</h3>
+    <table class="tier">
+      <thead>
+        <tr>
+          <th style="width:30%;">Capability</th>
+          <th>Where it lives</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Custom domain</td><td class="partial">Launch tier (year-one registration in the £79)</td></tr>
+        <tr><td>Mailboxes (<span class="mono">hello@</span>, <span class="mono">support@</span>&hellip;)</td><td class="partial">Launch tier — up to 5 real mailboxes on your domain (Infomaniak Mail), SPF/DKIM/DMARC wired.</td></tr>
+        <tr><td>Live payments</td><td>Self-serve: connect your own Stripe (or Paddle MoR on Launch); swap the test keys in <code>.env</code>.</td></tr>
+        <tr><td>Per-tenant Resend key</td><td>Self-serve: paste your own <code>RESEND_API_KEY</code> into <code>.env</code> for production volume + sender on your domain.</td></tr>
+        <tr><td>Google OAuth</td><td>Self-serve: register a Google OAuth app, paste <code>client_id</code> / <code>client_secret</code>, flip <code>GOOGLE_OAUTH_ENABLED</code> in <code>.env</code>.</td></tr>
+        <tr><td>Automated backups</td><td class="partial">Roadmap. Today: on-demand <code>pg_dump</code> from Supabase Studio. Nightly off-site backups to Backblaze B2 are next up.</td></tr>
+        <tr><td>App Store / Play Store submission</td><td class="no">Never included &mdash; needs your Apple Developer (~£99/yr) and Google Play Console (~£25 once) accounts.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note note-info">
+      <p style="margin:0;"><strong>Where the numbers come from.</strong> RAM caps are <code>mem_limit</code> values in <code>substrate-template/docker-compose.yml</code>. Rate limits are <code>HATCHIK_*_RATE_LIMIT_*</code> constants in the signup service. The 100/day email cap and ~10 GB disk are policy defaults we publish so you know where the boundaries are &mdash; not enforced in code today (we'll tighten them when the first abuse case lands).</p>
+    </div>
 
     <h2 id="substrate">In the substrate (every tier)</h2>
 
