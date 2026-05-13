@@ -299,9 +299,9 @@ Why these choices:
 - **For runtime (AI inside the customer's app)** — Optional AI credits
   passthrough via OpenRouter. Customer flips a switch in dashboard, their
   app's AI calls route through `proxy.hatchik.com` with metered billing.
-- **For Linear backlog generation** — Claude Sonnet 4.6 generates the
-  starter backlog from customer's product description at provisioning
-  time.
+- **For BACKLOG.md generation** — Claude Sonnet 4.6 generates the
+  starter backlog (~20 tasks) from customer's product description at
+  provisioning time and commits it as `BACKLOG.md` at the repo root.
 
 ### Customer dashboard
 
@@ -368,7 +368,7 @@ Reviewed quarterly:
   suites only.
 - **Database** — Local Postgres in customer's VPS, port 5432 firewalled
   to localhost. No external DB exposure.
-- **OAuth tokens** (Linear, GitHub, Stripe) — KMS-encrypted in Hatchik's
+- **OAuth tokens** (GitHub, Stripe, Paddle) — KMS-encrypted in Hatchik's
   central DB, decrypted just-in-time for API calls.
 - **AI proxy** — Per-customer API key, rate-limited, cost-capped.
 - **Backups** — Encrypted at rest with per-customer key.
