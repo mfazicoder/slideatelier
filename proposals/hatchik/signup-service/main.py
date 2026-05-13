@@ -3651,3 +3651,62 @@ async def admin_metrics_distribution(
     registry = _load_registry()
     with _open_metrics_conn() as conn:
         return _metrics.compute_tier_distribution_today(conn, registry, since=since)
+
+
+@app.get("/api/admin/launch-tenants")
+async def admin_launch_tenants(
+    status: str | None = None,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Admin: list Launch / Growth tenants from the launch registry.
+
+    Optional ``status`` query filters to one bucket
+    (``provisioning`` / ``live`` / ``suspended`` / ``canceled`` /
+    ``decommissioned``). Customer emails are returned because the admin
+    UI is operator-only and needs them to act on dunning alerts.
+
+    Returns counts per status alongside the full tenant list so the
+    admin dashboard can render summary cards + a sortable table from
+    one fetch.
+    """
+    _require_admin(x_admin_token)
+    if not LAUNCH_REGISTRY_PATH.exists():
+        return {"tenants": [], "counts": {}, "registry_present": False}
+    try:
+        reg = json.loads(LAUNCH_REGISTRY_PATH.read_text())
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500,
+                            detail=f"failed to read launch registry: {e}") from e
+
+    tenants_raw = reg.get("tenants") or {}
+    tenants: list[dict[str, Any]] = []
+    counts: dict[str, int] = {}
+    for slug, t in tenants_raw.items():
+        s = t.get("status") or "unknown"
+        counts[s] = counts.get(s, 0) + 1
+        if status and s != status:
+            continue
+        tenants.append({
+            "slug": slug,
+            "signup_id": t.get("signup_id"),
+            "customer_email": t.get("customer_email"),
+            "customer_domain": t.get("customer_domain"),
+            "tier": t.get("tier"),
+            "status": s,
+            "ip": t.get("ip"),
+            "hetzner_location": t.get("hetzner_location"),
+            "created_at": t.get("created_at"),
+            "canceled_at": t.get("canceled_at"),
+            "decommissioned_at": t.get("decommissioned_at"),
+            "last_seen_at": t.get("last_seen_at"),
+            "paddle_subscription_id": t.get("paddle_subscription_id"),
+        })
+
+    # Sort by created_at desc so newest is on top
+    tenants.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return {
+        "tenants": tenants,
+        "counts": counts,
+        "total": len(tenants_raw),
+        "registry_present": True,
+    }

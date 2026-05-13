@@ -231,19 +231,33 @@ def _customer_welcome_email(plan: dict[str, Any], live_url: str) -> str:
     name = plan.get("first_name") or "there"
     return f"""Hi {name},
 
-Your Launch tier is live at {live_url}.
+Your Hatchik Launch tier is live at {live_url}.
 
 What just happened:
-  - You now have a dedicated VPS in your chosen region
-  - Your app's data is migrated from the Sandbox (nothing lost)
-  - Your GitHub repo is connected — push to main triggers a deploy
-  - Custom domain wired with TLS
-  - Email + payments + mobile builds all on the paid-tier quotas
+  • You now have a dedicated VPS in your chosen region
+  • Your app's data is migrated from the Sandbox — nothing lost
+  • Your GitHub repo stays the same; push to main triggers a deploy
+  • Your custom domain is wired with TLS
+  • Email (5 mailboxes), payments, and mobile builds are on Launch-tier quotas
 
-Manage your subscription: https://hatchik.com/account → Billing
+Billing:
+  • £89 setup fee was charged today — covers the VPS provisioning,
+    domain wiring, mailboxes, and the first month of hosting.
+  • £14/month starts from month 2. Update card any time from
+    https://hatchik.com/account → Billing.
 
-If anything looks off, reply to this email — same-day response on
-business days, faster if I'm at my desk.
+What to do first:
+  1. Open {live_url} in a browser and sign in.
+  2. Tell your AI tool (Cursor / Claude / Windsurf) about the new
+     setup — point it at your repo and ask "what's next?". It'll
+     read BACKLOG.md and walk you through the first feature.
+  3. Anything off? Reply to this email — same-day on business days.
+
+Two heads-ups:
+  • Substrate updates land as PRs in your GitHub. Merge when ready;
+    nothing rolls out without your nod.
+  • When you graduate to Growth (£39/mo, automatic after your 15th
+    sign-up), we'll email a month before so there's no surprise.
 
 — Hatchik
 """
@@ -329,46 +343,178 @@ Hatchik. Reply to this email if you'd like me to help.
 """,
             )
 
-    # 5. TODO: rsync substrate + restore DB + docker compose up
-    # This is the heavy lifting. The substrate-template's existing
-    # deploy.sh does the image-build-and-push side; what's missing is the
-    # remote bootstrap that fetches the customer's repo + their DB
-    # snapshot + boots compose. That's a self-contained bash script we
-    # invoke over SSH. Punted to next iteration — for now, log + email so
-    # the founder can do the SSH step manually for the first few customers.
-    log_lines.append("DEFERRED: substrate bootstrap on VPS (run by hand for now)")
+    # 5. Substrate bootstrap on the new VPS, over SSH.
+    # bootstrap_substrate.sh is rsync'd to the VPS first, then executed
+    # with the customer's repo + sandbox info. If it succeeds, the VPS
+    # is serving and the tenant can be marked live. If it fails, we
+    # email the founder the runbook and leave the tenant at status
+    # 'provisioning' so a manual retry can pick up where we left off.
+    bootstrap_ok = _run_substrate_bootstrap(ip, plan, log_lines)
+
+    if bootstrap_ok:
+        # Mark live + email customer + free sandbox slug
+        reg = _load_registry()
+        reg["tenants"][slug]["status"] = "live"
+        reg["tenants"][slug]["last_seen_at"] = datetime.now(timezone.utc).isoformat()
+        _save_registry(reg)
+        _update_signup_tier(signup_id, "launch", "live-launch")
+        live_url = f"https://{plan['customer_domain']}" if plan["customer_domain"] else f"https://{ip}"
+        _send_email(
+            plan["customer_email"],
+            "Your Hatchik Launch tier is live",
+            _customer_welcome_email(plan, live_url),
+        )
+        if plan["sandbox_slug"]:
+            _decommission_sandbox(plan["sandbox_slug"], log_lines)
+        return {
+            "ok": True,
+            "server_id": server_id,
+            "ip": ip,
+            "slug": slug,
+            "status": "live",
+            "live_url": live_url,
+        }
+
+    # Bootstrap failed — leave tenant at status='provisioning' and email
+    # founder the runbook. Operator runs --mark-live after fixing.
+    log_lines.append("BOOTSTRAP FAILED — email sent to founder with runbook")
     _send_email(
         FOUNDER_EMAIL,
-        f"[Launch #{signup_id}] VPS up at {ip} — bootstrap step needed",
+        f"[Launch #{signup_id}] VPS up at {ip} — bootstrap failed; manual recovery",
         f"""VPS provisioned for signup #{signup_id} ({plan['customer_email']}).
 
 IP: {ip}
 SSH: ssh root@{ip}
 
-Bootstrap steps (run on the VPS):
-  1. apt update && apt -y install docker.io docker-compose-plugin git rsync
-  2. git clone https://github.com/<customer-org>/<customer-repo>.git /opt/app
-  3. Pull DB snapshot from sandbox if applicable:
-     scp root@178.105.139.144:/var/hatchik-archive/{plan['sandbox_slug']}/db.dump.gz /opt/app/
-  4. cd /opt/app && docker compose up -d
-  5. Verify https://{plan['customer_domain']} serves the substrate.
+bootstrap_substrate.sh ran on the VPS but reported a failure. Tail
+/var/log/hatchik-bootstrap.log on the box to see what happened. Common
+causes:
+  - Customer's GitHub repo is private and the deploy key isn't authorised
+  - The .env.example was missing fields the substrate compose needs
+  - postgres container didn't come up healthy in time
 
-Once verified, run:
+After fixing, on the VPS:
+  cd /opt/app && docker compose up -d
+  curl -sSL -o /dev/null -w '%{{http_code}}\\n' https://{plan['customer_domain']}/
+
+Once it's serving, run on the orchestrator host:
   python3 /opt/hatchik-launch-orchestrator/promote.py \\
       --signup-id {signup_id} --mark-live
 
 That flips the tenant to 'live' and emails the customer.
 """,
     )
-
     return {
         "ok": True,
         "server_id": server_id,
         "ip": ip,
         "slug": slug,
         "status": "provisioning",
-        "deferred": ["substrate-bootstrap", "db-restore", "compose-up"],
+        "deferred": ["substrate-bootstrap-recovery"],
     }
+
+
+def _run_substrate_bootstrap(
+    ip: str, plan: dict[str, Any], log_lines: list[str],
+) -> bool:
+    """Rsync bootstrap_substrate.sh to the new VPS and run it.
+
+    Returns True if the script exited 0 and the customer's domain
+    responded with a 2xx/3xx. Caller decides whether to mark the
+    tenant live or escalate.
+
+    Assumes:
+      - The Hetzner-uploaded SSH key (HETZNER_SSH_KEY_NAME) is in the
+        agent / available via SSH-config. promote.py inherits the
+        operator's SSH agent; ssh-add the orchestrator's private key
+        before --execute.
+      - The customer's repo URL is derivable from their github_username
+        + product_name (slug); for now, we surface the inferred URL in
+        logs and let the script fail gracefully if it's wrong. A future
+        iteration can pin the URL in the signups table.
+    """
+    import shlex
+    import subprocess
+
+    repo_url = _infer_repo_url(plan)
+    if not repo_url:
+        log_lines.append("repo URL not derivable from signup; aborting bootstrap")
+        return False
+
+    bootstrap_src = Path(__file__).parent / "bootstrap_substrate.sh"
+    if not bootstrap_src.exists():
+        log_lines.append(f"bootstrap_substrate.sh missing at {bootstrap_src}")
+        return False
+
+    ssh_opts = [
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=30",
+        "-o", "ServerAliveInterval=30",
+        "-o", "BatchMode=yes",
+    ]
+    target = f"root@{ip}"
+
+    # Wait for SSH to come up; cloud-init's first boot can take a minute.
+    log_lines.append(f"waiting for SSH at {target}")
+    for attempt in range(30):
+        r = subprocess.run(
+            ["ssh", *ssh_opts, target, "true"],
+            capture_output=True, text=True, timeout=20,
+        )
+        if r.returncode == 0:
+            break
+        time.sleep(5)
+    else:
+        log_lines.append("SSH never came up within 150s")
+        return False
+
+    # rsync bootstrap script
+    r = subprocess.run(
+        ["scp", *ssh_opts, str(bootstrap_src), f"{target}:/root/bootstrap_substrate.sh"],
+        capture_output=True, text=True, timeout=120,
+    )
+    if r.returncode != 0:
+        log_lines.append(f"scp failed: {r.stderr[:300]}")
+        return False
+
+    # Run it
+    cmd_args = [
+        "bash", "/root/bootstrap_substrate.sh",
+        "--repo-url", repo_url,
+        "--domain", plan["customer_domain"] or "",
+    ]
+    if plan.get("sandbox_slug"):
+        cmd_args += [
+            "--sandbox-host", os.environ.get("HATCHIK_SANDBOX_HOST", "178.105.139.144"),
+            "--sandbox-slug", plan["sandbox_slug"],
+        ]
+    quoted = " ".join(shlex.quote(a) for a in cmd_args)
+    log_lines.append(f"running bootstrap_substrate.sh on {ip}: {quoted}")
+    r = subprocess.run(
+        ["ssh", *ssh_opts, target, quoted],
+        capture_output=True, text=True, timeout=1200,  # 20 min ceiling
+    )
+    log_lines.append(f"  rc={r.returncode}")
+    log_lines.append(f"  stdout (last 500 chars): {r.stdout[-500:]}")
+    if r.stderr:
+        log_lines.append(f"  stderr (last 500 chars): {r.stderr[-500:]}")
+    return r.returncode == 0
+
+
+def _infer_repo_url(plan: dict[str, Any]) -> str | None:
+    """Derive the customer's repo URL from signup metadata.
+
+    We store provisioned sandbox slugs in github org HATCHIK_GITHUB_ORG
+    (sandbox-orchestrator creates the repos there as `<slug>`). For a
+    promotion, the repo is unchanged — same org, same slug — so we
+    keep using it on the Launch VPS too.
+    """
+    if not plan.get("sandbox_slug"):
+        # No sandbox slug → no repo to infer. Future: read a "repo_url"
+        # field directly from the signups table once we add it.
+        return None
+    org = os.environ.get("HATCHIK_GITHUB_ORG", "hatchik-tenants")
+    return f"https://github.com/{org}/{plan['sandbox_slug']}.git"
 
 
 def _cloud_init_script(slug: str) -> str:

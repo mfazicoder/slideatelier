@@ -60,7 +60,7 @@ def app_client(monkeypatch, tmp_path):
     db_path = tmp_path / "signups.db"
     launch_reg = tmp_path / "launch-registry.json"
     monkeypatch.setenv("HATCHIK_SIGNUP_DB", str(db_path))
-    monkeypatch.setenv("HATCHIK_ADMIN_TOKEN", "")
+    monkeypatch.setenv("HATCHIK_ADMIN_TOKEN", "test_admin_token")
     monkeypatch.setenv("RESEND_API_KEY", "")
     monkeypatch.setenv("PADDLE_WEBHOOK_SECRET", PADDLE_SECRET)
     monkeypatch.setenv("PADDLE_GROWTH_PRICE_ID", "pri_growth_test")
@@ -356,3 +356,62 @@ def test_unknown_event_type_acks(app_client):
     )
     assert status == 200
     assert body.get("received") is True
+
+
+# ── /api/admin/launch-tenants ───────────────────────────────────────────
+
+_ADMIN_HEADERS = {"X-Admin-Token": "test_admin_token"}
+
+
+def test_admin_launch_tenants_requires_token(app_client):
+    main, client, *_ = app_client
+    # Without header → 403
+    r = client.get("/api/admin/launch-tenants")
+    assert r.status_code == 403
+
+
+def test_admin_launch_tenants_returns_empty_when_no_registry(app_client):
+    main, client, db_path, launch_reg, _ = app_client
+    if launch_reg.exists():
+        launch_reg.unlink()
+    r = client.get("/api/admin/launch-tenants", headers=_ADMIN_HEADERS)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["registry_present"] is False
+    assert body["tenants"] == []
+
+
+def test_admin_launch_tenants_lists_with_counts_and_filter(app_client):
+    main, client, _db, launch_reg, _email = app_client
+    reg = {
+        "schema_version": 1,
+        "tenants": {
+            "launch-1": {"signup_id": 1, "customer_email": "a@x.com",
+                          "tier": "launch", "status": "live",
+                          "created_at": "2026-05-01T00:00:00Z"},
+            "launch-2": {"signup_id": 2, "customer_email": "b@x.com",
+                          "tier": "launch", "status": "provisioning",
+                          "created_at": "2026-05-10T00:00:00Z"},
+            "launch-3": {"signup_id": 3, "customer_email": "c@x.com",
+                          "tier": "growth", "status": "live",
+                          "created_at": "2026-05-05T00:00:00Z"},
+        },
+    }
+    launch_reg.write_text(json.dumps(reg))
+
+    # All tenants
+    r = client.get("/api/admin/launch-tenants", headers=_ADMIN_HEADERS)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["registry_present"] is True
+    assert body["total"] == 3
+    assert body["counts"] == {"live": 2, "provisioning": 1}
+    # Sort by created_at desc
+    assert [t["slug"] for t in body["tenants"]] == ["launch-2", "launch-3", "launch-1"]
+
+    # Filter by status
+    r = client.get("/api/admin/launch-tenants?status=live", headers=_ADMIN_HEADERS)
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["tenants"]) == 2
+    assert {t["status"] for t in body["tenants"]} == {"live"}
