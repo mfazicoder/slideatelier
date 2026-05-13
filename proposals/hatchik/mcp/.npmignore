@@ -1,0 +1,12 @@
+# Files NOT to publish to npm. (Files listed in package.json "files" are
+# the inverse allow-list; this catches anything that slips through.)
+src/
+node_modules/
+*.test.ts
+*.test.js
+tsconfig.json
+.gitignore
+*.tsbuildinfo
+coverage/
+.env
+.env.*
