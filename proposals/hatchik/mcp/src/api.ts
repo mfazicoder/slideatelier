@@ -64,12 +64,18 @@ export function makeApiClient(config: Config): ApiClient {
       headers["Content-Type"] = "application/json";
     }
     if (config.apiKey) {
-      // Dual-mode: send both Bearer (forward-compatible) and Cookie
-      // (works against the current signup-service). The server safely
-      // ignores whichever it doesn't use. Once Bearer auth ships
-      // server-side, drop the Cookie line.
+      // Bearer auth is now first-class server-side (POST /api/account/api-keys
+      // issues `hk_live_<token>` strings). The server's _resolve_auth helper
+      // prefers Bearer over Cookie when both are present.
+      //
+      // We still send the Cookie fallback for keys that look like raw
+      // session IDs (pre-bearer cutover, customers who pasted their
+      // hatchik_session cookie value). Once everyone's on hk_live_* tokens
+      // the Cookie line can come out — but it's harmless to leave.
       headers["Authorization"] = `Bearer ${config.apiKey}`;
-      headers["Cookie"] = `hatchik_session=${config.apiKey}`;
+      if (!config.apiKey.startsWith("hk_live_")) {
+        headers["Cookie"] = `hatchik_session=${config.apiKey}`;
+      }
     }
 
     if (config.debug) {

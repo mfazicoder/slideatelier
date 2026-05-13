@@ -812,6 +812,28 @@ def init_db() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tier_transitions_signup ON tier_transitions(signup_id)")
+        # Long-lived API keys for the MCP / programmatic clients. Same
+        # auth surface as session cookies, but issued explicitly by the
+        # customer from /account → API keys, named, revocable, no auto-
+        # expiry. The token is hashed at rest (sha256); the plaintext
+        # leaves the server exactly once at creation time. Revocation
+        # sets revoked_at; lookup ignores revoked rows. last_used_at is
+        # touched on every accepted request — cheap audit trail.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                email           TEXT NOT NULL,
+                key_hash        TEXT NOT NULL UNIQUE,
+                name            TEXT,
+                created_at      TEXT NOT NULL,
+                last_used_at    TEXT,
+                revoked_at      TEXT
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_api_keys_email ON api_keys(email)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)")
         conn.commit()
 
 
@@ -2240,6 +2262,80 @@ def _resolve_session(session_id: str | None) -> dict[str, Any] | None:
     return {"email": row["email"]}
 
 
+# ─── API-key (Bearer) auth ──────────────────────────────────────────────
+# Long-lived alternative to session cookies for programmatic clients
+# (the @hatchik/mcp package, future CLI, etc.). Customer creates a key
+# via POST /api/account/api-keys, copies the plaintext exactly once,
+# stashes it in the MCP config's HATCHIK_API_KEY env var. Subsequent
+# requests carry it as `Authorization: Bearer hk_live_<token>`.
+#
+# Storage: only the sha256 hash. Plaintext is never written to disk
+# server-side; the create endpoint returns it in the response body and
+# we never see it again.
+
+API_KEY_PREFIX = "hk_live_"
+API_KEY_RANDOM_BYTES = 24  # 32 chars base32 → 192 bits of entropy
+
+
+def _hash_api_key(plaintext: str) -> str:
+    """SHA-256 of the plaintext key. Constant-time comparable via the
+    UNIQUE index on key_hash — we look up by hash, no enumeration."""
+    return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+
+
+def _generate_api_key() -> tuple[str, str]:
+    """Return (plaintext, hash). Plaintext is `hk_live_` + base32(192 bits)."""
+    import base64
+    raw = secrets.token_bytes(API_KEY_RANDOM_BYTES)
+    body = base64.b32encode(raw).decode("ascii").rstrip("=").lower()
+    plaintext = f"{API_KEY_PREFIX}{body}"
+    return plaintext, _hash_api_key(plaintext)
+
+
+def _resolve_bearer(token: str | None) -> dict[str, Any] | None:
+    """Return {email} for a valid, non-revoked API key, else None.
+
+    Touches last_used_at on success — gives the customer a useful "last
+    seen" timestamp in the /api/account/api-keys list.
+    """
+    if not token or not token.startswith(API_KEY_PREFIX):
+        return None
+    key_hash = _hash_api_key(token)
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT id, email, revoked_at FROM api_keys WHERE key_hash = ?",
+            (key_hash,),
+        ).fetchone()
+        if row is None or row["revoked_at"] is not None:
+            return None
+        conn.execute(
+            "UPDATE api_keys SET last_used_at = ? WHERE id = ?",
+            (now, row["id"]),
+        )
+        conn.commit()
+    return {"email": row["email"]}
+
+
+def _resolve_auth(
+    session_cookie: str | None,
+    authorization_header: str | None,
+) -> dict[str, Any] | None:
+    """Resolve a request's auth from either path. Bearer wins if both
+    are present and both resolve — but in practice clients send one or
+    the other, not both. Browser sessions use the cookie; MCP / CLI
+    clients use Bearer."""
+    if authorization_header:
+        prefix = "Bearer "
+        if authorization_header.startswith(prefix):
+            bearer = authorization_header[len(prefix):].strip()
+            resolved = _resolve_bearer(bearer)
+            if resolved:
+                return resolved
+    return _resolve_session(session_cookie)
+
+
 @app.post("/api/account/login", status_code=202)
 async def request_login_link(req: LoginRequest, request: Request) -> dict[str, Any]:
     """Self-serve: email a one-time sign-in link.
@@ -2520,6 +2616,7 @@ async def login_with_code(
 async def logout(
     response: Response,
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> Response:
     if hatchik_session:
         with sqlite3.connect(DB_PATH) as conn:
@@ -2533,8 +2630,9 @@ async def logout(
 @app.get("/api/account/me")
 async def get_me(
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     email = session["email"]
@@ -2607,8 +2705,9 @@ class UpdateMeRequest(BaseModel):
 async def update_me(
     body: UpdateMeRequest,
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     email = session["email"]
@@ -2631,12 +2730,132 @@ async def update_me(
     return {"ok": True}
 
 
+# ─── API-key management ─────────────────────────────────────────────────
+# Long-lived bearer tokens for programmatic clients (the @hatchik/mcp
+# package, future CLI, etc.). Customer-managed: create from /account,
+# list to see name + last_used_at + revoked state, revoke when they no
+# longer need it. The plaintext token leaves the server exactly once,
+# in the create response. After that we only know its sha256 hash.
+
+class CreateApiKeyRequest(BaseModel):
+    name: str = Field(default="", max_length=80)
+
+
+@app.post("/api/account/api-keys", status_code=201)
+async def create_api_key(
+    body: CreateApiKeyRequest,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Issue a new API key tied to the signed-in account.
+
+    The plaintext token is returned in this response only. We hash and
+    store only the digest, so once the customer dismisses the dialog
+    they can no longer retrieve it — they have to revoke and reissue.
+    Match the pattern most cloud providers use.
+    """
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    email = session["email"]
+    plaintext, key_hash = _generate_api_key()
+    now = datetime.now(timezone.utc).isoformat()
+    name = (body.name or "").strip() or f"unnamed key ({now[:10]})"
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            "INSERT INTO api_keys (email, key_hash, name, created_at) "
+            "VALUES (?, ?, ?, ?)",
+            (email, key_hash, name, now),
+        )
+        conn.commit()
+        key_id = cur.lastrowid
+    log.info("Issued API key id=%s email=%s name=%r", key_id, email, name)
+    return {
+        "id": key_id,
+        "name": name,
+        "created_at": now,
+        "key": plaintext,  # ← only returned here, never again
+        "warning": (
+            "This is the only time you'll see the full key. "
+            "Copy it now and paste into your MCP config or CLI. "
+            "You can always revoke it later from this page."
+        ),
+    }
+
+
+@app.get("/api/account/api-keys")
+async def list_api_keys(
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """List API keys for the signed-in account.
+
+    Returns only metadata. The plaintext token is unrecoverable after
+    creation — by design.
+    """
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT id, name, created_at, last_used_at, revoked_at "
+            "FROM api_keys WHERE LOWER(email) = ? "
+            "ORDER BY id DESC",
+            (session["email"].lower(),),
+        ).fetchall()
+    return {
+        "keys": [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "created_at": r["created_at"],
+                "last_used_at": r["last_used_at"],
+                "revoked_at": r["revoked_at"],
+                "status": "revoked" if r["revoked_at"] else "active",
+            }
+            for r in rows
+        ],
+    }
+
+
+@app.delete("/api/account/api-keys/{key_id}", status_code=204)
+async def revoke_api_key(
+    key_id: int,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> None:
+    """Revoke an API key.
+
+    Soft-delete: sets revoked_at rather than DELETE'ing the row, so we
+    keep the audit trail (created_at, last_used_at) for forensics. The
+    bearer resolver checks revoked_at and rejects revoked keys.
+    """
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            "UPDATE api_keys SET revoked_at = ? "
+            "WHERE id = ? AND LOWER(email) = ? AND revoked_at IS NULL",
+            (now, key_id, session["email"].lower()),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            # Either the key doesn't exist, isn't ours, or already revoked.
+            # Anti-enumeration: don't leak which.
+            raise HTTPException(status_code=404, detail="key not found")
+    log.info("Revoked API key id=%s by %s", key_id, session["email"])
+
+
 @app.get("/api/account/upgrade")
 async def upgrade_info(
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """Return upgrade info — Paddle checkout URL if configured, else 'coming soon'."""
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     if not PADDLE_LAUNCH_PRICE_ID:
@@ -2656,6 +2875,7 @@ async def upgrade_info(
 @app.get("/api/account/billing-portal")
 async def billing_portal(
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """Return a Paddle customer-portal URL for the signed-in customer.
 
@@ -2663,7 +2883,7 @@ async def billing_portal(
     a Paddle customer_id. Until then, this returns 404 and the UI hides
     the billing tab.
     """
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     with sqlite3.connect(DB_PATH) as conn:
@@ -3231,6 +3451,7 @@ async def _invite_github_collaborator(slug: str, handle: str) -> dict[str, Any]:
 async def list_mobile_builds(
     slug: str,
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """List the last 5 build-mobile workflow runs for a tenant repo.
 
@@ -3239,7 +3460,7 @@ async def list_mobile_builds(
     repo created for this tenant) so the UI can surface "Connect GitHub
     first" rather than treating it as an error.
     """
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     tenant = _tenant_for_session(slug, session["email"])
@@ -3313,6 +3534,7 @@ async def trigger_mobile_build(
     slug: str,
     body: MobileBuildTriggerRequest,
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """Dispatch the build-mobile workflow on the customer's tenant repo.
 
@@ -3323,7 +3545,7 @@ async def trigger_mobile_build(
     Returns 202 on dispatch — actual build status comes from the list
     endpoint above (GitHub returns the run id only after a short delay).
     """
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     tenant = _tenant_for_session(slug, session["email"])
@@ -3390,8 +3612,9 @@ async def trigger_mobile_build(
 async def get_services(
     slug: str,
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
 
@@ -3443,6 +3666,7 @@ async def get_services(
 async def reinvite_github_collaborator(
     slug: str,
     hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> JSONResponse:
     """Re-fire the GitHub collaborator invite for the customer's current handle.
 
@@ -3464,7 +3688,7 @@ async def reinvite_github_collaborator(
       - 429 rate-limited
       - 502 GitHub upstream wobble
     """
-    session = _resolve_session(hatchik_session)
+    session = _resolve_auth(hatchik_session, authorization)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     email = session["email"]

@@ -7,7 +7,11 @@ the in-chat signup flow lands) sign up from your AI conversation.
 
 ## Install
 
-In your AI tool's MCP config:
+**Step 1.** Sign in to https://hatchik.com/account and create an API key:
+`Settings → API keys → Create new key`. Copy the `hk_live_…` token —
+you'll see it exactly once.
+
+**Step 2.** In your AI tool's MCP config:
 
 ```jsonc
 // .cursor/mcp.json, ~/.claude/mcp.json, or the Windsurf MCP settings panel
@@ -17,19 +21,18 @@ In your AI tool's MCP config:
       "command": "npx",
       "args": ["-y", "@hatchik/mcp"],
       "env": {
-        "HATCHIK_API_KEY": "<your hatchik_session cookie value>"
+        "HATCHIK_API_KEY": "hk_live_..."
       }
     }
   }
 }
 ```
 
-Until the dedicated API-key endpoint ships, `HATCHIK_API_KEY` is your
-`hatchik_session` cookie value — copy it from `hatchik.com/account` while
-signed in. Once the Bearer-auth endpoint exists server-side this same
-config will accept a long-lived API key instead.
-
 Restart your AI tool. The hatchik server should appear with a green dot.
+
+To revoke a key, go back to `Settings → API keys` and click revoke. The
+MCP errors out on the next call with a clear 401 message, and the
+customer can issue a fresh key without losing their data.
 
 ## What it does
 
@@ -100,9 +103,9 @@ line in the registry.
 The MCP works against the existing `signup-service` endpoints today.
 These backend pieces are pending and will unlock more of the surface:
 
-- **Bearer-auth endpoint**: `POST /api/account/api-keys` to issue
-  long-lived API keys tied to a session. Until then, `HATCHIK_API_KEY`
-  has to be a session cookie value.
+- ~~**Bearer-auth endpoint**~~: shipped. `POST /api/account/api-keys`
+  issues an `hk_live_*` token; the MCP sends it as `Authorization:
+  Bearer …`. Cookie fallback kept for legacy keys.
 - **Wizard sessions**: `POST /api/wizard/sessions`,
   `GET /api/wizard/sessions/{id}`, `POST /api/wizard/sessions/{id}/quote`,
   `POST /api/wizard/sessions/{id}/checkout` — these power the in-chat

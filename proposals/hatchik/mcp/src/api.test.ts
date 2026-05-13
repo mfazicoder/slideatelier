@@ -28,7 +28,7 @@ function mockFetch(
   }) as typeof globalThis.fetch;
 }
 
-test("api: sends Bearer + Cookie when API key set", async () => {
+test("api: legacy key (no hk_live_ prefix) sends Bearer + Cookie fallback", async () => {
   let capturedHeaders: Record<string, string> = {};
   mockFetch((_url, init) => {
     capturedHeaders = (init.headers as Record<string, string>) ?? {};
@@ -42,7 +42,27 @@ test("api: sends Bearer + Cookie when API key set", async () => {
   );
   await api.get("/api/account/me");
   assert.equal(capturedHeaders["Authorization"], "Bearer session_abc");
+  // Cookie fallback fires because the key doesn't look like a proper
+  // hk_live_ API key — covers the pre-Bearer cutover case where someone
+  // pasted their session cookie value directly.
   assert.equal(capturedHeaders["Cookie"], "hatchik_session=session_abc");
+});
+
+test("api: proper hk_live_ key sends Bearer only, no Cookie", async () => {
+  let capturedHeaders: Record<string, string> = {};
+  mockFetch((_url, init) => {
+    capturedHeaders = (init.headers as Record<string, string>) ?? {};
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  const api = makeApiClient(
+    loadConfig({ HATCHIK_API_KEY: "hk_live_abcdef123456" }),
+  );
+  await api.get("/api/account/me");
+  assert.equal(capturedHeaders["Authorization"], "Bearer hk_live_abcdef123456");
+  assert.equal(capturedHeaders["Cookie"], undefined);
 });
 
 test("api: omits auth headers when no API key", async () => {
