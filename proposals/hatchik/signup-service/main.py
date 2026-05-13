@@ -77,6 +77,12 @@ DELETION_TOKEN_TTL_HOURS = 24
 
 # Magic-link login tokens are single-use and short-lived.
 LOGIN_TOKEN_TTL_MINUTES = 30
+# Cap brute-force attempts at the 6-digit verification code per token.
+# After this many failed attempts the token is invalidated entirely so an
+# attacker can't keep guessing (1-in-900k odds × 5 tries is fine; we never
+# want them to get a sixth try). 15 minutes is the implicit window because
+# the token itself expires in 30 minutes — the counter lives on the row.
+LOGIN_CODE_MAX_ATTEMPTS = 5
 # Session cookies last this long after last activity.
 SESSION_TTL_DAYS = 30
 SESSION_COOKIE_NAME = "hatchik_session"
@@ -604,6 +610,16 @@ def init_db() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email)")
+        # Additive migration: 6-digit verification code stored on the same
+        # login_tokens row so the magic-link and code paths share state
+        # (single-use: consuming either marks consumed_at). code_attempts
+        # counts failed POST /api/account/login-with-code attempts so we
+        # can rate-limit per token and invalidate after 5 wrong guesses.
+        login_cols = {row[1] for row in conn.execute("PRAGMA table_info(login_tokens)").fetchall()}
+        if "code" not in login_cols:
+            conn.execute("ALTER TABLE login_tokens ADD COLUMN code TEXT")
+        if "code_attempts" not in login_cols:
+            conn.execute("ALTER TABLE login_tokens ADD COLUMN code_attempts INTEGER NOT NULL DEFAULT 0")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_signups_email ON signups(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_signups_created ON signups(created_at)")
@@ -1787,23 +1803,39 @@ async def request_login_link(req: LoginRequest, request: Request) -> dict[str, A
     created_at = datetime.now(timezone.utc)
     expires_at = created_at + timedelta(minutes=LOGIN_TOKEN_TTL_MINUTES)
     token = secrets.token_urlsafe(32)
+    code = _generate_login_code()
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
-            "INSERT INTO login_tokens (token, email, created_at, expires_at) VALUES (?, ?, ?, ?)",
-            (token, email, created_at.isoformat(), expires_at.isoformat()),
+            "INSERT INTO login_tokens (token, email, created_at, expires_at, code, code_attempts) "
+            "VALUES (?, ?, ?, ?, ?, 0)",
+            (token, email, created_at.isoformat(), expires_at.isoformat(), code),
         )
         conn.commit()
 
     link = f"https://hatchik.com/api/account/auth?token={token}"
-    await _send_login_email(email, link)
+    await _send_login_email(email, link, code)
     log.info("login link emailed to %s", email)
     return {"ok": True, "message": "If that email matches an active Hatchik account, we've sent a sign-in link."}
 
 
-async def _send_login_email(email: str, link: str) -> None:
+def _generate_login_code() -> str:
+    """Return a 6-digit numeric code (100000-999999) as a zero-free string.
+
+    secrets.randbelow(900000) + 100000 guarantees 6 digits — we deliberately
+    skip 000000-099999 so the printed code can't be confused with a leading-
+    zero phone number or hex digit, and so all codes are the same width when
+    formatted as "123 456" for the email.
+    """
+    return str(secrets.randbelow(900000) + 100000)
+
+
+async def _send_login_email(email: str, link: str, code: str) -> None:
     if not RESEND_API_KEY:
         log.warning("RESEND_API_KEY not set — skipping login email to %s", email)
         return
+    # Format the code with a space in the middle for readability — e.g.
+    # "123 456" — but the actual stored value is the raw 6 digits.
+    code_display = f"{code[:3]} {code[3:]}"
     text = f"""Hi,
 
 Click the link below to sign in to your Hatchik account. It's
@@ -1811,7 +1843,11 @@ single-use and expires in {LOGIN_TOKEN_TTL_MINUTES} minutes.
 
 {link}
 
-If you didn't ask for this, ignore this email.
+Or copy this code into the sign-in form on hatchik.com/account:
+
+    {code_display}
+
+Expires in {LOGIN_TOKEN_TTL_MINUTES} minutes. If you didn't ask to sign in, ignore this email.
 
 — Hatchik
 
@@ -1829,7 +1865,13 @@ If you didn't ask for this, ignore this email.
 <p style="margin:0 0 16px 0;">Click the button below to sign in to your Hatchik account. It&rsquo;s single-use and expires in {LOGIN_TOKEN_TTL_MINUTES} minutes.</p>
 <p style="margin:24px 0;"><a href="{link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Sign in to Hatchik</a></p>
 <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Or paste this URL into your browser: <a href="{link}" style="color:#4f46e5;text-decoration:underline;">{link}</a></p>
-<p style="margin:0 0 16px 0;color:#555;font-size:14px;">If you didn&rsquo;t ask for this, ignore this email.</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0;border-top:1px solid #e5e4dd;">
+<tr><td style="padding-top:24px;">
+<p style="margin:0 0 12px 0;color:#555;font-size:14px;">Or copy this code into the sign-in form on hatchik.com/account:</p>
+<p style="margin:0 0 12px 0;font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:0.15em;color:#1a1a1a;">{code_display}</p>
+<p style="margin:0 0 16px 0;color:#888;font-size:13px;">Expires in {LOGIN_TOKEN_TTL_MINUTES} minutes. If you didn&rsquo;t ask to sign in, ignore this email.</p>
+</td></tr>
+</table>
 <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
 <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
 </td></tr>
@@ -1891,6 +1933,117 @@ async def auth_callback(token: str) -> RedirectResponse:
     )
     log.info("session created for %s", row["email"])
     return resp
+
+
+class LoginCodeRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=7)
+
+    @field_validator("code")
+    @classmethod
+    def _strip_code(cls, v: str) -> str:
+        # Customers may paste the code with the visual space ("123 456") or
+        # without — store/compare digits only.
+        cleaned = "".join(ch for ch in v if ch.isdigit())
+        if len(cleaned) != 6:
+            raise ValueError("code must be 6 digits")
+        return cleaned
+
+
+@app.post("/api/account/login-with-code")
+async def login_with_code(
+    req: LoginCodeRequest, response: Response
+) -> dict[str, Any]:
+    """Verify a 6-digit code, create a session, set cookie.
+
+    Fallback path for inboxes / corporate proxies that mangle clickable
+    magic links. Shares the login_tokens row with the link path so either
+    flow consumes the same single-use token. After LOGIN_CODE_MAX_ATTEMPTS
+    failed guesses the row is invalidated entirely (consumed_at set) so a
+    correct subsequent attempt also fails — the customer must request a
+    new code.
+    """
+    email = str(req.email).lower().strip()
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT token, email, expires_at, consumed_at, code, code_attempts "
+            "FROM login_tokens "
+            "WHERE LOWER(email) = ? AND consumed_at IS NULL "
+            "ORDER BY created_at DESC LIMIT 1",
+            (email,),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="no pending sign-in")
+        if row["code"] is None:
+            # Pre-migration row — no code was ever issued for this token.
+            raise HTTPException(status_code=404, detail="no pending sign-in")
+
+        # At-or-over the cap of failed attempts → no more guesses allowed.
+        # Burn the token so even a correct code submitted now fails, and
+        # return 429 so the UI surfaces the right message. The customer
+        # must request a fresh sign-in email.
+        if row["code_attempts"] >= LOGIN_CODE_MAX_ATTEMPTS:
+            conn.execute(
+                "UPDATE login_tokens SET consumed_at = ? WHERE token = ?",
+                (now_iso, row["token"]),
+            )
+            conn.commit()
+            log.warning(
+                "login-with-code: token for %s already at attempt cap — invalidated",
+                email,
+            )
+            raise HTTPException(
+                status_code=429,
+                detail="too many attempts — request a new sign-in email",
+            )
+
+        # Constant-time compare to avoid leaking the correct code via
+        # timing (paranoid, but cheap).
+        provided = req.code
+        expected = row["code"]
+        code_ok = hmac.compare_digest(provided, expected)
+        expired = row["expires_at"] < now_iso
+
+        if not code_ok or expired:
+            new_attempts = row["code_attempts"] + 1
+            conn.execute(
+                "UPDATE login_tokens SET code_attempts = ? WHERE token = ?",
+                (new_attempts, row["token"]),
+            )
+            conn.commit()
+            if expired and code_ok:
+                raise HTTPException(status_code=410, detail="code expired")
+            raise HTTPException(status_code=410, detail="incorrect or expired code")
+
+        # Success path: mark consumed, create session, set cookie.
+        conn.execute(
+            "UPDATE login_tokens SET consumed_at = ? WHERE token = ?",
+            (now_iso, row["token"]),
+        )
+        session_id = secrets.token_urlsafe(32)
+        expires_at = (now + timedelta(days=SESSION_TTL_DAYS)).isoformat()
+        conn.execute(
+            "INSERT INTO sessions (session_id, email, created_at, expires_at, last_seen_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (session_id, row["email"], now_iso, expires_at, now_iso),
+        )
+        conn.commit()
+
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        session_id,
+        max_age=SESSION_TTL_DAYS * 86400,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+    log.info("session created for %s (via code)", row["email"])
+    return {"ok": True}
 
 
 @app.post("/api/account/logout", status_code=204)

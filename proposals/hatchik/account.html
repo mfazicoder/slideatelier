@@ -61,8 +61,52 @@
     </form>
 
     <div id="signInSuccess" class="mt-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4 text-sm text-emerald-900 hidden">
-      If that email matches a Hatchik account, we've sent you a sign-in link.
-      Check your inbox &mdash; the link expires in 30 minutes.
+      If that email matches a Hatchik account, we've sent you an email
+      with two ways to sign in. The link expires in 30 minutes.
+    </div>
+
+    <!-- Post-submit options: click the link OR enter the code -->
+    <div id="signInOptions" class="mt-6 space-y-5 hidden">
+      <div class="rounded-xl bg-white ring-1 ring-slate-200 p-4">
+        <h2 class="text-sm font-semibold text-slate-800">Option 1 &mdash; click the link in your email</h2>
+        <p class="mt-1 text-xs text-slate-600 leading-relaxed">
+          Tap the &ldquo;Sign in to Hatchik&rdquo; button in the email
+          we just sent. You'll land back here, signed in.
+        </p>
+      </div>
+
+      <div class="rounded-xl bg-white ring-1 ring-slate-200 p-4">
+        <h2 class="text-sm font-semibold text-slate-800">Option 2 &mdash; enter the 6-digit code</h2>
+        <p class="mt-1 text-xs text-slate-600 leading-relaxed">
+          If your inbox doesn't show clickable links, copy the code
+          from the email instead.
+        </p>
+        <form id="signInCodeForm" class="mt-3 flex flex-col sm:flex-row gap-2" novalidate>
+          <label class="sr-only" for="signInCode">6-digit code</label>
+          <input
+            id="signInCode"
+            name="code"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9 ]*"
+            maxlength="7"
+            placeholder="123 456"
+            class="flex-1 px-4 py-3 rounded-xl border border-slate-300 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition tracking-widest font-mono text-center"
+          />
+          <button type="submit"
+            class="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition disabled:opacity-60 disabled:cursor-not-allowed">
+            Sign in
+          </button>
+        </form>
+        <p id="signInCodeError" class="mt-2 text-xs text-rose-600 hidden"></p>
+      </div>
+
+      <p class="text-center">
+        <button id="signInRestart" type="button" class="text-xs text-slate-500 hover:text-slate-700 underline">
+          Use a different email
+        </button>
+      </p>
     </div>
   </div>
 </section>
@@ -591,6 +635,11 @@
     }
   }
 
+  // Holds the email the user submitted, so the code form knows which
+  // account it's verifying. Set on a successful POST /api/account/login;
+  // cleared by the "Use a different email" restart link.
+  let pendingSignInEmail = '';
+
   // Sign-in form
   $('signInForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -609,8 +658,13 @@
         method: 'POST',
         body: JSON.stringify({ email, turnstile_token: signInTurnstileToken }),
       });
+      pendingSignInEmail = email;
       $('signInForm').classList.add('hidden');
       $('signInSuccess').classList.remove('hidden');
+      $('signInOptions').classList.remove('hidden');
+      // Move keyboard focus to the code input so a customer who already
+      // has the email open can type the code straight away.
+      setTimeout(() => { try { $('signInCode').focus(); } catch (_) {} }, 50);
     } catch (err) {
       if (err && err.status === 422) {
         let serverMsg = 'Please verify you’re human and try again.';
@@ -630,6 +684,74 @@
     } finally {
       btn.disabled = false;
     }
+  });
+
+  // 6-digit code form (fallback when magic links don't work)
+  $('signInCodeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = $('signInCodeError');
+    const codeInput = $('signInCode');
+    errorEl.classList.add('hidden');
+    if (!pendingSignInEmail) {
+      errorEl.textContent = 'Enter your email above first.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    const code = (codeInput.value || '').replace(/\s+/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      errorEl.textContent = 'Please enter the 6-digit code from your email.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    try {
+      await fetchJSON('/api/account/login-with-code', {
+        method: 'POST',
+        body: JSON.stringify({ email: pendingSignInEmail, code }),
+      });
+      // Session cookie is now set — re-bootstrap to render the dashboard.
+      location.href = '/account';
+    } catch (err) {
+      // Surface the server's reason inline + clear the input so the
+      // customer can retry without backspacing.
+      let msg = 'That code didn’t work. Try again or request a new email.';
+      if (err && (err.status === 404 || err.status === 410 || err.status === 429)) {
+        try {
+          const parsed = JSON.parse(err.message || '{}');
+          const detail = parsed && parsed.detail;
+          if (typeof detail === 'string') msg = detail;
+          else if (detail && detail.message) msg = detail.message;
+        } catch (_) { /* fall through */ }
+        if (err.status === 404) {
+          msg = 'We couldn’t find a pending sign-in for that email. Request a new sign-in email.';
+        } else if (err.status === 429) {
+          msg = 'Too many attempts. Request a new sign-in email and try again.';
+        }
+      }
+      errorEl.textContent = msg;
+      errorEl.classList.remove('hidden');
+      codeInput.value = '';
+      try { codeInput.focus(); } catch (_) {}
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // "Use a different email" — reset the form so the customer can start over.
+  $('signInRestart').addEventListener('click', () => {
+    pendingSignInEmail = '';
+    $('signInCode').value = '';
+    $('signInCodeError').classList.add('hidden');
+    $('signInOptions').classList.add('hidden');
+    $('signInSuccess').classList.add('hidden');
+    $('signInError').classList.add('hidden');
+    $('signInForm').classList.remove('hidden');
+    if (signInTurnstileId !== null && window.turnstile) {
+      window.turnstile.reset(signInTurnstileId);
+      signInTurnstileToken = '';
+    }
+    try { $('signInEmail').focus(); } catch (_) {}
   });
 
   // Settings form
