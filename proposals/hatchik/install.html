@@ -249,7 +249,7 @@
         <span class="step-num">2</span>
         <div class="flex-1">
           <h4 class="font-bold mb-1">Paste this in</h4>
-          <p class="text-sm text-slate-600 mb-3">Replace <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_LOFTIK_API_KEY</span> with the key from your welcome email. If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"loftik"</span> entry inside it.</p>
+          <p class="text-sm text-slate-600 mb-3">Replace <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_HATCHIK_API_KEY</span> with the key from your welcome email. If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry inside it.</p>
           <div class="code-window">
             <div class="mb-3">
               <span class="dot" style="background:#ef4444"></span>
@@ -260,12 +260,12 @@
             <button class="copy-btn" data-copy="claude-snippet" type="button">Copy</button>
 <pre id="claude-snippet">{
   <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
-    <span class="tok-key">"loftik"</span><span class="tok-pun">:</span> {
+    <span class="tok-key">"hatchik"</span><span class="tok-pun">:</span> {
       <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
-      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@loftik/mcp"</span><span class="tok-pun">],</span>
+      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@hatchik/mcp"</span><span class="tok-pun">],</span>
       <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
-        <span class="tok-key">"LOFTIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_LOFTIK_API_KEY"</span><span class="tok-pun">,</span>
-        <span class="tok-key">"LOFTIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
+        <span class="tok-key">"HATCHIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_HATCHIK_API_KEY"</span><span class="tok-pun">,</span>
+        <span class="tok-key">"HATCHIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
       }
     }
   }
@@ -300,7 +300,7 @@ Are you connected to Hatchik? What project am I on?</pre>
       <!-- What this does -->
       <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
         <strong class="text-indigo-900">What this does, in plain English:</strong>
-        you're telling Claude that there's a service called "loftik" it's allowed to talk to.
+        you're telling Claude that there's a service called "hatchik" it's allowed to talk to.
         When you ask Claude to ship a feature, check why the site is slow, or roll back yesterday's
         change, it can now do that directly — Claude calls our MCP server, our server checks your API
         key, and the action runs against your Hatchik project. Anything that costs money or could
@@ -347,12 +347,12 @@ Are you connected to Hatchik? What project am I on?</pre>
             <button class="copy-btn" data-copy="cursor-snippet" type="button">Copy</button>
 <pre id="cursor-snippet">{
   <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
-    <span class="tok-key">"loftik"</span><span class="tok-pun">:</span> {
+    <span class="tok-key">"hatchik"</span><span class="tok-pun">:</span> {
       <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
-      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@loftik/mcp"</span><span class="tok-pun">],</span>
+      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@hatchik/mcp"</span><span class="tok-pun">],</span>
       <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
-        <span class="tok-key">"LOFTIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_LOFTIK_API_KEY"</span><span class="tok-pun">,</span>
-        <span class="tok-key">"LOFTIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
+        <span class="tok-key">"HATCHIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_HATCHIK_API_KEY"</span><span class="tok-pun">,</span>
+        <span class="tok-key">"HATCHIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
       }
     }
   }
@@ -367,7 +367,7 @@ Are you connected to Hatchik? What project am I on?</pre>
         <span class="step-num">3</span>
         <div class="flex-1">
           <h4 class="font-bold mb-1">Reload</h4>
-          <p class="text-sm text-slate-600">Back in the MCP settings panel, you should see "loftik" appear with a green dot. If it's red, click the refresh icon. If it's still red, check the API key for typos.</p>
+          <p class="text-sm text-slate-600">Back in the MCP settings panel, you should see "hatchik" appear with a green dot. If it's red, click the refresh icon. If it's still red, check the API key for typos.</p>
         </div>
       </div>
 
@@ -431,12 +431,12 @@ Are you connected to Hatchik? Show me my recent deploys.</pre>
             <button class="copy-btn" data-copy="windsurf-snippet" type="button">Copy</button>
 <pre id="windsurf-snippet">{
   <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
-    <span class="tok-key">"loftik"</span><span class="tok-pun">:</span> {
+    <span class="tok-key">"hatchik"</span><span class="tok-pun">:</span> {
       <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
-      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@loftik/mcp"</span><span class="tok-pun">],</span>
+      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"@hatchik/mcp"</span><span class="tok-pun">],</span>
       <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
-        <span class="tok-key">"LOFTIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_LOFTIK_API_KEY"</span><span class="tok-pun">,</span>
-        <span class="tok-key">"LOFTIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
+        <span class="tok-key">"HATCHIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_HATCHIK_API_KEY"</span><span class="tok-pun">,</span>
+        <span class="tok-key">"HATCHIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
       }
     }
   }
@@ -485,7 +485,7 @@ Are you connected to Hatchik? What's the URL of my preview deploy?</pre>
     <h3 class="font-bold text-lg mb-2">Using something else?</h3>
     <p class="text-sm text-slate-600 mb-4">
       Hatchik speaks the standard Model Context Protocol. Any MCP-capable client works the same way — find that client's MCP config
-      file, paste the same <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">loftik</span> server block, restart.
+      file, paste the same <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">hatchik</span> server block, restart.
     </p>
     <div class="grid sm:grid-cols-3 gap-3 text-sm">
       <div class="flex items-start gap-2">
