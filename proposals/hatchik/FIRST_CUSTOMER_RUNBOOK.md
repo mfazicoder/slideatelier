@@ -179,6 +179,62 @@ Time: 5 minutes if the orchestrator worked, ~15 if you need to debug.
 Time: 45–90 minutes for the first one; 30–45 once you've done it
 three times.
 
+## Account harness — create + delete
+
+Three layers, all live as of commit history (see `decommission.py`,
+admin/self-serve endpoints in `signup-service/main.py`).
+
+### 1. Self-serve (what customers see)
+
+- **Sign up:** the form on `https://hatchik.com/#signup` posts to
+  `POST /api/signup`. Provisioning is automatic.
+- **Delete:** the footer link or
+  `https://hatchik.com/delete-sandbox` posts to
+  `POST /api/account/request-deletion {email}`. Customer receives a
+  one-time confirmation link valid 24h. Clicking the link fires
+  `GET /api/account/confirm-deletion?token=...` which subprocess-runs
+  `decommission.py <slug> --hard` — tears down containers + volumes,
+  removes the registry entry, and DELETEs the signup row. Anti-
+  enumeration: the request endpoint always returns 202, never reveals
+  whether the email matched.
+
+### 2. Admin API (HTTP)
+
+Header `X-Admin-Token: $HATCHIK_ADMIN_TOKEN` is required (the token
+lives in `/etc/hatchik-signup.env` on the sandbox host).
+
+- `GET /api/admin/accounts` — list all signups + joined tenant state
+  (url, status, port).
+- `DELETE /api/admin/account/{slug}` — soft decommission (keeps
+  registry + signup row for audit). Append `?hard=true` to fully purge.
+
+### 3. Admin CLI (`decommission.py`)
+
+For when you're SSH'd into the sandbox host. Same teardown logic that
+the API endpoints subprocess, but interactive:
+
+```bash
+python3 /opt/hatchik-orchestrator/decommission.py --list
+python3 /opt/hatchik-orchestrator/decommission.py <slug>          # soft
+python3 /opt/hatchik-orchestrator/decommission.py <slug> --hard   # purge
+python3 /opt/hatchik-orchestrator/decommission.py --signup <id>   # lookup-by-id
+```
+
+### Resetting the SQLite signup sequence
+
+Soft-deleting individual rows leaves the autoincrement counter intact
+(next signup gets `id = max(deleted) + 1`). To start fresh from `#1`:
+
+```bash
+python3 -c "
+import sqlite3
+c = sqlite3.connect('/var/lib/hatchik/signups.db')
+c.execute('DELETE FROM signups')
+c.execute(\"DELETE FROM sqlite_sequence WHERE name='signups'\")
+c.commit()
+"
+```
+
 ## Linear bootstrap (both tiers)
 
 1. Send the customer a Linear invite link to a new workspace

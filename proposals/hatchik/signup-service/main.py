@@ -19,16 +19,18 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 import sqlite3
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, field_validator
 
 # ─── Config ──────────────────────────────────────────────────────────────
@@ -43,6 +45,19 @@ ALLOWED_ORIGINS = os.environ.get(
 ).split(",")
 RATE_LIMIT_WINDOW_SECONDS = 60
 RATE_LIMIT_MAX_REQUESTS = 5
+
+# Admin endpoints (POST /api/admin/* and DELETE /api/admin/*) require this
+# shared secret in the X-Admin-Token header. Empty value disables admin API.
+ADMIN_TOKEN = os.environ.get("HATCHIK_ADMIN_TOKEN", "")
+
+# Self-serve deletion: customers receive an emailed link with a token,
+# valid for this many hours.
+DELETION_TOKEN_TTL_HOURS = 24
+
+# Path to decommission.py — subprocess'd for tear-down.
+DECOMMISSION_SCRIPT = os.environ.get(
+    "HATCHIK_DECOMMISSION_SCRIPT", "/opt/hatchik-orchestrator/decommission.py"
+)
 
 # Paddle Billing webhook config. Hatchik's selling entity is Omani, so we
 # use Paddle as Merchant of Record (see PRODUCT_OFFERING.md §8.1) — Stripe
@@ -120,6 +135,20 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS deletion_tokens (
+                token       TEXT PRIMARY KEY,
+                email       TEXT NOT NULL,
+                slug        TEXT NOT NULL,
+                signup_id   INTEGER NOT NULL,
+                created_at  TEXT NOT NULL,
+                expires_at  TEXT NOT NULL,
+                consumed_at TEXT
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_deletion_tokens_email ON deletion_tokens(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_signups_email ON signups(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_signups_created ON signups(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_rate_limit_ip ON rate_limit(ip)")
@@ -626,6 +655,238 @@ async def stats() -> dict[str, int]:
         total = conn.execute("SELECT COUNT(*) FROM signups").fetchone()[0]
         new = conn.execute("SELECT COUNT(*) FROM signups WHERE status = 'new'").fetchone()[0]
     return {"total": total, "new": new}
+
+
+# ─── Account harness: create + delete ────────────────────────────────────
+# Admin path: shared-secret header X-Admin-Token = HATCHIK_ADMIN_TOKEN.
+# Self-serve path: customer hits POST /api/account/request-deletion with
+# their email; service mails a one-time token; customer clicks the link;
+# /api/account/confirm-deletion?token=... fires decommission.py.
+
+def _require_admin(token: str | None) -> None:
+    if not ADMIN_TOKEN or not token or not hmac.compare_digest(token, ADMIN_TOKEN):
+        raise HTTPException(status_code=403, detail="admin token required")
+
+
+def _run_decommission(slug: str, hard: bool) -> dict[str, Any]:
+    """Subprocess decommission.py and parse its JSON summary."""
+    import subprocess
+    if not Path(DECOMMISSION_SCRIPT).exists():
+        raise HTTPException(status_code=500, detail="decommission.py not deployed")
+    cmd = ["python3", DECOMMISSION_SCRIPT, slug, "--json", "--quiet"]
+    if hard:
+        cmd.append("--hard")
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if r.returncode != 0:
+        log.error("decommission.py failed for %s: %s", slug, r.stderr)
+        raise HTTPException(status_code=500, detail=f"decommission failed: {r.stderr.strip()[:200]}")
+    try:
+        return json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return {"slug": slug, "raw": r.stdout.strip()}
+
+
+@app.delete("/api/admin/account/{slug}")
+async def admin_delete_account(
+    slug: str,
+    hard: bool = False,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Admin: tear down a sandbox by slug."""
+    _require_admin(x_admin_token)
+    log.info("admin decommission requested: slug=%s hard=%s", slug, hard)
+    return _run_decommission(slug, hard=hard)
+
+
+@app.get("/api/admin/accounts")
+async def admin_list_accounts(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Admin: list all signups + their tenant status from registry."""
+    _require_admin(x_admin_token)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT id, created_at, email, first_name, product_name, tier, status "
+            "FROM signups ORDER BY id DESC"
+        ).fetchall()
+    reg = _load_registry()
+    tenants_by_signup: dict[int, dict[str, Any]] = {
+        t.get("signup_id"): {"slug": slug, **t}
+        for slug, t in reg.get("tenants", {}).items()
+        if t.get("signup_id")
+    }
+    enriched = []
+    for r in rows:
+        d = dict(r)
+        tenant = tenants_by_signup.get(r["id"])
+        d["tenant"] = (
+            {
+                "slug": tenant["slug"],
+                "url": tenant.get("url"),
+                "status": tenant.get("status"),
+                "port": tenant.get("port"),
+            }
+            if tenant else None
+        )
+        enriched.append(d)
+    return {"signups": enriched}
+
+
+class DeletionRequest(BaseModel):
+    email: EmailStr
+
+
+@app.post("/api/account/request-deletion", status_code=202)
+async def request_deletion(req: DeletionRequest) -> dict[str, Any]:
+    """Self-serve: customer asks to delete their sandbox.
+
+    Service looks up signups for that email, generates a one-time token
+    per slug, emails the customer a confirmation link. Always returns
+    202 — never reveal whether the email matched (anti-enumeration).
+    """
+    email = str(req.email).lower().strip()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        signups = conn.execute(
+            "SELECT id, first_name, product_name FROM signups "
+            "WHERE LOWER(email) = ? AND status NOT IN ('deleted', 'cancelled')",
+            (email,),
+        ).fetchall()
+    # Match each signup to its registry slug (if any).
+    reg = _load_registry()
+    tenants_by_signup = {t.get("signup_id"): (slug, t) for slug, t in reg.get("tenants", {}).items()}
+    confirmable: list[tuple[int, str, str]] = []  # (signup_id, slug, product_name)
+    for s in signups:
+        match = tenants_by_signup.get(s["id"])
+        if match is None:
+            continue
+        slug, tenant = match
+        if tenant.get("status") == "decommissioned":
+            continue
+        confirmable.append((s["id"], slug, s["product_name"] or "Untitled"))
+
+    if not confirmable:
+        log.info("deletion request for %s — no live tenants found", email)
+        return {"ok": True, "message": "If you have an active Hatchik sandbox, we've sent you a confirmation link."}
+
+    created_at = datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(hours=DELETION_TOKEN_TTL_HOURS)
+    links: list[tuple[str, str]] = []  # (product_name, confirmation_url)
+    with sqlite3.connect(DB_PATH) as conn:
+        for signup_id, slug, product_name in confirmable:
+            token = secrets.token_urlsafe(32)
+            conn.execute(
+                "INSERT INTO deletion_tokens (token, email, slug, signup_id, created_at, expires_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (token, email, slug, signup_id, created_at.isoformat(), expires_at.isoformat()),
+            )
+            links.append((product_name, f"https://hatchik.com/api/account/confirm-deletion?token={token}"))
+        conn.commit()
+
+    await _send_deletion_confirmation_email(email, links, signups[0]["first_name"] or "")
+    log.info("deletion confirmation sent to %s — %d sandbox(es)", email, len(links))
+    return {"ok": True, "message": "If you have an active Hatchik sandbox, we've sent you a confirmation link."}
+
+
+def _load_registry() -> dict[str, Any]:
+    path = Path(os.environ.get("HATCHIK_TENANTS_DIR", "/opt/hatchik-tenants")) / "registry.json"
+    if not path.exists():
+        return {"tenants": {}}
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {"tenants": {}}
+
+
+async def _send_deletion_confirmation_email(email: str, links: list[tuple[str, str]], first_name: str) -> None:
+    if not RESEND_API_KEY:
+        log.warning("RESEND_API_KEY not set — skipping deletion email to %s", email)
+        return
+    greeting = f"Hi {first_name}," if first_name else "Hi,"
+    rows_text = "\n".join(f"  • {name}: {url}" for name, url in links)
+    rows_html = "".join(
+        f'<li style="margin:0 0 8px 0;"><strong>{_html_escape(name)}</strong> &mdash; '
+        f'<a href="{url}" style="color:#4f46e5;text-decoration:underline;">Confirm deletion</a></li>'
+        for name, url in links
+    )
+    text = f"""{greeting}
+
+We received a request to delete your Hatchik sandbox{'es' if len(links) > 1 else ''}.
+
+To confirm, click the link below. Each link is single-use and expires in {DELETION_TOKEN_TTL_HOURS}h.
+
+{rows_text}
+
+If you didn't ask for this, ignore this email and nothing happens.
+
+— Hatchik
+
+(This is an automated message — please don't reply.)
+"""
+    html = f"""\
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Confirm sandbox deletion</title></head>
+<body style="margin:0;padding:0;background:#f6f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:8px;padding:32px;">
+<tr><td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
+<p style="margin:0 0 16px 0;">{_html_escape(greeting)}</p>
+<p style="margin:0 0 16px 0;">We received a request to delete your Hatchik sandbox{'es' if len(links) > 1 else ''}. Click below to confirm. Each link is single-use and expires in {DELETION_TOKEN_TTL_HOURS}h.</p>
+<ul style="margin:0 0 16px 0;padding-left:20px;">{rows_html}</ul>
+<p style="margin:0 0 16px 0;color:#555;font-size:14px;">If you didn&rsquo;t ask for this, ignore this email and nothing happens.</p>
+<p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
+<p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>
+"""
+    try:
+        await _resend_send({
+            "from": FROM_EMAIL,
+            "to": [email],
+            "subject": "Confirm your Hatchik sandbox deletion",
+            "text": text,
+            "html": html,
+        })
+    except Exception as e:  # noqa: BLE001
+        log.error("Failed to send deletion confirmation to %s: %s", email, e)
+
+
+@app.get("/api/account/confirm-deletion", response_class=PlainTextResponse)
+async def confirm_deletion(token: str) -> str:
+    """Self-serve: customer clicks the emailed link, tenant is torn down."""
+    if not token or len(token) < 32:
+        raise HTTPException(status_code=400, detail="invalid token")
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT email, slug, signup_id, expires_at, consumed_at "
+            "FROM deletion_tokens WHERE token = ?",
+            (token,),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="token not found")
+        if row["consumed_at"]:
+            raise HTTPException(status_code=410, detail="token already used")
+        if row["expires_at"] < now:
+            raise HTTPException(status_code=410, detail="token expired")
+        # Mark consumed BEFORE running decommission so concurrent clicks
+        # can't double-fire.
+        conn.execute("UPDATE deletion_tokens SET consumed_at = ? WHERE token = ?", (now, token))
+        conn.commit()
+
+    log.info("self-serve deletion confirmed: slug=%s email=%s", row["slug"], row["email"])
+    summary = _run_decommission(row["slug"], hard=True)
+    return (
+        f"Your '{row['slug']}' sandbox has been deleted.\n\n"
+        f"Status: {summary.get('status', 'done')}\n"
+        f"You can sign up again at https://hatchik.com whenever you want."
+    )
 
 
 @app.post("/api/paddle/webhook")
