@@ -30,7 +30,7 @@ from typing import Any, Literal
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, field_validator
 
 # ─── Config ──────────────────────────────────────────────────────────────
@@ -635,14 +635,85 @@ Action: check the Paddle dashboard, follow up with the customer if needed.
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────
-@app.post("/api/signup", response_model=SignupResponse, status_code=201)
-async def create_signup(req: SignupRequest, request: Request) -> SignupResponse:
+# Statuses that mean "this signup row no longer occupies a real sandbox."
+# Anything outside this set counts as an active Sandbox-tier signup for the
+# per-email cap below.
+_SANDBOX_INACTIVE_STATUSES = ("deleted", "cancelled", "archived_purged")
+
+
+def _count_active_sandboxes(email: str) -> tuple[int, str | None]:
+    """Return (active_sandbox_count, existing_url) for the per-email cap.
+
+    A sandbox counts as active when:
+      - the signups row has tier='sandbox' AND status NOT IN the inactive set
+      - AND the matching registry tenant (if any) is not 'decommissioned'
+
+    A signup that never made it into the registry (e.g. provision crashed
+    before the registry write) still counts — otherwise customers can spam
+    sandbox signups during outage windows.
+    """
+    lowered = email.lower().strip()
+    placeholders = ", ".join("?" for _ in _SANDBOX_INACTIVE_STATUSES)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            f"SELECT id FROM signups "
+            f"WHERE LOWER(email) = ? AND tier = 'sandbox' "
+            f"AND status NOT IN ({placeholders})",
+            (lowered, *_SANDBOX_INACTIVE_STATUSES),
+        ).fetchall()
+
+    if not rows:
+        return 0, None
+
+    reg = _load_registry()
+    tenants_by_signup = {
+        t.get("signup_id"): {"slug": slug, **t}
+        for slug, t in reg.get("tenants", {}).items()
+        if t.get("signup_id")
+    }
+
+    count = 0
+    existing_url: str | None = None
+    for r in rows:
+        tenant = tenants_by_signup.get(r["id"])
+        # Skip tenants the orchestrator has already torn down.
+        if tenant and tenant.get("status") == "decommissioned":
+            continue
+        count += 1
+        if existing_url is None and tenant and tenant.get("url"):
+            existing_url = tenant["url"]
+    return count, existing_url
+
+
+@app.post("/api/signup", status_code=201)
+async def create_signup(req: SignupRequest, request: Request) -> Any:
     ip = (request.headers.get("CF-Connecting-IP")
           or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
           or (request.client.host if request.client else "unknown"))
 
     if not check_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Too many requests")
+
+    # One active Sandbox per email. Launch/Growth packages stay unrestricted.
+    # 409 body is shaped {ok, error, message} (no `detail` wrapper) so the
+    # marketing front-ends can show the message verbatim.
+    if req.tier == "sandbox":
+        active_count, existing_url = _count_active_sandboxes(str(req.email))
+        if active_count >= 1:
+            where = existing_url or "your previous sign-up"
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "ok": False,
+                    "error": "sandbox_exists",
+                    "message": (
+                        f"You already have a Sandbox running at {where}. "
+                        "Delete it (https://hatchik.com/delete-sandbox) "
+                        "first if you want to start fresh."
+                    ),
+                },
+            )
 
     user_agent = request.headers.get("User-Agent", "")
     created_at = datetime.now(timezone.utc).isoformat()
@@ -992,7 +1063,7 @@ async def confirm_deletion(token: str) -> str:
 # cookies and look up the session in SQLite. Sign-out deletes the row.
 
 from fastapi import Cookie, Response
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse
 
 
 class LoginRequest(BaseModel):

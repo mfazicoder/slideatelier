@@ -1554,6 +1554,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </button>
           <p id="signupError" class="text-xs text-rose-600 text-center hidden">Something went wrong. Try again, or email <a href="mailto:hello@hatchik.com" class="underline">hello@hatchik.com</a>.</p>
+          <div id="signupSandboxExists" class="hidden rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"></div>
         </form>
 
         <p class="mt-4 text-xs text-slate-500 leading-relaxed">
@@ -1745,6 +1746,7 @@
   if (!form) return;
   const success = document.getElementById('signupSuccess');
   const errorEl = document.getElementById('signupError');
+  const sandboxExistsEl = document.getElementById('signupSandboxExists');
   const firstNameInput = document.getElementById('signupFirstName');
   const emailInput = document.getElementById('signupEmail');
   const ideaInput = document.getElementById('signupIdea');
@@ -1753,6 +1755,7 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorEl.classList.add('hidden');
+    if (sandboxExistsEl) sandboxExistsEl.classList.add('hidden');
     const firstName = (firstNameInput && firstNameInput.value || '').trim();
     const email = (emailInput.value || '').trim();
     const idea = (ideaInput.value || '').trim();
@@ -1775,6 +1778,30 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ first_name: firstName, email, idea, product_name: productName, plan: 'sandbox', source: 'marketing-page' })
       });
+      // 409 = the customer already has an active Sandbox. The API returns
+      // {ok:false, error:'sandbox_exists', message:'...'} — render the
+      // message in a red banner with a /delete-sandbox link.
+      if (res.status === 409) {
+        let body = {};
+        try { body = await res.json(); } catch (_) { /* fall through */ }
+        const msg = (body && body.message)
+          ? body.message
+          : 'You already have a Sandbox. Delete it first if you want to start fresh.';
+        sandboxExistsEl.innerHTML = '';
+        const p = document.createElement('p');
+        p.textContent = msg;
+        sandboxExistsEl.appendChild(p);
+        const linkRow = document.createElement('p');
+        linkRow.className = 'mt-2';
+        const a = document.createElement('a');
+        a.href = '/delete-sandbox';
+        a.className = 'inline-block font-semibold underline hover:no-underline';
+        a.textContent = 'Delete the existing Sandbox →';
+        linkRow.appendChild(a);
+        sandboxExistsEl.appendChild(linkRow);
+        sandboxExistsEl.classList.remove('hidden');
+        return;
+      }
       // Accept any 2xx as success; treat network/other errors gently.
       if (res.ok || res.status === 0) {
         form.classList.add('hidden');

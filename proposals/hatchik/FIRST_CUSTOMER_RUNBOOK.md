@@ -198,6 +198,30 @@ admin/self-serve endpoints in `signup-service/main.py`).
   enumeration: the request endpoint always returns 202, never reveals
   whether the email matched.
 
+### One active Sandbox per email
+
+`POST /api/signup` enforces a single active Sandbox-tier tenant per
+email. If a customer tries to create a second Sandbox while one is
+still live (signup row status NOT IN
+`deleted/cancelled/archived_purged` AND registry status NOT
+`decommissioned`), the endpoint responds with **409 Conflict**:
+
+```json
+{
+  "ok": false,
+  "error": "sandbox_exists",
+  "message": "You already have a Sandbox running at https://<slug>.hatchik.com. Delete it (https://hatchik.com/delete-sandbox) first if you want to start fresh."
+}
+```
+
+Both the wizard at `/start` and the inline form on the marketing page
+render this as a red banner with a one-click link to `/delete-sandbox`.
+After the customer confirms deletion, the row flips inactive and a fresh
+sign-up succeeds.
+
+The cap **does not** apply to Launch/Growth tier — those can have
+multiple per email (one per product the customer is launching).
+
 ### 2. Admin API (HTTP)
 
 Header `X-Admin-Token: $HATCHIK_ADMIN_TOKEN` is required (the token
@@ -346,6 +370,72 @@ or Airtable with one row per customer:
 | Notes | |
 
 This becomes the seed data for the eventual customer dashboard.
+
+## Launch/Growth shell — what tenants ship with on day one
+
+Every provisioned tenant (Sandbox, Launch and Growth) now boots with two
+extra out-of-the-box surfaces on top of the existing auth + billing +
+settings substrate. Customers don't have to design these from scratch —
+they edit copy.
+
+### 1. Marketing landing template (`apps/web/src/routes/index.tsx`)
+
+Replaces the old "Hello, world. This is a freshly-provisioned SaaS"
+placeholder. Pulls two values from the signup row via `provision.py`'s
+template substitution:
+
+- `VITE_PRODUCT_NAME` (was already wired) — hero headline, footer,
+  copy throughout
+- `VITE_PRODUCT_IDEA` (new) — hero subtitle, FAQ first answer; sourced
+  from the signup's `description` column, trimmed to the first sentence
+  and capped at 160 chars
+
+Sections shipped: hero with CTA → `/login`, three feature cards (copy
+templated on the product name), three-step "how it works", FAQ
+accordion (3 generic SaaS questions), and a footer with privacy +
+terms links.
+
+The footer also shows a **"Built with Hatchik"** referral link on
+Sandbox-tier tenants only. The flag is `VITE_BUILT_WITH_HATCHIK`,
+defaulting to `"true"`; Launch/Growth provisioning flips it to
+`"false"` post-deploy so paying customers don't have to display it.
+
+### 2. End-user account dashboard (`apps/web/src/routes/account.tsx`)
+
+A new tabbed dashboard at `/account` — separate from `/settings` (which
+remains for app-level preferences). Tabs:
+
+- **Profile** — display name (writes to `public.user_profiles`),
+  email change (calls `supabase.auth.updateUser({email})`, fires the
+  confirmation flow)
+- **Security** — password change via `supabase.auth.updateUser({password})`,
+  shows last-changed date as `user.updated_at`
+- **Billing** — if `VITE_STRIPE_PUBLISHABLE_KEY` is set, "Open billing
+  portal" button posts to `/api/billing/portal`. The endpoint is a stub
+  (returns a placeholder URL) for the customer to wire up to Stripe
+  customer portal config. If the key isn't set, the tab shows
+  "Billing not configured yet — your founder will set this up before
+  launching."
+- **Sessions** — current session card + "Sign out from other devices"
+  (uses Supabase's `signOut({scope:'others'})`). Full session listing
+  needs a server-side endpoint that we haven't shipped yet.
+- **Danger zone** — "Delete account" with type-your-email confirmation;
+  deletes the `user_profiles` row (RLS-scoped to self), signs out, and
+  redirects to `/login`. Auth-user purge needs a server endpoint —
+  founders add when they need it.
+
+A new migration `packages/db/migrations/0011_user_profiles.sql`
+creates the `public.user_profiles` table (RLS-scoped, idempotent).
+The header nav in `__root.tsx` adds an "Account" link when the user
+is signed in.
+
+### What customers still build themselves
+
+- Their actual product (everything in `*/product/` directories)
+- Real screenshots / pricing / testimonials on the landing page
+- The Stripe customer-portal config + the
+  `/api/billing/portal` implementation (currently a stub)
+- Any session-listing UI beyond the current session
 
 ## When you hit problems
 

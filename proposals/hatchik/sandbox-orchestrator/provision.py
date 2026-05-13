@@ -163,10 +163,14 @@ def unique_slug(base: str, reg: dict[str, Any]) -> str:
 
 
 # ─── Substrate rendering ──────────────────────────────────────────────────
+# Placeholders the substrate-template can interpolate. PRODUCT_IDEA is the
+# raw description from the signup; the marketing-landing template
+# (routes/index.tsx) bakes it into the hero tagline.
 TEMPLATE_VARS = [
-    "PRODUCT_NAME", "DOMAIN", "REGION", "PROJECT_SLUG", "PROJECT_DIR",
-    "SERVER_IP", "REPO_URL", "LINEAR_PROJECT_URL", "PRODUCT_DESCRIPTION",
-    "ADMIN_EMAIL", "GITHUB_USERNAME", "REGISTRAR_URL", "HOSTING_PROVIDER",
+    "PRODUCT_NAME", "PRODUCT_IDEA", "DOMAIN", "REGION", "PROJECT_SLUG",
+    "PROJECT_DIR", "SERVER_IP", "REPO_URL", "LINEAR_PROJECT_URL",
+    "PRODUCT_DESCRIPTION", "ADMIN_EMAIL", "GITHUB_USERNAME", "REGISTRAR_URL",
+    "HOSTING_PROVIDER",
 ]
 
 
@@ -176,8 +180,20 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
         shutil.rmtree(target)
     shutil.copytree(SUBSTRATE_TEMPLATE, target, ignore=shutil.ignore_patterns(".git", "node_modules", "__pycache__"))
 
+    # The landing-page template wants a one-line tagline. Take the first
+    # sentence of the idea (or the whole thing if it's short) and trim to
+    # 160 chars so it doesn't overflow the hero.
+    idea_clean = (idea or "").strip()
+    tagline = (idea_clean.split(".")[0] if idea_clean else "").strip()
+    if not tagline:
+        tagline = f"{product_name} — a new product."
+    tagline = tagline[:160]
+
     subs = {
         "PRODUCT_NAME": product_name,
+        # PRODUCT_IDEA flows into routes/index.tsx as the hero subtitle.
+        # Trimmed for safety; the marketing template additionally clamps.
+        "PRODUCT_IDEA": tagline,
         "DOMAIN": f"{slug}.{DOMAIN}",
         "REGION": "nbg1",
         "PROJECT_SLUG": slug,
@@ -185,7 +201,7 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
         "SERVER_IP": os.environ.get("HATCHIK_HOST_IP", "178.105.139.144"),
         "REPO_URL": f"https://github.com/hatchik/{slug}",
         "LINEAR_PROJECT_URL": "https://linear.app/hatchik",
-        "PRODUCT_DESCRIPTION": idea[:200],
+        "PRODUCT_DESCRIPTION": idea[:200] if idea else "",
         "ADMIN_EMAIL": email,
         "GITHUB_USERNAME": "hatchik",
         "REGISTRAR_URL": "https://cloudflare.com",
@@ -257,6 +273,15 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
             f.write(f'\nVITE_SUPABASE_URL="https://{slug}.{DOMAIN}"\n')
             f.write(f'VITE_SUPABASE_ANON_KEY="{anon_jwt}"\n')
             f.write(f'VITE_PRODUCT_NAME="{product_name}"\n')
+            # PRODUCT_IDEA powers the marketing-landing hero subtitle.
+            # Quotes inside the idea would break the .env line, so strip
+            # them — only the front-end reads this and it's display-only.
+            safe_idea = subs["PRODUCT_IDEA"].replace('"', "").replace("\n", " ")
+            f.write(f'VITE_PRODUCT_IDEA="{safe_idea}"\n')
+            # Sandbox-tier tenants get a "Built with Hatchik" footer link
+            # for organic referrals. Launch/Growth tenants flip this off
+            # via their post-deploy .env override.
+            f.write('VITE_BUILT_WITH_HATCHIK="true"\n')
             # Resend SMTP for tenant Supabase Auth — lets magic-link, password
             # reset and signup confirmation emails work out of the box in
             # sandboxes. Tenants share Hatchik's Resend account; the from

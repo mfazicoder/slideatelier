@@ -145,6 +145,7 @@
       </button>
 
       <p id="wizardError" class="text-xs text-rose-600 text-center hidden"></p>
+      <div id="wizardSandboxExists" class="hidden rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"></div>
 
       <p class="text-center text-xs text-slate-500">
         Already have an account?
@@ -187,6 +188,7 @@
   const submitBtn = $('submitBtn');
   const submitLabel = $('submitLabel');
   const errorEl = $('wizardError');
+  const sandboxExistsEl = $('wizardSandboxExists');
   const planCards = document.querySelectorAll('[data-plan]');
   const successView = $('successView');
 
@@ -216,6 +218,7 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorEl.classList.add('hidden');
+    sandboxExistsEl.classList.add('hidden');
     const firstName = ($('firstName').value || '').trim();
     const email = ($('email').value || '').trim();
     const idea = ($('idea').value || '').trim();
@@ -247,6 +250,18 @@
           source: 'launch-wizard',
         })
       });
+      // 409 = the customer already has an active Sandbox. The API returns
+      // {ok:false, error:'sandbox_exists', message:'...'} — surface the
+      // message verbatim with a link to /delete-sandbox.
+      if (res.status === 409) {
+        let body = {};
+        try { body = await res.json(); } catch (_) { /* fall through */ }
+        const msg = (body && body.message)
+          ? body.message
+          : 'You already have a Sandbox. Delete it first if you want to start fresh.';
+        showError(msg, { linkSandboxDelete: true });
+        return;
+      }
       if (!res.ok && res.status !== 201) {
         throw new Error('Bad response');
       }
@@ -259,9 +274,33 @@
     }
   });
 
-  function showError(msg) {
-    errorEl.textContent = msg;
-    errorEl.classList.remove('hidden');
+  function showError(msg, opts) {
+    opts = opts || {};
+    submitBtn.disabled = false;
+    submitLabel.innerHTML = plan === 'sandbox'
+      ? 'Start free Sandbox &rarr;'
+      : 'Continue to checkout (£79) &rarr;';
+    if (opts.linkSandboxDelete) {
+      // The 409-sandbox-exists case gets its own red banner — the message
+      // is multi-sentence and needs an actionable link to /delete-sandbox.
+      sandboxExistsEl.innerHTML = '';
+      const p = document.createElement('p');
+      p.textContent = msg;
+      sandboxExistsEl.appendChild(p);
+      const linkRow = document.createElement('p');
+      linkRow.className = 'mt-2';
+      const a = document.createElement('a');
+      a.href = '/delete-sandbox';
+      a.className = 'inline-block font-semibold underline hover:no-underline';
+      a.textContent = 'Delete the existing Sandbox →';
+      linkRow.appendChild(a);
+      sandboxExistsEl.appendChild(linkRow);
+      sandboxExistsEl.classList.remove('hidden');
+      errorEl.classList.add('hidden');
+    } else {
+      errorEl.textContent = msg;
+      errorEl.classList.remove('hidden');
+    }
     return false;
   }
 
