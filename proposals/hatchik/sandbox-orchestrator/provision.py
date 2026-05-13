@@ -176,7 +176,15 @@ TEMPLATE_VARS = [
 ]
 
 
-def render_substrate(slug: str, port: int, product_name: str, email: str, idea: str, target: Path) -> None:
+def render_substrate(
+    slug: str,
+    port: int,
+    product_name: str,
+    email: str,
+    idea: str,
+    target: Path,
+    deploy_token: str,
+) -> None:
     """Copy substrate-template into target, substitute placeholders, write .env."""
     if target.exists():
         shutil.rmtree(target)
@@ -314,26 +322,41 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
     # AI_CONTEXT.md — the file customer-facing AI tools (Claude Code,
     # Cursor, Windsurf) read first. Lives at the repo root so opening
     # the folder in a coding agent gives it everything it needs.
-    write_ai_context(target, slug, port, product_name, idea, email)
+    write_ai_context(target, slug, port, product_name, idea, email, deploy_token)
 
 
-def write_ai_context(target: Path, slug: str, port: int, product_name: str, idea: str, email: str) -> None:
+def write_ai_context(
+    target: Path,
+    slug: str,
+    port: int,
+    product_name: str,
+    idea: str,
+    email: str,
+    deploy_token: str,
+) -> None:
     """Write AI_CONTEXT.md at the tenant repo root.
 
     Goal: any AI coding tool opened in this directory should be able to
     pick up the substrate boundaries, the live sandbox URL, and the
     Supabase anon key without having to grep half the codebase. No
-    secrets — service-role JWT and Postgres password stay in .env (which
-    is gitignored).
+    Postgres / service-role secrets — those stay in .env (gitignored).
+    The deploy_token is per-tenant and only authorises POSTs to the
+    redeploy endpoint, so it's safe to include for the AI tool's use.
     """
     anon_key = _extract_env_value(target / ".env", "VITE_SUPABASE_ANON_KEY") or ""
     sandbox_url = f"https://{slug}.{DOMAIN}"
+    deploy_url = f"https://{DOMAIN}/api/tenants/{slug}/redeploy"
     first_prompt = first_prompt_template(product_name, idea, sandbox_url, anon_key)
 
     body = f"""# AI_CONTEXT — {product_name}
 
 This file is for Claude Code, Cursor, Windsurf, or any other AI coding
 tool you point at this repo. Read it first.
+
+> **Tip for the AI tool reading this**: when the human asks you to
+> "ship", "push", "deploy", or "go live", run `git push` (the easy
+> path) OR POST to the deploy URL below. Don't ask the human to open
+> a terminal — do it yourself. The deploy token is in this file.
 
 ## What this is
 
@@ -375,10 +398,10 @@ isn't exposed publicly. Two ways to talk to it:
 2. **Via Supabase Studio** — open `{sandbox_url}/studio` in your
    browser. SQL editor, table browser, auth user list, the lot.
 
-When you push commits, Hatchik picks up the change within the hour
-(automatic push-to-deploy ships soon) and your schema migrations /
-API code run inside the substrate's network with full DB access.
-See "Dev workflow" below.
+When you push commits, Hatchik picks the change up within ~30 seconds
+via the per-tenant GitHub webhook and your schema migrations / API
+code run inside the substrate's network with full DB access. See
+"Deploying changes" below.
 
 ## Repo layout — where to add your code
 
@@ -409,16 +432,27 @@ sandbox):
 - `apps/api/src/lib/supabase.ts` (auto-wired from env)
 - `apps/api/src/lib/auth.ts` (JWT verification — uses substrate JWT_SECRET)
 
-## Dev workflow
+## Deploying changes
 
-Hatchik treats your GitHub repo as the source of truth. The flow is:
+Your sandbox redeploys automatically in two ways:
 
-1. Clone this repo to your laptop
-2. Open in your AI tool (Claude Code / Cursor / Windsurf)
-3. Make changes — focus on `apps/web/src/product/` and friends
-4. `git add . && git commit -m "..." && git push`
-5. Hatchik redeploys your sandbox within an hour (automatic
-   push-to-deploy ships soon — for now there's a short manual step)
+1. **`git push`** — the repo has a webhook wired up; pushing triggers
+   a redeploy within ~30 seconds.
+
+2. **Direct trigger from your AI tool** — if you want to redeploy
+   without going through GitHub (e.g. you've made a change you don't
+   want committed yet), POST to the redeploy URL below. Most AI tools
+   can do this for you if you ask them to.
+
+```bash
+curl -X POST {deploy_url} \\
+  -H "X-Deploy-Token: {deploy_token}"
+```
+
+After either trigger, watch the deploy by visiting `{sandbox_url}` —
+it'll reflect your changes once Docker has rebuilt the affected
+service (usually 20–40 seconds; longer if Python deps or schemas
+changed).
 
 You don't run the stack locally — Docker + Supabase + Caddy is too heavy.
 The sandbox is your dev environment. Push small, push often.
@@ -715,8 +749,8 @@ Your {product_name} sandbox is up — now to the fun part: building it.
 
 Hatchik gives you a GitHub repo that mirrors the substrate running in
 your sandbox. Clone it, open it in an AI coding tool, push your
-changes; we'll redeploy your sandbox within the hour (automatic
-push-to-deploy ships soon).
+changes; your sandbox redeploys automatically — usually within 30
+seconds of your push or your AI tool calling our deploy endpoint.
 
 Step 1 — open your repo
 {repo_url}
@@ -726,17 +760,17 @@ Step 2 — clone it locally
 
 Step 3 — open the folder in Claude Code, Cursor, or Windsurf
 Any one of them will do. They all read the AI_CONTEXT.md file in the
-repo root, which tells them where the substrate boundaries are and how
-to talk to your sandbox.
+repo root, which tells them where the substrate boundaries are, how
+to talk to your sandbox, and how to deploy.
 
 Step 4 — paste this prompt to get rolling
   {first_prompt}
 
 Step 5 — push your changes
   git add . && git commit -m "first feature" && git push
-Hatchik redeploys your sandbox within the hour after your push.
-(Automatic push-to-deploy ships soon — until then there's a short
-manual step on our side.)
+Your sandbox redeploys automatically — usually within 30 seconds of
+your push (or sooner if your AI tool calls the deploy endpoint
+directly; AI_CONTEXT.md shows it how).
 
 Stuck? Reply to this email — Farhan reads everything personally.
 
@@ -763,7 +797,7 @@ More at {docs_url}.
             <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
               <p style="margin:0 0 16px 0;">{greeting}</p>
               <p style="margin:0 0 16px 0;">Your <strong>{product_name}</strong> sandbox is up &mdash; now to the fun part: building it.</p>
-              <p style="margin:0 0 24px 0;">Hatchik gives you a GitHub repo that mirrors the substrate running in your sandbox. Clone it, open it in an AI coding tool, push your changes; we&rsquo;ll redeploy your sandbox within the hour (automatic push-to-deploy ships soon).</p>
+              <p style="margin:0 0 24px 0;">Hatchik gives you a GitHub repo that mirrors the substrate running in your sandbox. Clone it, open it in an AI coding tool, push your changes; your sandbox redeploys automatically &mdash; usually within 30 seconds of your push or your AI tool calling our deploy endpoint.</p>
 
               <p style="margin:24px 0 8px 0;font-weight:600;">Step 1 &mdash; open your repo</p>
               <p style="margin:0 0 16px 0;"><a href="{repo_url}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;">Open on GitHub &rarr;</a></p>
@@ -779,7 +813,7 @@ More at {docs_url}.
 
               <p style="margin:24px 0 8px 0;font-weight:600;">Step 5 &mdash; push your changes</p>
               <pre style="margin:0 0 16px 0;background:#f6f5f1;padding:12px 16px;border-radius:8px;font-size:13px;overflow:auto;"><code>git add . &amp;&amp; git commit -m "first feature" &amp;&amp; git push</code></pre>
-              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Hatchik redeploys your sandbox within the hour after your push. (Automatic push-to-deploy ships soon &mdash; until then there&rsquo;s a short manual step on our side.)</p>
+              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Your sandbox redeploys automatically &mdash; usually within 30 seconds of your push (or sooner if your AI tool calls the deploy endpoint directly; <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> shows it how).</p>
 
               <p style="margin:32px 0 16px 0;">Stuck? Reply to this email &mdash; Farhan reads everything personally.</p>
 
@@ -883,16 +917,27 @@ def main() -> None:
     target = TENANTS_DIR / slug
     print(f"→ provisioning {slug} on port {port} → {target}")
 
+    # Per-tenant redeploy token. Acts as both:
+    #   - X-Deploy-Token bearer for AI-tool direct calls
+    #   - GitHub webhook secret (HMAC-SHA256 of payload, X-Hub-Signature-256)
+    # Idempotent: if the tenant entry already exists with a deploy_token,
+    # keep it — re-running provision must NOT rotate the token because
+    # the customer's AI_CONTEXT.md and the GitHub webhook secret are
+    # locked to the original value.
+    existing_entry = reg["tenants"].get(slug, {}) or {}
+    deploy_token = existing_entry.get("deploy_token") or secrets.token_urlsafe(32)
+
     reg["tenants"][slug] = {
         "slug": slug, "port": port, "email": email, "product_name": product_name,
         "signup_id": signup_id, "status": "provisioning", "created_at": int(time.time()),
         "url": f"https://{slug}.{DOMAIN}",
+        "deploy_token": deploy_token,
     }
     save_registry(reg)
 
     try:
         print("  1. render substrate")
-        render_substrate(slug, port, product_name, email, idea, target)
+        render_substrate(slug, port, product_name, email, idea, target, deploy_token)
 
         print("  2. write tenant Caddy route")
         write_tenant_caddy_route(slug, port)
@@ -923,10 +968,14 @@ def main() -> None:
         # Resilient: any failure here is logged and the customer still
         # has a working sandbox + the AI_CONTEXT.md file written locally.
         print("  8. create GitHub repo + push substrate")
-        gh_result = create_tenant_repo(slug, target, product_name, idea, github_username)
+        gh_result = create_tenant_repo(slug, target, product_name, idea, github_username, deploy_token)
         repo_url = gh_result.get("repo_url")
         if repo_url:
-            print(f"     ✓ repo at {repo_url} (pushed={gh_result['pushed']} invited={gh_result['invited']})")
+            print(
+                f"     ✓ repo at {repo_url} "
+                f"(pushed={gh_result['pushed']} invited={gh_result['invited']} "
+                f"webhook={gh_result.get('webhook', False)})"
+            )
         else:
             print(f"     (skipped: {gh_result.get('skipped_reason')})")
 

@@ -31,6 +31,10 @@ GITHUB_TOKEN = os.environ.get("HATCHIK_GITHUB_TOKEN", "")
 GITHUB_ORG = os.environ.get("HATCHIK_GITHUB_ORG", "hatchik-sandboxes")
 GITHUB_TIMEOUT = 15.0
 
+# Where the redeploy webhook lives. Override via HATCHIK_PUBLIC_BASE_URL
+# in tests or a staging environment; production stays on hatchik.com.
+PUBLIC_BASE_URL = os.environ.get("HATCHIK_PUBLIC_BASE_URL", "https://hatchik.com").rstrip("/")
+
 
 def _headers() -> dict[str, str]:
     return {
@@ -99,6 +103,61 @@ def _invite_collaborator(slug: str, github_username: str) -> bool:
     return False
 
 
+def _register_redeploy_webhook(slug: str, deploy_token: str) -> bool:
+    """Register a push webhook on the tenant repo pointing at the
+    Hatchik redeploy endpoint.
+
+    GitHub signs each delivery with HMAC-SHA256(deploy_token, body)
+    and sends it as ``X-Hub-Signature-256``. The signup-service
+    verifies the signature against the same ``deploy_token`` stored
+    in the tenant's registry entry.
+
+    Best-effort: any failure logs and returns False. The endpoint still
+    works via the X-Deploy-Token header, so AI-tool-driven redeploys
+    are unaffected even if webhook registration fails.
+
+    Idempotent: GitHub does not de-dupe webhook URLs, so we first list
+    existing hooks and skip if one with the same target URL already
+    exists (re-running provision must not pile up duplicate hooks).
+    """
+    if not GITHUB_TOKEN:
+        return False
+    hook_url = f"{PUBLIC_BASE_URL}/api/tenants/{slug}/redeploy"
+    try:
+        existing = httpx.get(
+            f"{GITHUB_API_URL}/repos/{GITHUB_ORG}/{slug}/hooks",
+            headers=_headers(),
+            timeout=GITHUB_TIMEOUT,
+        )
+        if existing.status_code == 200:
+            for hook in existing.json():
+                if (hook.get("config") or {}).get("url") == hook_url:
+                    return True
+    except httpx.HTTPError as e:
+        print(f"WARN: failed to list existing hooks for {slug}: {e}")
+
+    payload = {
+        "name": "web",
+        "active": True,
+        "events": ["push"],
+        "config": {
+            "url": hook_url,
+            "content_type": "json",
+            "secret": deploy_token,
+            "insecure_ssl": "0",
+        },
+    }
+    try:
+        r = _api_post(f"/repos/{GITHUB_ORG}/{slug}/hooks", payload)
+    except httpx.HTTPError as e:
+        print(f"WARN: redeploy webhook create raised for {slug}: {e}")
+        return False
+    if r.status_code in (200, 201):
+        return True
+    print(f"WARN: redeploy webhook create failed for {slug} ({r.status_code}): {r.text[:200]}")
+    return False
+
+
 def _git(args: list[str], cwd: Path) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
 
@@ -155,18 +214,26 @@ def create_tenant_repo(
     product_name: str,
     idea: str,
     github_username: str | None,
+    deploy_token: str | None = None,
 ) -> dict[str, Any]:
     """Create a GitHub repo for the tenant, push the substrate, invite the user.
 
+    ``deploy_token`` (when provided) is registered as the GitHub webhook
+    secret so pushes trigger the Hatchik redeploy endpoint. The token is
+    optional for backwards-compat with old call sites; without it, no
+    webhook is registered and the customer can still redeploy via the
+    direct X-Deploy-Token header.
+
     Returns ``{"repo_url": str | None, "invited": bool, "pushed": bool,
-    "skipped_reason": str | None}``. Never raises — provision.py treats
-    the result as informational.
+    "webhook": bool, "skipped_reason": str | None}``. Never raises —
+    provision.py treats the result as informational.
     """
     if not GITHUB_TOKEN:
         return {
             "repo_url": None,
             "invited": False,
             "pushed": False,
+            "webhook": False,
             "skipped_reason": "HATCHIK_GITHUB_TOKEN not set",
         }
 
@@ -177,6 +244,7 @@ def create_tenant_repo(
             "repo_url": None,
             "invited": False,
             "pushed": False,
+            "webhook": False,
             "skipped_reason": "repo creation failed (see logs)",
         }
 
@@ -186,10 +254,14 @@ def create_tenant_repo(
     invited = False
     if github_username:
         invited = _invite_collaborator(slug, github_username)
+    webhook = False
+    if deploy_token:
+        webhook = _register_redeploy_webhook(slug, deploy_token)
 
     return {
         "repo_url": repo_url,
         "invited": invited,
         "pushed": pushed,
+        "webhook": webhook,
         "skipped_reason": None,
     }

@@ -83,6 +83,23 @@ RESTORE_SCRIPT = os.environ.get(
     "HATCHIK_RESTORE_SCRIPT", "/opt/hatchik-orchestrator/restore.py"
 )
 
+# Per-tenant redeploy log dir. Tenants get one file each:
+# /var/log/hatchik/redeploy-<slug>.log. Tail-fail returns the last 50
+# lines on a failed redeploy so the caller can diagnose without
+# shelling into the host.
+REDEPLOY_LOG_DIR = Path(os.environ.get("HATCHIK_REDEPLOY_LOG_DIR", "/var/log/hatchik"))
+# Tenants dir (where docker-compose stacks live). Reused for the
+# redeploy subprocess CWD.
+TENANTS_DIR = Path(os.environ.get("HATCHIK_TENANTS_DIR", "/opt/hatchik-tenants"))
+# Rate limit: max redeploys per tenant per window. Runaway redeploy
+# loops are an obvious abuse vector and a customer-side bug too.
+REDEPLOY_RATE_LIMIT_MAX = int(os.environ.get("HATCHIK_REDEPLOY_RATE_LIMIT_MAX", "6"))
+REDEPLOY_RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("HATCHIK_REDEPLOY_RATE_LIMIT_WINDOW_SECONDS", "300"))
+# Generous timeout — docker compose up -d --build can be 60-120s when
+# Python deps or schemas change. Capped well under the FastAPI worker
+# default to keep the request snappy on failure.
+REDEPLOY_SUBPROCESS_TIMEOUT_SECONDS = int(os.environ.get("HATCHIK_REDEPLOY_TIMEOUT", "600"))
+
 # Paddle Billing webhook config. Hatchik's selling entity is Omani, so we
 # use Paddle as Merchant of Record (see PRODUCT_OFFERING.md §8.1) — Stripe
 # does not support Omani entities.
@@ -1495,6 +1512,9 @@ async def admin_list_accounts(
                 "url": tenant.get("url"),
                 "status": tenant.get("status"),
                 "port": tenant.get("port"),
+                "last_redeploy_at": tenant.get("last_redeploy_at"),
+                "last_redeploy_commit": tenant.get("last_redeploy_commit"),
+                "last_redeploy_via": tenant.get("last_redeploy_via"),
             }
             if tenant else None
         )
@@ -2097,6 +2117,264 @@ async def paddle_webhook(request: Request) -> dict[str, Any]:
 
     _mark_event_processed(event_id, event_type)
     return {"received": True}
+
+
+# ─── Per-tenant redeploy webhook ─────────────────────────────────────────
+# In-process state for the redeploy endpoint. The signup-service is a
+# single uvicorn worker on a single host (see hatchik-signup.service), so
+# in-memory state is safe — no multi-worker race to coordinate. If we
+# ever scale to multiple workers, both of these would need a SQLite-
+# backed equivalent.
+_redeploy_locks: dict[str, asyncio.Lock] = {}
+# Recent redeploy timestamps per slug, used for rate-limiting. Lists of
+# monotonic-ish epoch seconds; pruned on each access.
+_redeploy_history: dict[str, list[float]] = {}
+
+
+def _redeploy_lock(slug: str) -> asyncio.Lock:
+    """Return a singleton lock for this slug.
+
+    asyncio.Lock is bound to its event loop, which is fine because all
+    redeploy requests run on the same FastAPI event loop. We never share
+    the lock between threads.
+    """
+    lock = _redeploy_locks.get(slug)
+    if lock is None:
+        lock = asyncio.Lock()
+        _redeploy_locks[slug] = lock
+    return lock
+
+
+def _redeploy_check_rate_limit(slug: str) -> bool:
+    """True if a redeploy for this slug is allowed; False if rate-limited."""
+    now = datetime.now(timezone.utc).timestamp()
+    cutoff = now - REDEPLOY_RATE_LIMIT_WINDOW_SECONDS
+    history = [t for t in _redeploy_history.get(slug, []) if t >= cutoff]
+    if len(history) >= REDEPLOY_RATE_LIMIT_MAX:
+        _redeploy_history[slug] = history
+        return False
+    history.append(now)
+    _redeploy_history[slug] = history
+    return True
+
+
+def _save_registry(reg: dict[str, Any]) -> None:
+    """Atomically write the tenant registry.
+
+    Mirrors provision.py's save_registry — write to .tmp then rename so
+    a partial write can never corrupt the file. Best-effort: callers
+    catch exceptions and log rather than failing the redeploy itself.
+    """
+    path = Path(os.environ.get("HATCHIK_TENANTS_DIR", "/opt/hatchik-tenants")) / "registry.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(reg, indent=2, sort_keys=True))
+    tmp.rename(path)
+
+
+async def _append_redeploy_log(slug: str, line: str) -> None:
+    """Append a single timestamped line to the per-tenant redeploy log.
+
+    Synchronous file I/O wrapped in to_thread so the event loop doesn't
+    stall on slow disks. The log dir is created lazily; if creation
+    fails we swallow — defensive logging shouldn't break the redeploy.
+    """
+    try:
+        REDEPLOY_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        log_path = REDEPLOY_LOG_DIR / f"redeploy-{slug}.log"
+        ts = datetime.now(timezone.utc).isoformat()
+        await asyncio.to_thread(
+            lambda: log_path.open("a", encoding="utf-8").write(f"[{ts}] {line}\n")
+        )
+    except OSError as e:
+        log.warning("could not write redeploy log for %s: %s", slug, e)
+
+
+async def _tail_redeploy_log(slug: str, n: int = 50) -> str:
+    """Tail the last n lines of the per-tenant redeploy log."""
+    log_path = REDEPLOY_LOG_DIR / f"redeploy-{slug}.log"
+    if not log_path.exists():
+        return ""
+    try:
+        text = await asyncio.to_thread(log_path.read_text, encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    lines = text.splitlines()
+    return "\n".join(lines[-n:])
+
+
+async def _run_redeploy_subprocess(slug: str, target: Path) -> tuple[bool, str | None]:
+    """git pull --rebase && docker compose up -d --build in the tenant dir.
+
+    Returns ``(ok, commit_sha_or_none)``. All subprocess output (stdout +
+    stderr) is appended to the per-tenant redeploy log with timestamps.
+    Uses asyncio.create_subprocess_exec so the FastAPI event loop stays
+    responsive — docker rebuilds can take 60s+ and we'd otherwise block
+    other tenants' redeploys.
+    """
+
+    async def _run(cmd: list[str]) -> tuple[int, str]:
+        await _append_redeploy_log(slug, f"$ {' '.join(cmd)}")
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=str(target),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        try:
+            stdout, _ = await asyncio.wait_for(
+                proc.communicate(), timeout=REDEPLOY_SUBPROCESS_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await _append_redeploy_log(slug, f"TIMEOUT after {REDEPLOY_SUBPROCESS_TIMEOUT_SECONDS}s")
+            return 124, f"timeout after {REDEPLOY_SUBPROCESS_TIMEOUT_SECONDS}s"
+        out = stdout.decode("utf-8", errors="replace") if stdout else ""
+        for ln in out.splitlines():
+            await _append_redeploy_log(slug, ln)
+        await _append_redeploy_log(slug, f"(exit {proc.returncode})")
+        return proc.returncode or 0, out
+
+    await _append_redeploy_log(slug, "redeploy: start git pull")
+    rc, _ = await _run(["git", "pull", "--rebase"])
+    if rc != 0:
+        return False, None
+    await _append_redeploy_log(slug, "redeploy: start docker compose up -d --build")
+    rc, _ = await _run(["docker", "compose", "up", "-d", "--build"])
+    if rc != 0:
+        return False, None
+    # Best-effort grab of the current short SHA so callers can log
+    # exactly what commit landed. Failure here doesn't fail the redeploy.
+    rc, sha_out = await _run(["git", "rev-parse", "--short", "HEAD"])
+    sha = sha_out.strip() if rc == 0 else None
+    return True, sha
+
+
+def _verify_deploy_token_header(provided: str | None, expected: str) -> bool:
+    if not provided or not expected:
+        return False
+    return hmac.compare_digest(provided, expected)
+
+
+def _verify_github_signature(body: bytes, header: str | None, secret: str) -> bool:
+    """Verify GitHub's X-Hub-Signature-256 = sha256=<hex(hmac-sha256)>."""
+    if not header or not secret:
+        return False
+    if not header.startswith("sha256="):
+        return False
+    provided = header[len("sha256=") :].strip()
+    expected = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    # constant-time compare; both sides are equal-length hex strings.
+    return hmac.compare_digest(provided, expected)
+
+
+@app.post("/api/tenants/{slug}/redeploy")
+async def tenant_redeploy(
+    slug: str,
+    request: Request,
+    x_deploy_token: str | None = Header(default=None, alias="X-Deploy-Token"),
+    x_hub_signature_256: str | None = Header(default=None, alias="X-Hub-Signature-256"),
+) -> dict[str, Any]:
+    """Per-tenant redeploy webhook.
+
+    Auth: either ``X-Deploy-Token`` (used by AI tools — direct trigger)
+    or ``X-Hub-Signature-256`` (used by GitHub webhooks — HMAC-SHA256
+    of the raw body using the same per-tenant ``deploy_token`` as the
+    secret). Both keys come from the registry's tenant entry.
+
+    Behaviour:
+      - 404 if slug unknown
+      - 410 if status is archived / decommissioned
+      - 403 on auth mismatch
+      - 429 if another redeploy for the same slug is in-flight, or if
+        the per-tenant rate limit was exhausted
+      - 200 on success with {ok, slug, deployed_at, commit, via}
+    """
+    reg = _load_registry()
+    tenant = (reg.get("tenants") or {}).get(slug)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="tenant not found")
+    status = tenant.get("status")
+    if status in {"archived", "decommissioned"}:
+        # 410 Gone = the slug existed but is no longer redeployable.
+        raise HTTPException(status_code=410, detail=f"tenant is {status}")
+
+    deploy_token = tenant.get("deploy_token") or ""
+    body = await request.body()
+
+    via: str | None = None
+    if x_deploy_token and _verify_deploy_token_header(x_deploy_token, deploy_token):
+        via = "ai-tool"
+    elif x_hub_signature_256 and _verify_github_signature(body, x_hub_signature_256, deploy_token):
+        via = "github-webhook"
+    else:
+        log.warning("redeploy auth failed slug=%s headers=%s", slug, list(request.headers.keys()))
+        raise HTTPException(status_code=403, detail="invalid deploy auth")
+
+    log.info("redeploy auth ok slug=%s via=%s", slug, via)
+
+    if not _redeploy_check_rate_limit(slug):
+        await _append_redeploy_log(slug, f"rate-limited (via={via})")
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"redeploy rate limit exceeded "
+                f"(max {REDEPLOY_RATE_LIMIT_MAX} per "
+                f"{REDEPLOY_RATE_LIMIT_WINDOW_SECONDS}s)"
+            ),
+        )
+
+    lock = _redeploy_lock(slug)
+    if lock.locked():
+        raise HTTPException(status_code=429, detail="redeploy already in progress for this tenant")
+
+    target = TENANTS_DIR / slug
+    if not target.exists():
+        # The registry has us but /opt/hatchik-tenants/<slug>/ doesn't
+        # exist — most likely a half-decommissioned tenant. Treat as
+        # 410 so the caller stops retrying.
+        raise HTTPException(status_code=410, detail="tenant directory missing")
+
+    async with lock:
+        await _append_redeploy_log(slug, f"redeploy: triggered via={via}")
+        ok, sha = await _run_redeploy_subprocess(slug, target)
+        deployed_at = datetime.now(timezone.utc).isoformat()
+
+        if not ok:
+            tail = await _tail_redeploy_log(slug, n=50)
+            await _append_redeploy_log(slug, "redeploy: FAILED")
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "ok": False,
+                    "slug": slug,
+                    "via": via,
+                    "message": "redeploy failed — see log tail",
+                    "log_tail": tail,
+                },
+            )
+
+        # Persist the success info in the registry so /api/admin/accounts
+        # can surface it. Best-effort: writing fails (e.g. read-only FS)
+        # don't fail the redeploy itself.
+        try:
+            reg = _load_registry()
+            t = reg.setdefault("tenants", {}).setdefault(slug, tenant)
+            t["last_redeploy_at"] = deployed_at
+            t["last_redeploy_commit"] = sha
+            t["last_redeploy_via"] = via
+            _save_registry(reg)
+        except OSError as e:
+            log.warning("could not update registry after redeploy slug=%s: %s", slug, e)
+
+        await _append_redeploy_log(slug, f"redeploy: OK commit={sha} via={via}")
+        return {
+            "ok": True,
+            "slug": slug,
+            "deployed_at": deployed_at,
+            "commit": sha,
+            "via": via,
+        }
 
 
 @app.get("/healthz")
