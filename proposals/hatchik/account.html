@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Your Hatchik account</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🪺%3C/text%3E%3C/svg%3E">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: #f6f5f1; }
+    [data-tab-panel] { display: none; }
+    [data-tab-panel].active { display: block; }
+    [data-tab].active { color: #4f46e5; border-color: #4f46e5; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-900">
+
+<!-- HEADER -->
+<header class="bg-white border-b border-slate-200">
+  <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-slate-800">
+      <span class="inline-block w-6 h-6 rounded-md bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+      Hatchik
+    </a>
+    <button id="signOutBtn" class="hidden text-sm text-slate-500 hover:text-slate-700">Sign out</button>
+  </div>
+</header>
+
+<!-- SIGN-IN STATE (shown when not authenticated) -->
+<section id="signInView" class="hidden max-w-md mx-auto px-4 py-16">
+  <div class="bg-white rounded-2xl shadow-sm p-8 ring-1 ring-slate-200">
+    <h1 class="text-2xl font-bold tracking-tight">Sign in to Hatchik</h1>
+    <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+      Enter the email you signed up with. We'll send you a one-time sign-in
+      link — no password to remember.
+    </p>
+
+    <form id="signInForm" class="mt-6 space-y-3" novalidate>
+      <label class="sr-only" for="signInEmail">Email address</label>
+      <input
+        id="signInEmail"
+        name="email"
+        type="email"
+        required
+        autocomplete="email"
+        placeholder="you@yourdomain.com"
+        class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+      />
+      <button type="submit"
+        class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition disabled:opacity-60 disabled:cursor-not-allowed">
+        Email me a sign-in link
+      </button>
+      <p id="signInError" class="text-xs text-rose-600 text-center hidden"></p>
+    </form>
+
+    <div id="signInSuccess" class="mt-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4 text-sm text-emerald-900 hidden">
+      If that email matches a Hatchik account, we've sent you a sign-in link.
+      Check your inbox &mdash; the link expires in 30 minutes.
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD STATE (shown when authenticated) -->
+<section id="dashboardView" class="hidden max-w-5xl mx-auto px-4 py-10">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Hi <span id="greetingName">there</span>,</h1>
+      <p class="mt-1 text-sm text-slate-600">Signed in as <span id="greetingEmail" class="font-mono"></span></p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <nav class="mt-8 border-b border-slate-200 flex gap-6 text-sm font-medium">
+    <button data-tab="sandbox"   class="active py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Sandbox</button>
+    <button data-tab="upgrade"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Upgrade</button>
+    <button data-tab="billing"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Billing</button>
+    <button data-tab="settings"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Settings</button>
+    <button data-tab="danger"    class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-rose-600">Danger zone</button>
+  </nav>
+
+  <!-- Sandbox tab -->
+  <div data-tab-panel="sandbox" class="active mt-8">
+    <div id="sandboxList" class="space-y-4"></div>
+    <div id="noSandboxNotice" class="hidden bg-white rounded-2xl ring-1 ring-slate-200 p-8 text-center text-slate-600">
+      <p>No active sandbox yet.</p>
+      <a href="/#signup" class="mt-4 inline-block text-sm text-indigo-600 hover:text-indigo-700 font-medium">Create one &rarr;</a>
+    </div>
+  </div>
+
+  <!-- Upgrade tab -->
+  <div data-tab-panel="upgrade" class="mt-8">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8">
+      <h2 class="text-xl font-bold">Upgrade to Launch</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        Your own domain, real payments, mobile builds, and a server in
+        your region. Same code as your sandbox &mdash; just promoted.
+      </p>
+      <div id="upgradeBody" class="mt-6"></div>
+    </div>
+  </div>
+
+  <!-- Billing tab -->
+  <div data-tab-panel="billing" class="mt-8">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8">
+      <h2 class="text-xl font-bold">Billing</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        Manage invoices, payment methods, and subscription via Paddle
+        (our payment provider).
+      </p>
+      <div id="billingBody" class="mt-6"></div>
+    </div>
+  </div>
+
+  <!-- Settings tab -->
+  <div data-tab-panel="settings" class="mt-8">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8 max-w-xl">
+      <h2 class="text-xl font-bold">Settings</h2>
+      <form id="settingsForm" class="mt-6 space-y-4">
+        <div>
+          <label for="settingsFirstName" class="text-sm font-medium text-slate-700">First name</label>
+          <input id="settingsFirstName" name="first_name" type="text"
+            class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+          <p class="mt-1 text-xs text-slate-500">Used when we greet you in emails.</p>
+        </div>
+        <div>
+          <label for="settingsEmail" class="text-sm font-medium text-slate-700">Email</label>
+          <input id="settingsEmail" type="email" disabled
+            class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-500" />
+          <p class="mt-1 text-xs text-slate-500">Need to change this? <a href="mailto:hello@hatchik.com" class="text-indigo-600 hover:text-indigo-700">Contact us</a> &mdash; we'll migrate your sandbox.</p>
+        </div>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition">Save</button>
+        <p id="settingsStatus" class="text-sm hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Danger tab -->
+  <div data-tab-panel="danger" class="mt-8">
+    <div class="bg-white rounded-2xl ring-1 ring-rose-200 p-8 max-w-xl">
+      <h2 class="text-xl font-bold text-rose-700">Delete your account</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        Deletes your sandbox(es), associated data, and signup record.
+        You'll get a confirmation email &mdash; nothing is removed
+        until you click the link.
+      </p>
+      <a href="/delete-sandbox"
+        class="mt-6 inline-block px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium transition">
+        Start deletion
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const signInView = $('signInView');
+  const dashboardView = $('dashboardView');
+  const signOutBtn = $('signOutBtn');
+
+  async function fetchJSON(url, opts = {}) {
+    const res = await fetch(url, {
+      ...opts,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    });
+    if (!res.ok && res.status !== 204) {
+      const body = await res.text().catch(() => '');
+      throw Object.assign(new Error(body || res.statusText), { status: res.status });
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  function show(view) {
+    signInView.classList.toggle('hidden', view !== 'signin');
+    dashboardView.classList.toggle('hidden', view !== 'dashboard');
+    signOutBtn.classList.toggle('hidden', view !== 'dashboard');
+  }
+
+  function renderSandboxes(sandboxes) {
+    const list = $('sandboxList');
+    list.innerHTML = '';
+    if (!sandboxes.length) {
+      $('noSandboxNotice').classList.remove('hidden');
+      return;
+    }
+    $('noSandboxNotice').classList.add('hidden');
+    for (const s of sandboxes) {
+      const card = document.createElement('div');
+      card.className = 'bg-white rounded-2xl ring-1 ring-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4';
+      const statusColor = s.status === 'live' ? 'emerald' :
+                          s.status === 'provisioning' ? 'amber' :
+                          s.status === 'decommissioned' ? 'slate' : 'slate';
+      const live = s.status === 'live' && s.url;
+      card.innerHTML = `
+        <div class="min-w-0">
+          <h3 class="font-bold truncate">${s.product_name || 'Untitled'}</h3>
+          <p class="mt-1 text-xs text-slate-500">
+            <span class="inline-block px-2 py-0.5 rounded-full text-${statusColor}-700 bg-${statusColor}-50 ring-1 ring-${statusColor}-200">${s.status || 'unknown'}</span>
+            <span class="ml-2">${s.tier} tier</span>
+          </p>
+          ${s.url ? `<p class="mt-2 text-sm text-slate-600"><a href="${s.url}" class="text-indigo-600 hover:text-indigo-700 break-all" target="_blank" rel="noopener">${s.url}</a></p>` : ''}
+        </div>
+        <div class="flex gap-2 shrink-0">
+          ${live ? `<a href="${s.url}" target="_blank" rel="noopener" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">Open</a>` : ''}
+        </div>
+      `;
+      list.appendChild(card);
+    }
+  }
+
+  async function renderUpgrade() {
+    const body = $('upgradeBody');
+    try {
+      const info = await fetchJSON('/api/account/upgrade');
+      if (info.available) {
+        body.innerHTML = `<a href="${info.checkout_url}" class="inline-block px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition">Upgrade for £79 (then £9/month)</a>`;
+      } else {
+        body.innerHTML = `<div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4 text-sm text-amber-900">${info.reason || 'Upgrade is not available right now.'}</div>`;
+      }
+    } catch (e) {
+      body.innerHTML = `<p class="text-sm text-rose-600">Couldn't load upgrade info.</p>`;
+    }
+  }
+
+  async function renderBilling() {
+    const body = $('billingBody');
+    try {
+      const info = await fetchJSON('/api/account/billing-portal');
+      body.innerHTML = `<a href="${info.url}" target="_blank" rel="noopener" class="inline-block px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium transition">Open Paddle billing portal</a>`;
+    } catch (e) {
+      body.innerHTML = `<div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 text-sm text-slate-600">No billing history yet. Once you upgrade to Launch, your invoices and payment methods will appear in the Paddle portal.</div>`;
+    }
+  }
+
+  function setupTabs() {
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.tab;
+        document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('[data-tab-panel]').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === name));
+      });
+    });
+  }
+
+  async function bootstrap() {
+    try {
+      const me = await fetchJSON('/api/account/me');
+      $('greetingName').textContent = me.first_name || 'there';
+      $('greetingEmail').textContent = me.email;
+      $('settingsFirstName').value = me.first_name || '';
+      $('settingsEmail').value = me.email;
+      renderSandboxes(me.sandboxes || []);
+      renderUpgrade();
+      renderBilling();
+      show('dashboard');
+    } catch (e) {
+      if (e.status === 401) {
+        show('signin');
+      } else {
+        $('signInError').textContent = 'Something went wrong loading your account. Try again in a moment.';
+        $('signInError').classList.remove('hidden');
+        show('signin');
+      }
+    }
+  }
+
+  // Sign-in form
+  $('signInForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = $('signInError');
+    errorEl.classList.add('hidden');
+    const email = ($('signInEmail').value || '').trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errorEl.textContent = 'Please enter a valid email address.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    try {
+      await fetchJSON('/api/account/login', { method: 'POST', body: JSON.stringify({ email }) });
+      $('signInForm').classList.add('hidden');
+      $('signInSuccess').classList.remove('hidden');
+    } catch (err) {
+      errorEl.textContent = 'Something went wrong. Try again in a moment.';
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Settings form
+  $('settingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = $('settingsStatus');
+    status.classList.add('hidden');
+    const first_name = ($('settingsFirstName').value || '').trim();
+    try {
+      await fetchJSON('/api/account/me', { method: 'PATCH', body: JSON.stringify({ first_name }) });
+      status.textContent = 'Saved.';
+      status.className = 'text-sm text-emerald-700';
+      status.classList.remove('hidden');
+      $('greetingName').textContent = first_name || 'there';
+    } catch (err) {
+      status.textContent = 'Could not save. Try again.';
+      status.className = 'text-sm text-rose-600';
+      status.classList.remove('hidden');
+    }
+  });
+
+  // Sign-out
+  signOutBtn.addEventListener('click', async () => {
+    try { await fetchJSON('/api/account/logout', { method: 'POST' }); } catch (e) { /* ignore */ }
+    location.href = '/account';
+  });
+
+  setupTabs();
+  bootstrap();
+})();
+</script>
+
+</body>
+</html>

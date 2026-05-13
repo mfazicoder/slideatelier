@@ -54,6 +54,24 @@ ADMIN_TOKEN = os.environ.get("HATCHIK_ADMIN_TOKEN", "")
 # valid for this many hours.
 DELETION_TOKEN_TTL_HOURS = 24
 
+# Magic-link login tokens are single-use and short-lived.
+LOGIN_TOKEN_TTL_MINUTES = 30
+# Session cookies last this long after last activity.
+SESSION_TTL_DAYS = 30
+SESSION_COOKIE_NAME = "hatchik_session"
+
+# Paddle config (Launch tier upgrade flow). When PADDLE_LAUNCH_PRICE_ID is
+# set, /api/account/upgrade returns a hosted-checkout URL; otherwise the
+# UI shows a "coming soon, Paddle approval pending" placeholder.
+PADDLE_VENDOR = os.environ.get("PADDLE_VENDOR", "")
+PADDLE_LAUNCH_PRICE_ID = os.environ.get("PADDLE_LAUNCH_PRICE_ID", "")
+PADDLE_CHECKOUT_BASE = os.environ.get(
+    "PADDLE_CHECKOUT_BASE", "https://buy.paddle.com/checkout"
+)
+PADDLE_BILLING_PORTAL_BASE = os.environ.get(
+    "PADDLE_BILLING_PORTAL_BASE", "https://buyer.paddle.com"
+)
+
 # Path to decommission.py — subprocess'd for tear-down.
 DECOMMISSION_SCRIPT = os.environ.get(
     "HATCHIK_DECOMMISSION_SCRIPT", "/opt/hatchik-orchestrator/decommission.py"
@@ -149,6 +167,31 @@ def init_db() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_deletion_tokens_email ON deletion_tokens(email)")
+        # Account-management auth: magic-link login + session cookies.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS login_tokens (
+                token       TEXT PRIMARY KEY,
+                email       TEXT NOT NULL,
+                created_at  TEXT NOT NULL,
+                expires_at  TEXT NOT NULL,
+                consumed_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id   TEXT PRIMARY KEY,
+                email        TEXT NOT NULL,
+                created_at   TEXT NOT NULL,
+                expires_at   TEXT NOT NULL,
+                last_seen_at TEXT
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_signups_email ON signups(email)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_signups_created ON signups(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_rate_limit_ip ON rate_limit(ip)")
@@ -887,6 +930,297 @@ async def confirm_deletion(token: str) -> str:
         f"Status: {summary.get('status', 'done')}\n"
         f"You can sign up again at https://hatchik.com whenever you want."
     )
+
+
+# ─── Account management: magic-link auth + dashboard endpoints ───────────
+# Customer flow: POST /api/account/login {email} → emailed magic link →
+# GET /api/account/auth?token=... → session cookie set → redirect to
+# /account. Protected endpoints read SESSION_COOKIE_NAME from the request
+# cookies and look up the session in SQLite. Sign-out deletes the row.
+
+from fastapi import Cookie, Response
+from fastapi.responses import RedirectResponse, JSONResponse
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+
+
+def _resolve_session(session_id: str | None) -> dict[str, Any] | None:
+    """Return {email, signup_id, ...} for a valid session cookie, else None."""
+    if not session_id:
+        return None
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT email, expires_at FROM sessions WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        if row is None or row["expires_at"] < now:
+            return None
+        conn.execute(
+            "UPDATE sessions SET last_seen_at = ? WHERE session_id = ?",
+            (now, session_id),
+        )
+        conn.commit()
+    return {"email": row["email"]}
+
+
+@app.post("/api/account/login", status_code=202)
+async def request_login_link(req: LoginRequest) -> dict[str, Any]:
+    """Self-serve: email a one-time sign-in link.
+
+    Anti-enumeration: returns 202 whether or not the email matches a
+    signup row.
+    """
+    email = str(req.email).lower().strip()
+    with sqlite3.connect(DB_PATH) as conn:
+        match = conn.execute(
+            "SELECT 1 FROM signups WHERE LOWER(email) = ? LIMIT 1", (email,)
+        ).fetchone()
+    if not match:
+        log.info("login link requested for unknown email %s", email)
+        return {"ok": True, "message": "If that email matches an active Hatchik account, we've sent a sign-in link."}
+
+    created_at = datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(minutes=LOGIN_TOKEN_TTL_MINUTES)
+    token = secrets.token_urlsafe(32)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "INSERT INTO login_tokens (token, email, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (token, email, created_at.isoformat(), expires_at.isoformat()),
+        )
+        conn.commit()
+
+    link = f"https://hatchik.com/api/account/auth?token={token}"
+    await _send_login_email(email, link)
+    log.info("login link emailed to %s", email)
+    return {"ok": True, "message": "If that email matches an active Hatchik account, we've sent a sign-in link."}
+
+
+async def _send_login_email(email: str, link: str) -> None:
+    if not RESEND_API_KEY:
+        log.warning("RESEND_API_KEY not set — skipping login email to %s", email)
+        return
+    text = f"""Hi,
+
+Click the link below to sign in to your Hatchik account. It's
+single-use and expires in {LOGIN_TOKEN_TTL_MINUTES} minutes.
+
+{link}
+
+If you didn't ask for this, ignore this email.
+
+— Hatchik
+
+(This is an automated message — please don't reply.)
+"""
+    html = f"""\
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Sign in to Hatchik</title></head>
+<body style="margin:0;padding:0;background:#f6f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:8px;padding:32px;">
+<tr><td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
+<p style="margin:0 0 16px 0;">Hi,</p>
+<p style="margin:0 0 16px 0;">Click the button below to sign in to your Hatchik account. It&rsquo;s single-use and expires in {LOGIN_TOKEN_TTL_MINUTES} minutes.</p>
+<p style="margin:24px 0;"><a href="{link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Sign in to Hatchik</a></p>
+<p style="margin:0 0 16px 0;color:#555;font-size:14px;">Or paste this URL into your browser: <a href="{link}" style="color:#4f46e5;text-decoration:underline;">{link}</a></p>
+<p style="margin:0 0 16px 0;color:#555;font-size:14px;">If you didn&rsquo;t ask for this, ignore this email.</p>
+<p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
+<p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>
+"""
+    try:
+        await _resend_send({
+            "from": FROM_EMAIL,
+            "to": [email],
+            "subject": "Sign in to Hatchik",
+            "text": text,
+            "html": html,
+        })
+    except Exception as e:  # noqa: BLE001
+        log.error("Failed to send login email to %s: %s", email, e)
+
+
+@app.get("/api/account/auth")
+async def auth_callback(token: str) -> RedirectResponse:
+    """Verify a magic-link token, create a session, set cookie, redirect."""
+    if not token or len(token) < 32:
+        raise HTTPException(status_code=400, detail="invalid token")
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT email, expires_at, consumed_at FROM login_tokens WHERE token = ?",
+            (token,),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="token not found")
+        if row["consumed_at"]:
+            raise HTTPException(status_code=410, detail="token already used")
+        if row["expires_at"] < now_iso:
+            raise HTTPException(status_code=410, detail="token expired")
+        conn.execute("UPDATE login_tokens SET consumed_at = ? WHERE token = ?", (now_iso, token))
+        session_id = secrets.token_urlsafe(32)
+        expires_at = (now + timedelta(days=SESSION_TTL_DAYS)).isoformat()
+        conn.execute(
+            "INSERT INTO sessions (session_id, email, created_at, expires_at, last_seen_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (session_id, row["email"], now_iso, expires_at, now_iso),
+        )
+        conn.commit()
+
+    resp = RedirectResponse(url="/account", status_code=303)
+    resp.set_cookie(
+        SESSION_COOKIE_NAME,
+        session_id,
+        max_age=SESSION_TTL_DAYS * 86400,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+    log.info("session created for %s", row["email"])
+    return resp
+
+
+@app.post("/api/account/logout", status_code=204)
+async def logout(
+    response: Response,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> Response:
+    if hatchik_session:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("DELETE FROM sessions WHERE session_id = ?", (hatchik_session,))
+            conn.commit()
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    response.status_code = 204
+    return response
+
+
+@app.get("/api/account/me")
+async def get_me(
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> dict[str, Any]:
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    email = session["email"]
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        signup_rows = conn.execute(
+            "SELECT id, first_name, product_name, tier, created_at, status "
+            "FROM signups WHERE LOWER(email) = ? ORDER BY id DESC",
+            (email,),
+        ).fetchall()
+    reg = _load_registry()
+    tenants_by_signup = {
+        t.get("signup_id"): {"slug": slug, **t}
+        for slug, t in reg.get("tenants", {}).items()
+        if t.get("signup_id")
+    }
+    sandboxes = []
+    first_name = ""
+    for r in signup_rows:
+        if not first_name and r["first_name"]:
+            first_name = r["first_name"]
+        tenant = tenants_by_signup.get(r["id"])
+        sandboxes.append({
+            "signup_id": r["id"],
+            "product_name": r["product_name"],
+            "tier": r["tier"],
+            "created_at": r["created_at"],
+            "status": tenant.get("status") if tenant else r["status"],
+            "url": tenant.get("url") if tenant else None,
+            "slug": tenant.get("slug") if tenant else None,
+        })
+    return {"email": email, "first_name": first_name, "sandboxes": sandboxes}
+
+
+class UpdateMeRequest(BaseModel):
+    first_name: str | None = Field(None, max_length=80)
+
+    @field_validator("first_name")
+    @classmethod
+    def clean_first_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        token = v.strip().split()[0] if v.strip() else ""
+        return token[:1].upper() + token[1:] if token else ""
+
+
+@app.patch("/api/account/me")
+async def update_me(
+    body: UpdateMeRequest,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> dict[str, Any]:
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    email = session["email"]
+    if body.first_name is not None:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                "UPDATE signups SET first_name = ? WHERE LOWER(email) = ?",
+                (body.first_name, email),
+            )
+            conn.commit()
+    return {"ok": True}
+
+
+@app.get("/api/account/upgrade")
+async def upgrade_info(
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> dict[str, Any]:
+    """Return upgrade info — Paddle checkout URL if configured, else 'coming soon'."""
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    if not PADDLE_LAUNCH_PRICE_ID:
+        return {
+            "available": False,
+            "reason": "Paddle approval pending — we'll email you when Launch tier opens.",
+        }
+    # Paddle Billing hosted checkout — passes customer_email so the
+    # post-checkout webhook can match to the signup row.
+    checkout_url = (
+        f"{PADDLE_CHECKOUT_BASE}/{PADDLE_LAUNCH_PRICE_ID}"
+        f"?customer_email={session['email']}"
+    )
+    return {"available": True, "checkout_url": checkout_url}
+
+
+@app.get("/api/account/billing-portal")
+async def billing_portal(
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> dict[str, Any]:
+    """Return a Paddle customer-portal URL for the signed-in customer.
+
+    Only customers with at least one successful Launch-tier payment have
+    a Paddle customer_id. Until then, this returns 404 and the UI hides
+    the billing tab.
+    """
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT paddle_customer_id FROM payments "
+            "WHERE LOWER(customer_email) = ? AND paddle_customer_id IS NOT NULL "
+            "ORDER BY created_at DESC LIMIT 1",
+            (session["email"],),
+        ).fetchone()
+    if not row or not row[0]:
+        raise HTTPException(status_code=404, detail="no Paddle customer record yet")
+    return {"url": f"{PADDLE_BILLING_PORTAL_BASE}/customer/{row[0]}"}
 
 
 @app.post("/api/paddle/webhook")
