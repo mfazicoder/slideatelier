@@ -325,12 +325,7 @@ def send_sandbox_ready_email(to: str, slug: str, product_name: str) -> bool:
         print("WARN: no RESEND_API_KEY, skipping email")
         return False
     url = f"https://{slug}.{DOMAIN}"
-    payload = {
-        "from": HATCHIK_FROM_EMAIL,
-        "to": to,
-        "reply_to": HATCHIK_FOUNDER_EMAIL,
-        "subject": f"Your {product_name} sandbox is ready",
-        "text": f"""Hi,
+    text = f"""Hi,
 
 Your sandbox for {product_name} is live: {url}
 
@@ -343,12 +338,55 @@ What to do next:
 2. Sign up with your email — you'll get a magic-link to sign in
 3. Have a play, kick the tyres
 4. When you're ready to make it real (your own domain, live payments,
-   mobile builds), upgrade to Launch — £79 to set up + £9/month after.
+   mobile builds), upgrade to Launch.
 
 Anything not working as you'd expect, just reply to this email.
 
 — Hatchik
-""",
+"""
+    html = f"""\
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your {product_name} sandbox is ready</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:8px;padding:32px;">
+          <tr>
+            <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
+              <p style="margin:0 0 16px 0;">Hi,</p>
+              <p style="margin:0 0 16px 0;">Your sandbox for <strong>{product_name}</strong> is live at <a href="{url}" style="color:#4f46e5;text-decoration:underline;">{url}</a>.</p>
+              <p style="margin:0 0 16px 0;">It&rsquo;s running on Hatchik&rsquo;s free Sandbox tier &mdash; a real working version of your app stack (database, auth, payments in test mode, mailboxes) that you can poke at while you decide if you want to go to Launch.</p>
+              <p style="margin:24px 0 8px 0;font-weight:600;">What to do next</p>
+              <ol style="margin:0 0 16px 0;padding-left:20px;">
+                <li style="margin:0 0 8px 0;">Open <a href="{url}" style="color:#4f46e5;text-decoration:underline;">{url}</a> in your browser</li>
+                <li style="margin:0 0 8px 0;">Sign up with your email &mdash; you&rsquo;ll get a magic-link to sign in</li>
+                <li style="margin:0 0 8px 0;">Have a play, kick the tyres</li>
+                <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, mobile builds), upgrade to Launch.</li>
+              </ol>
+              <p style="margin:0 0 16px 0;">Anything not working as you&rsquo;d expect, just reply to this email.</p>
+              <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+    payload = {
+        "from": HATCHIK_FROM_EMAIL,
+        "to": to,
+        "reply_to": HATCHIK_FOUNDER_EMAIL,
+        "subject": f"Your {product_name} sandbox is ready",
+        "text": text,
+        "html": html,
     }
     try:
         r = httpx.post(
