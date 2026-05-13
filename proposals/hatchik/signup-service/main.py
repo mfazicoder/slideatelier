@@ -29,7 +29,7 @@ from typing import Any, Literal
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import AliasChoices, BaseModel, EmailStr, Field, field_validator
 
 # ─── Config ──────────────────────────────────────────────────────────────
 DB_PATH = Path(os.environ.get("HATCHIK_SIGNUP_DB", "/var/lib/hatchik/signups.db"))
@@ -142,9 +142,15 @@ app.add_middleware(
 
 # ─── Models ──────────────────────────────────────────────────────────────
 class SignupRequest(BaseModel):
+    model_config = {"populate_by_name": True}
+
     email: EmailStr
     product_name: str = Field(..., min_length=1, max_length=120)
-    description: str = Field("", max_length=2000)
+    description: str = Field(
+        "",
+        max_length=2000,
+        validation_alias=AliasChoices("description", "idea", "product_idea"),
+    )
     tier: Literal["sandbox", "launch"] = "sandbox"
     region: str | None = Field(None, max_length=40)
     domain_choice: str | None = Field(None, max_length=255)

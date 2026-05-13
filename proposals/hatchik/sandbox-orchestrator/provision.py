@@ -389,7 +389,7 @@ def main() -> None:
         row = fetch_signup(args.signup_id)
         email = row["email"]
         product_name = row["product_name"] or "Untitled"
-        idea = row["idea"]
+        idea = row["description"] or "A new app"
         signup_id = args.signup_id
     elif args.slug and args.email and args.product:
         email = args.email
