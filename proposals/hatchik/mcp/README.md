@@ -1,4 +1,4 @@
-# @hatchik/mcp
+# hatchik-mcp
 
 MCP server for Hatchik. Lets you drive your Hatchik account from Claude,
 Cursor, or Windsurf without leaving the chat — list your sandboxes,
@@ -19,7 +19,7 @@ you'll see it exactly once.
   "mcpServers": {
     "hatchik": {
       "command": "npx",
-      "args": ["-y", "@hatchik/mcp"],
+      "args": ["-y", "hatchik-mcp"],
       "env": {
         "HATCHIK_API_KEY": "hk_live_..."
       }
