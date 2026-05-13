@@ -65,6 +65,7 @@ def init_db() -> None:
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 created_at      TEXT NOT NULL,
                 email           TEXT NOT NULL,
+                first_name      TEXT,
                 product_name    TEXT,
                 description     TEXT,
                 tier            TEXT NOT NULL CHECK(tier IN ('sandbox', 'launch')),
@@ -76,6 +77,10 @@ def init_db() -> None:
             )
             """
         )
+        # Additive migration for live DBs that pre-date first_name.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(signups)").fetchall()}
+        if "first_name" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN first_name TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS rate_limit (
@@ -145,6 +150,11 @@ class SignupRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
     email: EmailStr
+    first_name: str = Field(
+        "",
+        max_length=80,
+        validation_alias=AliasChoices("first_name", "firstName", "name"),
+    )
     product_name: str = Field(..., min_length=1, max_length=120)
     description: str = Field(
         "",
@@ -159,6 +169,15 @@ class SignupRequest(BaseModel):
     @classmethod
     def strip(cls, v: str) -> str:
         return v.strip()
+
+    @field_validator("first_name")
+    @classmethod
+    def clean_first_name(cls, v: str) -> str:
+        # Take the first whitespace-separated token, capitalize it.
+        # "  alice ross " → "Alice", "Mr. Bean" → "Mr." → "Mr." (still
+        # better than firing the whole string into a greeting).
+        token = v.strip().split()[0] if v.strip() else ""
+        return token[:1].upper() + token[1:] if token else ""
 
 
 class SignupResponse(BaseModel):
@@ -223,6 +242,7 @@ async def send_founder_notification(
 New Hatchik signup #{signup_id}
 
   Email:       {req.email}
+  First name:  {req.first_name or '(not provided)'}
   Tier:        {req.tier}
   Product:     {req.product_name}
   Region:      {req.region or 'not specified'}
@@ -266,8 +286,11 @@ def _customer_email_bodies(req: SignupRequest) -> tuple[str, str]:
             "start building."
         )
 
+    greeting = f"Hi {req.first_name}," if req.first_name else "Hi,"
+    greeting_html = _html_escape(greeting)
+
     text = f"""\
-Hi,
+{greeting}
 
 {intro}
 
@@ -298,7 +321,7 @@ Further information can be found at https://hatchik.com/#faq if you need it.
         <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:8px;padding:32px;">
           <tr>
             <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
-              <p style="margin:0 0 16px 0;">Hi,</p>
+              <p style="margin:0 0 16px 0;">{greeting_html}</p>
               <p style="margin:0 0 16px 0;">{intro_html}</p>
               <p style="margin:0 0 16px 0;">{next_html}</p>
               <p style="margin:0 0 16px 0;">Further information can be found <a href="https://hatchik.com/#faq" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
@@ -538,13 +561,14 @@ async def create_signup(req: SignupRequest, request: Request) -> SignupResponse:
         cur = conn.execute(
             """
             INSERT INTO signups (
-                created_at, email, product_name, description, tier,
+                created_at, email, first_name, product_name, description, tier,
                 region, domain_choice, ip_address, user_agent, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')
             """,
             (
-                created_at, str(req.email), req.product_name, req.description,
-                req.tier, req.region, req.domain_choice, ip, user_agent,
+                created_at, str(req.email), req.first_name, req.product_name,
+                req.description, req.tier, req.region, req.domain_choice,
+                ip, user_agent,
             ),
         )
         signup_id = cur.lastrowid or 0

@@ -1516,6 +1516,17 @@
 
         <form id="signupForm" class="mt-5 space-y-3" method="post" action="/api/signup" novalidate>
           <div>
+            <label class="sr-only" for="signupFirstName">First name</label>
+            <input
+              id="signupFirstName"
+              name="first_name"
+              type="text"
+              autocomplete="given-name"
+              placeholder="First name"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            />
+          </div>
+          <div>
             <label class="sr-only" for="signupEmail">Email address</label>
             <input
               id="signupEmail"
@@ -1732,6 +1743,7 @@
   if (!form) return;
   const success = document.getElementById('signupSuccess');
   const errorEl = document.getElementById('signupError');
+  const firstNameInput = document.getElementById('signupFirstName');
   const emailInput = document.getElementById('signupEmail');
   const ideaInput = document.getElementById('signupIdea');
   const submitBtn = form.querySelector('button[type="submit"]');
@@ -1739,6 +1751,7 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorEl.classList.add('hidden');
+    const firstName = (firstNameInput && firstNameInput.value || '').trim();
     const email = (emailInput.value || '').trim();
     const idea = (ideaInput.value || '').trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1758,7 +1771,7 @@
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, idea, product_name: productName, plan: 'sandbox', source: 'marketing-page' })
+        body: JSON.stringify({ first_name: firstName, email, idea, product_name: productName, plan: 'sandbox', source: 'marketing-page' })
       });
       // Accept any 2xx as success; treat network/other errors gently.
       if (res.ok || res.status === 0) {

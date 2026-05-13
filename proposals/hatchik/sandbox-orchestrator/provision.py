@@ -320,13 +320,14 @@ def wait_for_tenant_health(port: int, timeout: int = HEALTH_TIMEOUT_SEC) -> bool
 
 
 # ─── Email ────────────────────────────────────────────────────────────────
-def send_sandbox_ready_email(to: str, slug: str, product_name: str) -> bool:
+def send_sandbox_ready_email(to: str, slug: str, product_name: str, first_name: str = "") -> bool:
     if not RESEND_API_KEY:
         print("WARN: no RESEND_API_KEY, skipping email")
         return False
     url = f"https://{slug}.{DOMAIN}"
     faq_url = f"https://{DOMAIN}/#faq"
-    text = f"""Hi,
+    greeting = f"Hi {first_name}," if first_name else "Hi,"
+    text = f"""{greeting}
 
 Your sandbox for {product_name} is live: {url}
 
@@ -361,7 +362,7 @@ Further information can be found at {faq_url} if you need it.
         <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:8px;padding:32px;">
           <tr>
             <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
-              <p style="margin:0 0 16px 0;">Hi,</p>
+              <p style="margin:0 0 16px 0;">{greeting}</p>
               <p style="margin:0 0 16px 0;">Your sandbox for <strong>{product_name}</strong> is live at <a href="{url}" style="color:#4f46e5;text-decoration:underline;">{url}</a>.</p>
               <p style="margin:0 0 16px 0;">It&rsquo;s running on Hatchik&rsquo;s free Sandbox tier &mdash; a real working version of your app stack (database, auth, payments in test mode, mailboxes).</p>
               <p style="margin:24px 0 8px 0;font-weight:600;">What to do next</p>
@@ -422,6 +423,7 @@ def main() -> None:
     ap.add_argument("--email")
     ap.add_argument("--product", help="Product name (manual mode)")
     ap.add_argument("--idea", default="A new app", help="Product description")
+    ap.add_argument("--first-name", default="", help="Customer first name (manual mode)")
     ap.add_argument("--no-email", action="store_true", help="Skip the customer email")
     args = ap.parse_args()
 
@@ -430,11 +432,14 @@ def main() -> None:
         email = row["email"]
         product_name = row["product_name"] or "Untitled"
         idea = row["description"] or "A new app"
+        # first_name added to schema after some signups landed — be defensive.
+        first_name = (row["first_name"] if "first_name" in row.keys() else "") or ""
         signup_id = args.signup_id
     elif args.slug and args.email and args.product:
         email = args.email
         product_name = args.product
         idea = args.idea
+        first_name = args.first_name
         signup_id = 0
     else:
         ap.error("either signup_id OR --slug + --email + --product required")
@@ -479,7 +484,7 @@ def main() -> None:
 
         if not args.no_email:
             print("  6. send sandbox-ready email")
-            send_sandbox_ready_email(email, slug, product_name)
+            send_sandbox_ready_email(email, slug, product_name, first_name)
 
         reg = load_registry()
         reg["tenants"][slug]["status"] = "live"
