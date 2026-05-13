@@ -67,3 +67,36 @@ hatchik.com, www.hatchik.com {
         X-Content-Type-Options "nosniff"
     }
 }
+
+# ─── Status page (status.hatchik.com) — self-hosted uptime ──────────────
+# Static page lives at /var/www/hatchik/status.html. The status-service
+# (hatchik-status.service) probes every component on a 60s loop and
+# serves /api/status* from localhost:8091. Wildcard cert above already
+# covers this subdomain via Cloudflare DNS-01.
+status.hatchik.com {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    encode gzip zstd
+
+    # Status JSON API → local FastAPI service
+    handle /api/* {
+        reverse_proxy localhost:8091
+    }
+
+    # Everything else → status.html
+    handle {
+        root * /var/www/hatchik
+        rewrite / /status.html
+        try_files {path} /status.html
+        file_server
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        # Status page must always reflect live state — never cached.
+        Cache-Control "no-store"
+    }
+}
