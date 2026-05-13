@@ -325,13 +325,13 @@ def send_sandbox_ready_email(to: str, slug: str, product_name: str) -> bool:
         print("WARN: no RESEND_API_KEY, skipping email")
         return False
     url = f"https://{slug}.{DOMAIN}"
+    faq_url = f"https://{DOMAIN}/#faq"
     text = f"""Hi,
 
 Your sandbox for {product_name} is live: {url}
 
 It's running on Hatchik's free Sandbox tier — a real working version of
-your app stack (database, auth, payments in test mode, mailboxes) that
-you can poke at while you decide if you want to go to Launch.
+your app stack (database, auth, payments in test mode, mailboxes).
 
 What to do next:
 1. Open {url} in your browser
@@ -340,9 +340,11 @@ What to do next:
 4. When you're ready to make it real (your own domain, live payments,
    mobile builds), upgrade to Launch.
 
-Anything not working as you'd expect, just reply to this email.
+Questions? See the FAQ at {faq_url}.
 
 — Hatchik
+
+(This is an automated message — please don't reply.)
 """
     html = f"""\
 <!DOCTYPE html>
@@ -361,7 +363,7 @@ Anything not working as you'd expect, just reply to this email.
             <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
               <p style="margin:0 0 16px 0;">Hi,</p>
               <p style="margin:0 0 16px 0;">Your sandbox for <strong>{product_name}</strong> is live at <a href="{url}" style="color:#4f46e5;text-decoration:underline;">{url}</a>.</p>
-              <p style="margin:0 0 16px 0;">It&rsquo;s running on Hatchik&rsquo;s free Sandbox tier &mdash; a real working version of your app stack (database, auth, payments in test mode, mailboxes) that you can poke at while you decide if you want to go to Launch.</p>
+              <p style="margin:0 0 16px 0;">It&rsquo;s running on Hatchik&rsquo;s free Sandbox tier &mdash; a real working version of your app stack (database, auth, payments in test mode, mailboxes).</p>
               <p style="margin:24px 0 8px 0;font-weight:600;">What to do next</p>
               <ol style="margin:0 0 16px 0;padding-left:20px;">
                 <li style="margin:0 0 8px 0;">Open <a href="{url}" style="color:#4f46e5;text-decoration:underline;">{url}</a> in your browser</li>
@@ -369,8 +371,9 @@ Anything not working as you'd expect, just reply to this email.
                 <li style="margin:0 0 8px 0;">Have a play, kick the tyres</li>
                 <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, mobile builds), upgrade to Launch.</li>
               </ol>
-              <p style="margin:0 0 16px 0;">Anything not working as you&rsquo;d expect, just reply to this email.</p>
+              <p style="margin:0 0 16px 0;">Questions? See the <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">FAQ</a>.</p>
               <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
+              <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
             </td>
           </tr>
         </table>
@@ -383,7 +386,6 @@ Anything not working as you'd expect, just reply to this email.
     payload = {
         "from": HATCHIK_FROM_EMAIL,
         "to": to,
-        "reply_to": HATCHIK_FOUNDER_EMAIL,
         "subject": f"Your {product_name} sandbox is ready",
         "text": text,
         "html": html,

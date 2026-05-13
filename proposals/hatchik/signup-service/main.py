@@ -273,7 +273,11 @@ Hi,
 
 {next_step}
 
+Questions? See the FAQ at https://hatchik.com/#faq.
+
 — Hatchik
+
+(This is an automated message — please don't reply.)
 """
 
     intro_html = _html_escape(intro)
@@ -297,7 +301,9 @@ Hi,
               <p style="margin:0 0 16px 0;">Hi,</p>
               <p style="margin:0 0 16px 0;">{intro_html}</p>
               <p style="margin:0 0 16px 0;">{next_html}</p>
+              <p style="margin:0 0 16px 0;">Questions? See the <a href="https://hatchik.com/#faq" style="color:#4f46e5;text-decoration:underline;">FAQ</a>.</p>
               <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
+              <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
             </td>
           </tr>
         </table>
@@ -326,7 +332,6 @@ async def send_customer_acknowledgement(req: SignupRequest) -> None:
         await _resend_send({
             "from": FROM_EMAIL,
             "to": [str(req.email)],
-            "reply_to": FOUNDER_EMAIL,
             "subject": subject,
             "text": text_body,
             "html": html_body,
