@@ -30,7 +30,7 @@ gated features. **Every tier ships the same substrate.**
 | **Mailboxes** | Single shared sender (`noreply@hatchik.com`) |
 | **Repo** | Read-only template fork in customer's GitHub |
 | **Backups** | 24h retention |
-| **Mobile shells** | Available, not store-submittable |
+| **Mobile shells** | iOS + Android, store-submittable (customer handles submission — see §5.3). Cloud builds via GitHub Actions, **rate-limited to 3 builds/hour per tenant** |
 | **AI tool integration** | Full MCP setup |
 | **AI token allowance** | **~£0.50/month included** (~50k Claude Haiku tokens — enough to taste the passthrough flow before upgrading). Customer can also BYO key. |
 | **Branding** | "Built with Hatchik" footer (non-removable) |
@@ -55,7 +55,7 @@ co-founder and a friend) properly test the experience.
 | **Mailboxes** | 5 inboxes on customer's domain |
 | **Repo** | Private GitHub repo under customer's account |
 | **Backups** | Tiered by environment — see §6 |
-| **Mobile shells** | iOS + Android, store-submittable (customer handles submission — see §5.3) |
+| **Mobile shells** | Same scaffold as Sandbox; same 3 cloud builds/hour per tenant — Launch differs in support/SLA, not mobile capability |
 | **AI tool integration** | Full MCP setup, both signup and ongoing ops |
 | **AI token allowance** | **~£3/month included** (~150k tokens at avg model rates) for runtime AI in customer's app; passthrough for overage at provider cost (no Hatchik margin shown on invoice); or bring your own key for direct provider billing |
 | **Branding** | Customer's own |

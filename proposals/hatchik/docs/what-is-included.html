@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>What's included — Hatchik docs</title>
-<meta name="description" content="What ships with your Hatchik substrate (auth, payments, mail, mobile shell, database, storage) and what's behind the Launch tier." />
+<meta name="description" content="What ships with your Hatchik substrate (auth, payments, mail, mobile shells, database, storage) on every tier from Sandbox onward — and what's different on Launch." />
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -177,7 +177,7 @@
 
     <div class="feature-block">
       <h3>Mobile shell</h3>
-      <p>A React-Native app shell that wraps the same backend. Runs in the iOS Simulator and Android Emulator. You'll typically run it on your laptop to develop the mobile UI — the backend it talks to is your real sandbox URL, so a single push deploys to web and mobile both. The shell <strong>is not submitted to the App Store or Google Play by Hatchik</strong> on any tier — see below.</p>
+      <p>A Capacitor app shell that wraps the same code as your web app. Same scaffold ships on every tier from Sandbox onward. Cloud builds run on GitHub Actions — trigger one from <span class="mono">/account</span> and download the resulting <code>.ipa</code> / <code>.apk</code> when the run finishes (usually 8–15 minutes); 3 builds/hour per tenant. The shell <strong>is not submitted to the App Store or Google Play by Hatchik</strong> on any tier — see below.</p>
     </div>
 
     <div class="feature-block">
@@ -228,6 +228,11 @@
           <td>Payments</td>
           <td>Stripe test mode</td>
           <td class="yes">Stripe (or Paddle) live</td>
+        </tr>
+        <tr>
+          <td>Mobile shells (iOS + Android)</td>
+          <td class="yes">Included — 3 cloud builds/hour</td>
+          <td class="yes">Included — same</td>
         </tr>
         <tr>
           <td>Mobile App Store submission</td>
