@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 provision.py — instantiate a sandbox tenant for a signup.
 
 Usage:
@@ -47,6 +47,28 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+
+# Auto-load /opt/hatchik-orchestrator/.env if present so the script can be
+# invoked from anywhere (cron, manual, signup-service subprocess) and still
+# see RESEND_API_KEY + HATCHIK_FROM_EMAIL + HATCHIK_FOUNDER_EMAIL +
+# HATCHIK_SUBSTRATE_TEMPLATE. Keeps the lifecycle config in one file rather
+# than relying on every caller to source it.
+def _load_env_file(path: str = "/opt/hatchik-orchestrator/.env") -> None:
+    p = Path(path)
+    if not p.exists():
+        return
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip().strip('"').strip("'")
+        # Don't overwrite vars already set in the environment (caller takes priority)
+        os.environ.setdefault(key, val)
+
+
+_load_env_file()
 
 
 def _b64url(data: bytes) -> str:

@@ -30,10 +30,25 @@
 # ─── Per-tenant routes — injected here by provision.py ───────────────────
 import tenants.d/*.caddy
 
-# ─── Apex (hatchik.com) — placeholder; marketing page deploys here later ──
+# ─── Apex (hatchik.com) — reverse-proxies to the marketing site ──
+# Marketing assets + signup-service still live on the namaasol VPS for now
+# (single source of truth, deploy target unchanged). When we migrate to
+# hosting them on the sandbox host itself, swap to `file_server`.
 hatchik.com, www.hatchik.com {
     tls {
         dns cloudflare {env.CF_API_TOKEN}
     }
-    respond "Hatchik — coming soon at https://loftik.namaasol.com (interim)" 200
+    encode gzip zstd
+    reverse_proxy https://loftik.namaasol.com {
+        header_up Host loftik.namaasol.com
+        transport http {
+            tls
+            tls_server_name loftik.namaasol.com
+        }
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+    }
 }
