@@ -269,10 +269,15 @@
   .wizard-success { color: #10b981; font-weight: 600; }
   .wizard-step-ok { color: #10b981; font-size: 0.75rem; }
   .strike-low {
-    position: relative;
-    display: inline-block;
+    /* Use text-decoration so the line wraps with the text across multiple
+       lines (mobile especially). The previous absolute-positioned ::after
+       only spanned one line, leaving the second line uncrossed. */
+    text-decoration: line-through;
+    text-decoration-color: #fb7185;
+    text-decoration-thickness: 3px;
+    text-decoration-skip-ink: none;
   }
-  .strike-low::after {
+  .strike-low-legacy::after {
     content: '';
     position: absolute;
     left: -0.1em;
@@ -498,7 +503,7 @@
     </div>
     <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">
       You have a burning idea.<br>
-      <span class="block mt-1 md:whitespace-nowrap"><span class="strike-low">You have 3 months to learn the tech.</span></span>
+      <span class="block mt-1 md:whitespace-nowrap"><span class="strike-low">You have 6 months to learn the tech.</span></span>
     </h2>
     <div class="max-w-2xl">
       <p class="mt-4 text-slate-600 text-lg">Without Hatchik, your choices narrow — each with a catch.</p>
@@ -517,7 +522,7 @@
         </p>
         <div class="mt-auto pt-5 border-t border-rose-200">
           <div class="text-[0.65rem] font-bold text-rose-600 uppercase tracking-widest">The catch</div>
-          <div class="mt-1 text-sm text-slate-700 font-medium">12+ months learning. Your idea cools off long before you launch it.</div>
+          <div class="mt-1 text-sm text-slate-700 font-medium">6+ months learning. Your idea cools off long before you launch it.</div>
         </div>
       </div>
 
@@ -529,7 +534,7 @@
         </div>
         <h3 class="mt-5 text-lg font-bold leading-snug">Hire one, or an agency.</h3>
         <p class="mt-2 mb-8 text-slate-600 text-sm leading-relaxed">
-          Find someone trustworthy. Pay £10,000–£50,000 upfront. Sit in spec calls for months, then more months for changes. Hope they don't ghost halfway through.
+          Find someone trustworthy. Pay thousands upfront. Sit in spec calls for months, then more months for changes. Hope they don't ghost halfway through.
         </p>
         <div class="mt-auto pt-5 border-t border-rose-200">
           <div class="text-[0.65rem] font-bold text-rose-600 uppercase tracking-widest">The catch</div>
