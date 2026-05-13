@@ -466,12 +466,37 @@ Once you've cloned the repo and opened it in Claude Code (or Cursor):
 The AI will read this file, understand the substrate, and start
 proposing changes. Accept, push, watch the sandbox update.
 
+## Building for mobile
+
+This repo ships with a GitHub Actions workflow at
+`.github/workflows/build-mobile.yml` that builds an iOS IPA and an
+Android APK from the same React code as the web app. You don't need
+Xcode or the Android SDK locally — GitHub's hosted runners do the
+work.
+
+Three ways to trigger a build:
+
+1. **From the Hatchik dashboard** — https://hatchik.com/account →
+   Mobile tab → *Build now*. Most users do this.
+2. **From GitHub** — Actions tab → *Build mobile* → *Run workflow*.
+3. **Automatically on push to `main`** — if your commit changes files
+   under `apps/mobile/`, `apps/web/`, or `capacitor.config.ts`, the
+   workflow fires on its own.
+
+When the run finishes, download the `android-apk` and `ios-ipa`
+artefacts from the workflow run page. **The binaries are unsigned.**
+To produce App Store / Play Store-ready signed builds you need your
+own Apple Developer (~£99/year) and Google Play Console (~£25 one-off)
+accounts — see `apps/mobile/README.md` for the signing setup.
+
 ## Useful URLs
 
 - Sandbox: {sandbox_url}
 - Supabase Studio: {sandbox_url}/studio (sign in with the owner magic link)
 - Hatchik account: https://hatchik.com/account
+- Mobile builds: https://hatchik.com/account → Mobile tab
 - FAQ: https://hatchik.com/#faq
+- Docs: https://hatchik.com/docs
 
 — Hatchik (this file is generated per-tenant by provision.py)
 """

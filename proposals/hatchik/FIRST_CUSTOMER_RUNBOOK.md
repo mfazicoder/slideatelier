@@ -70,8 +70,8 @@ note the amount and customer ID in your tracking sheet.
 ## Provisioning — Sandbox tier (free, automated)
 
 The orchestrator handles steps 1–6 automatically when the signup
-arrives. Your job is to verify it worked and finish off the human-only
-bits (Linear board, personalised welcome).
+arrives. Your job is to verify it worked and send a personalised
+welcome on top of the automated emails.
 
 1. **Verify provisioning landed.** SSH into the sandbox host
    (`ssh -i ~/.ssh/hatchik-deploy root@178.105.139.144`) and check:
@@ -93,8 +93,7 @@ bits (Linear board, personalised welcome).
    Watch the log for the failing step. Most failures are DNS
    propagation (transient) or substrate boot bugs (fix in the local
    template, rsync to host).
-4. **Create the customer's Linear board** (next section).
-5. **Send the welcome email** (§4 below) — personalise on top of the
+4. **Send the welcome email** (§4 below) — personalise on top of the
    automated "your sandbox is live" Resend email.
 
 Time: 5 minutes if the orchestrator worked, ~15 if you need to debug.
@@ -144,7 +143,6 @@ Time: 5 minutes if the orchestrator worked, ~15 if you need to debug.
      Stripe; otherwise leave empty for now and update later)
    - `RESEND_API_KEY` = your Resend account key (you can issue a
      subkey scoped to their domain)
-   - `LINEAR_*` = filled after Linear bootstrap (next step)
 
 5. **Set up the customer's mailboxes**
    - Log into Infomaniak Mail console
@@ -156,9 +154,7 @@ Time: 5 minutes if the orchestrator worked, ~15 if you need to debug.
      paste into Cloudflare DNS)
    - Send the customer their mailbox credentials in a separate email
 
-6. **Set up Linear board** (see §"Linear bootstrap" below)
-
-7. **Set up GitHub repo**
+6. **Set up GitHub repo**
    - In your GitHub Organization (or a dedicated "Hatchik-customers"
      org), create a new private repo `customer-<slug>`
    - Push the customer's substrate (with `.env` excluded)
@@ -559,22 +555,100 @@ fast no-op redeploy. We do not try to detect schema migrations — if a
 push includes new SQL, the substrate's existing migration runner picks
 it up on container start.
 
-## Linear bootstrap (both tiers)
+## Mobile builds
 
-1. Send the customer a Linear invite link to a new workspace
-   - Or, if they already have a Linear workspace, ask them to add you
-     as an admin
-2. Create a new Linear project for their product
-3. Run the backlog-generation prompt (see `backlog-prompt.md`) using
-   Claude with the customer's product description as input
-4. Take the JSON output and create the ~20 starter issues in their
-   Linear project via Linear's GraphQL API (`issueCreate` batched
-   mutations)
-5. Note the team ID and project ID — paste into the customer's `.env`
-   as `LINEAR_TEAM_ID` and `LINEAR_PROJECT_ID`
+Every tenant repo ships with `.github/workflows/build-mobile.yml`,
+which produces an unsigned iOS IPA and Android APK on every push to
+`main` that touches mobile/web/Capacitor files, or on manual
+dispatch. The customer-facing entry point is
+`hatchik.com/account` → Mobile tab.
 
-Until the provisioning worker exists, this step is manual but takes
-~10 minutes per customer.
+### How it works end-to-end
+
+1. Customer clicks *Build now* on the Mobile tab (or pushes a commit
+   that touches `apps/mobile/`, `apps/web/`, or `capacitor.config.ts`).
+2. `POST /api/account/mobile-builds/{slug}/trigger` posts a
+   `workflow_dispatch` event to GitHub via the
+   `HATCHIK_GITHUB_TOKEN` PAT — same token that creates the tenant
+   repo at provision time. Rate-limited to 3 builds per tenant per
+   hour (`HATCHIK_MOBILE_BUILD_RATE_LIMIT_MAX`).
+3. GitHub Actions runs two jobs in parallel:
+   - `android` on `ubuntu-latest` (JDK 17, ~5 min)
+   - `ios` on `macos-latest` (Xcode, ~10–15 min)
+4. Each job builds the React bundle, syncs Capacitor, archives the
+   native project, and uploads the binary as a workflow artefact
+   (`android-apk`, `ios-ipa`).
+5. The customer downloads from the workflow run page. Artefacts
+   retain for 14 days.
+
+### Where the artefacts go
+
+Workflow artefacts live in GitHub. Hatchik does not proxy them — the
+account page links straight to the run URL and the customer downloads
+from there. This keeps the signup-service out of the binary-storage
+business.
+
+### Cost
+
+GitHub Actions on free-tier private repos: 2,000 minutes/month for
+ubuntu, with macOS minutes counted at 10x. At our 3-build/hour cap
+that's ~75 minutes per full build (5 ubuntu + ~10 macOS × 10 = ~105
+minutes per dual build, divided by both legs in parallel ≈ 25 minutes
+wall-clock). Heavy users may hit GitHub's free-tier wall — they can
+either wait for the next month, or (if we want to be generous) upgrade
+the repo to GitHub Pro on Hatchik's side.
+
+### Debugging a failing build
+
+1. Open the failing run URL (visible in `/api/account/mobile-builds/{slug}`
+   response or directly on the Actions tab of the tenant repo).
+2. The job log shows which step blew up. Common ones:
+   - **`pnpm install --frozen-lockfile`** failing → customer added a
+     dep without updating the lockfile.
+   - **`pnpm build`** failing → TypeScript / lint error in their
+     product code.
+   - **`xcodebuild archive`** failing → usually a missing Capacitor
+     plugin's Pod, fixable by re-running `pod install`.
+   - **`./gradlew assembleRelease`** failing → SDK version mismatch
+     or Java heap size; usually a transient runner issue.
+3. If it's substrate-side, fix in `substrate-template/.github/workflows/build-mobile.yml`
+   and bump the substrate pointer.
+
+### Signed builds (customer self-serve)
+
+The default workflow produces *unsigned* binaries. To produce signed
+ones the customer adds these secrets to their tenant repo
+(*Settings → Secrets and variables → Actions*) and uncomments the
+signing blocks in `build-mobile.yml`:
+
+- iOS: `APPLE_CERTIFICATE_P12`, `APPLE_CERTIFICATE_PASSWORD`,
+  `APPLE_PROVISIONING_PROFILE`, `APPLE_TEAM_ID`
+- Android: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+  `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`
+
+Hatchik never touches these credentials. The signing-block comments
+spell out the exact names and where to paste them, and the README at
+`apps/mobile/README.md` walks through the cert generation flow.
+
+### Required env (one-time on the sandbox host)
+
+The two endpoints (`GET /api/account/mobile-builds/{slug}` and
+`POST /api/account/mobile-builds/{slug}/trigger`) reuse the existing
+`HATCHIK_GITHUB_TOKEN` + `HATCHIK_GITHUB_ORG` env vars set for the
+GitHub-handoff agent. The token's scopes already cover
+`repo + workflow`, so no new credentials are needed. If the token
+is missing the endpoints surface a graceful "Connect GitHub first"
+message rather than 500-ing.
+
+## Backlog seeding (both tiers)
+
+Provisioning drops a `BACKLOG.md` file at the root of the tenant
+repo, pre-populated with ~20 starter tasks tailored to the
+customer's idea (generated by the AI prompt in
+`backlog-prompt.md`). The customer's AI tool reads and updates it
+like any other file — no external tracker, no lock-in. Customers
+who'd rather use a proper tracker (Linear, Jira, GitHub Projects,
+etc.) can wire their own; we don't make that decision for them.
 
 ## Send the welcome / activation email
 
@@ -582,7 +656,6 @@ Use the template at `WELCOME_EMAILS.md §3` — fill in:
 - Customer's name
 - Hatchik URL (sandbox subdomain or their custom domain)
 - GitHub repo URL
-- Linear project URL
 - Login credentials (or magic link)
 - Mailbox webmail URL + credentials
 
@@ -594,7 +667,7 @@ anything in the first hour — I'll jump in personally."
 Reply on the same email thread:
 
 > "Just checking in — anything you've tried that hasn't worked, or
-> anywhere you need help? Also if you've used the Linear backlog with
+> anywhere you need help? Also if you've used the BACKLOG.md with
 > your AI coder yet, I'd love to hear how it went."
 
 Customers don't expect this; it's why concierge-MVP wins early
@@ -602,7 +675,7 @@ retention.
 
 ## Day-7 follow-up
 
-Open a Linear issue in your internal tracker tagged with this
+Open a row in your internal customer tracker tagged with this
 customer's name. Note:
 - What did they ship in 7 days?
 - What did they struggle with?
@@ -628,7 +701,6 @@ or Airtable with one row per customer:
 | VPS IP | |
 | Stripe customer ID | |
 | GitHub repo | |
-| Linear project URL | |
 | Sandbox URL or live URL | |
 | Status | Provisioning / Live / Cancelled |
 | Last interaction | |

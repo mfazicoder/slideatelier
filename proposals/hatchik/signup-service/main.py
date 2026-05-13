@@ -100,6 +100,26 @@ REDEPLOY_RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("HATCHIK_REDEPLOY_RATE_L
 # default to keep the request snappy on failure.
 REDEPLOY_SUBPROCESS_TIMEOUT_SECONDS = int(os.environ.get("HATCHIK_REDEPLOY_TIMEOUT", "600"))
 
+# ─── Mobile builds (GitHub Actions) ──────────────────────────────────────
+# The /api/account/mobile-builds/* endpoints use the same HATCHIK_GITHUB_*
+# config as the provisioning worker so that the token already authorised
+# to create per-tenant repos can also dispatch + list workflow runs on
+# them. Token scope: repo + workflow on every repo under
+# HATCHIK_GITHUB_ORG. Empty token = endpoints surface "Connect GitHub
+# first" rather than throwing.
+HATCHIK_GITHUB_TOKEN = os.environ.get("HATCHIK_GITHUB_TOKEN", "")
+HATCHIK_GITHUB_ORG = os.environ.get("HATCHIK_GITHUB_ORG", "hatchik-sandboxes")
+GITHUB_API_URL = "https://api.github.com"
+GITHUB_API_TIMEOUT_SECONDS = 10.0
+MOBILE_BUILD_WORKFLOW_FILE = "build-mobile.yml"
+# Mobile builds are expensive (especially the macOS leg). Cap per-tenant
+# at 3/hour to prevent runaway loops and stay inside GitHub's free-tier
+# minute allowance.
+MOBILE_BUILD_RATE_LIMIT_MAX = int(os.environ.get("HATCHIK_MOBILE_BUILD_RATE_LIMIT_MAX", "3"))
+MOBILE_BUILD_RATE_LIMIT_WINDOW_SECONDS = int(
+    os.environ.get("HATCHIK_MOBILE_BUILD_RATE_LIMIT_WINDOW_SECONDS", "3600")
+)
+
 # Paddle Billing webhook config. Hatchik's selling entity is Omani, so we
 # use Paddle as Merchant of Record (see PRODUCT_OFFERING.md §8.1) — Stripe
 # does not support Omani entities.
@@ -2375,6 +2395,229 @@ async def tenant_redeploy(
             "commit": sha,
             "via": via,
         }
+
+
+# ─── Mobile builds (GitHub Actions) ──────────────────────────────────────
+# In-process rate-limit history: { slug: [timestamps] }. Single-worker
+# service so per-process state is fine; if we ever scale horizontally
+# we'll move this to SQLite alongside the redeploy state.
+_mobile_build_history: dict[str, list[float]] = {}
+
+
+def _mobile_build_check_rate_limit(slug: str) -> bool:
+    """True if a build for this slug is allowed; False if rate-limited."""
+    now = datetime.now(timezone.utc).timestamp()
+    cutoff = now - MOBILE_BUILD_RATE_LIMIT_WINDOW_SECONDS
+    history = [t for t in _mobile_build_history.get(slug, []) if t >= cutoff]
+    if len(history) >= MOBILE_BUILD_RATE_LIMIT_MAX:
+        _mobile_build_history[slug] = history
+        return False
+    history.append(now)
+    _mobile_build_history[slug] = history
+    return True
+
+
+def _tenant_for_session(slug: str, session_email: str) -> dict[str, Any] | None:
+    """Return the registry tenant entry only if it belongs to the signed-in user."""
+    reg = _load_registry()
+    tenant = (reg.get("tenants") or {}).get(slug)
+    if not tenant:
+        return None
+    if (tenant.get("email") or "").lower() != session_email.lower():
+        return None
+    return tenant
+
+
+async def _github_get(path: str) -> tuple[int, dict[str, Any] | list[Any] | None]:
+    """Authenticated GET against the GitHub API. Returns (status, body)."""
+    if not HATCHIK_GITHUB_TOKEN:
+        return 0, None
+    headers = {
+        "Authorization": f"Bearer {HATCHIK_GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
+            r = await client.get(f"{GITHUB_API_URL}{path}", headers=headers)
+    except httpx.HTTPError as e:
+        log.warning("GitHub GET %s failed: %s", path, e)
+        return 0, None
+    try:
+        return r.status_code, r.json()
+    except ValueError:
+        return r.status_code, None
+
+
+async def _github_post(path: str, payload: dict[str, Any]) -> int:
+    """Authenticated POST. Returns status code (0 on network error)."""
+    if not HATCHIK_GITHUB_TOKEN:
+        return 0
+    headers = {
+        "Authorization": f"Bearer {HATCHIK_GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
+            r = await client.post(f"{GITHUB_API_URL}{path}", headers=headers, json=payload)
+    except httpx.HTTPError as e:
+        log.warning("GitHub POST %s failed: %s", path, e)
+        return 0
+    return r.status_code
+
+
+@app.get("/api/account/mobile-builds/{slug}")
+async def list_mobile_builds(
+    slug: str,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> dict[str, Any]:
+    """List the last 5 build-mobile workflow runs for a tenant repo.
+
+    Fails gracefully: returns ``{"connected": False}`` when the customer
+    hasn't connected GitHub yet (no PAT configured server-side, or no
+    repo created for this tenant) so the UI can surface "Connect GitHub
+    first" rather than treating it as an error.
+    """
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    tenant = _tenant_for_session(slug, session["email"])
+    if not tenant:
+        raise HTTPException(status_code=404, detail="sandbox not found")
+
+    if not HATCHIK_GITHUB_TOKEN or not tenant.get("repo_url"):
+        return {
+            "connected": False,
+            "slug": slug,
+            "reason": "GitHub isn't connected for this sandbox yet. Add your GitHub username under Settings to enable mobile builds.",
+            "runs": [],
+        }
+
+    status, body = await _github_get(
+        f"/repos/{HATCHIK_GITHUB_ORG}/{slug}/actions/workflows/"
+        f"{MOBILE_BUILD_WORKFLOW_FILE}/runs?per_page=5"
+    )
+    if status == 404:
+        # The workflow file ships with every tenant repo, but if the
+        # customer deleted it (or the substrate pre-dates the build-mobile
+        # workflow) we surface a friendly note rather than an HTTP error.
+        return {
+            "connected": True,
+            "slug": slug,
+            "reason": "No build-mobile workflow found in this repo. Has the latest substrate been pushed?",
+            "runs": [],
+        }
+    if status != 200 or not isinstance(body, dict):
+        log.warning("mobile-builds list failed for %s: status=%s", slug, status)
+        return {
+            "connected": True,
+            "slug": slug,
+            "reason": "We couldn't reach GitHub just now. Try again in a moment.",
+            "runs": [],
+        }
+
+    runs: list[dict[str, Any]] = []
+    for r in (body.get("workflow_runs") or [])[:5]:
+        runs.append({
+            "id": r.get("id"),
+            "status": r.get("status"),
+            "conclusion": r.get("conclusion"),
+            "created_at": r.get("created_at"),
+            "updated_at": r.get("updated_at"),
+            "html_url": r.get("html_url"),
+            "head_sha": (r.get("head_sha") or "")[:7],
+            "head_branch": r.get("head_branch"),
+            "artifacts_url": f"{r.get('html_url')}#artifacts" if r.get("html_url") else None,
+            "event": r.get("event"),
+        })
+
+    return {
+        "connected": True,
+        "slug": slug,
+        "repo_url": tenant.get("repo_url"),
+        "rate_limit": {
+            "max": MOBILE_BUILD_RATE_LIMIT_MAX,
+            "window_seconds": MOBILE_BUILD_RATE_LIMIT_WINDOW_SECONDS,
+        },
+        "runs": runs,
+    }
+
+
+class MobileBuildTriggerRequest(BaseModel):
+    platforms: Literal["both", "ios", "android"] = "both"
+
+
+@app.post("/api/account/mobile-builds/{slug}/trigger", status_code=202)
+async def trigger_mobile_build(
+    slug: str,
+    body: MobileBuildTriggerRequest,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> dict[str, Any]:
+    """Dispatch the build-mobile workflow on the customer's tenant repo.
+
+    Rate-limited to ``MOBILE_BUILD_RATE_LIMIT_MAX`` builds per hour per
+    tenant. macOS runners are 10x the cost of Linux ones so this is a
+    deliberate guardrail, not just abuse protection.
+
+    Returns 202 on dispatch — actual build status comes from the list
+    endpoint above (GitHub returns the run id only after a short delay).
+    """
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    tenant = _tenant_for_session(slug, session["email"])
+    if not tenant:
+        raise HTTPException(status_code=404, detail="sandbox not found")
+
+    if not HATCHIK_GITHUB_TOKEN or not tenant.get("repo_url"):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "ok": False,
+                "reason": "github_not_connected",
+                "message": "Connect a GitHub account first — add your username under Settings.",
+            },
+        )
+
+    if not _mobile_build_check_rate_limit(slug):
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "ok": False,
+                "reason": "rate_limited",
+                "message": (
+                    f"You've started {MOBILE_BUILD_RATE_LIMIT_MAX} mobile builds in the last "
+                    f"{MOBILE_BUILD_RATE_LIMIT_WINDOW_SECONDS // 60} minutes — give them a moment to finish "
+                    "before queueing another."
+                ),
+            },
+        )
+
+    platforms = body.platforms
+    status = await _github_post(
+        f"/repos/{HATCHIK_GITHUB_ORG}/{slug}/actions/workflows/"
+        f"{MOBILE_BUILD_WORKFLOW_FILE}/dispatches",
+        {"ref": "main", "inputs": {"platforms": platforms}},
+    )
+    if status == 204:
+        log.info("mobile build dispatched slug=%s platforms=%s", slug, platforms)
+        return {
+            "ok": True,
+            "slug": slug,
+            "platforms": platforms,
+            "message": "Build queued. It usually takes 8–15 minutes — refresh to see progress.",
+        }
+    if status == 404:
+        raise HTTPException(
+            status_code=404,
+            detail="build-mobile workflow not found on the tenant repo (has the latest substrate been pushed?)",
+        )
+    log.warning("mobile build dispatch failed slug=%s status=%s", slug, status)
+    raise HTTPException(
+        status_code=502,
+        detail="GitHub didn't accept the dispatch — try again in a moment.",
+    )
 
 
 @app.get("/healthz")

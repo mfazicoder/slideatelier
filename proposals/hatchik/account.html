@@ -79,6 +79,7 @@
   <!-- Tabs -->
   <nav class="mt-8 border-b border-slate-200 flex gap-6 text-sm font-medium">
     <button data-tab="sandbox"   class="active py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Sandbox</button>
+    <button data-tab="mobile"    class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Mobile</button>
     <button data-tab="upgrade"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Upgrade</button>
     <button data-tab="billing"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Billing</button>
     <button data-tab="settings"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Settings</button>
@@ -91,6 +92,27 @@
     <div id="noSandboxNotice" class="hidden bg-white rounded-2xl ring-1 ring-slate-200 p-8 text-center text-slate-600">
       <p>No active sandbox yet.</p>
       <a href="/#signup" class="mt-4 inline-block text-sm text-indigo-600 hover:text-indigo-700 font-medium">Create one &rarr;</a>
+    </div>
+  </div>
+
+  <!-- Mobile tab -->
+  <div data-tab-panel="mobile" class="mt-8">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8">
+      <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-xl font-bold">Mobile builds</h2>
+          <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+            iOS and Android binaries built from the same React code as
+            your web app. We run the build on GitHub Actions; you
+            download the resulting <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">.ipa</code>
+            and <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">.apk</code>
+            from the run page once it finishes (usually 8–15 minutes).
+            Binaries are unsigned &mdash; signing for the App Store /
+            Play Store needs your own developer account.
+          </p>
+        </div>
+      </div>
+      <div id="mobileBuildsBody" class="mt-6 space-y-6"></div>
     </div>
   </div>
 
@@ -285,6 +307,134 @@
     }
   }
 
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function runStatusBadge(run) {
+    // GitHub run states: queued | in_progress | completed
+    // Conclusions on completed runs: success | failure | cancelled | skipped | etc.
+    const status = run.status || 'unknown';
+    const conclusion = run.conclusion || '';
+    let label = status, color = 'slate';
+    if (status === 'completed') {
+      label = conclusion || 'completed';
+      color = conclusion === 'success' ? 'emerald' :
+              conclusion === 'failure' ? 'rose' :
+              conclusion === 'cancelled' ? 'slate' : 'amber';
+    } else if (status === 'in_progress' || status === 'queued') {
+      label = status.replace('_', ' ');
+      color = 'amber';
+    }
+    return `<span class="inline-block px-2 py-0.5 rounded-full text-xs text-${color}-700 bg-${color}-50 ring-1 ring-${color}-200">${escapeHtml(label)}</span>`;
+  }
+
+  function renderMobileCard(sandbox, info) {
+    const slug = sandbox.slug;
+    const productName = sandbox.product_name || 'Untitled';
+
+    if (!info.connected) {
+      return `
+        <div class="rounded-2xl ring-1 ring-slate-200 bg-slate-50 p-6">
+          <h3 class="font-bold truncate">${escapeHtml(productName)}</h3>
+          <p class="mt-2 text-sm text-slate-600">${escapeHtml(info.reason || 'GitHub not connected.')}</p>
+          <a href="#" data-tab-jump="settings" class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-700 font-medium">Connect GitHub in Settings &rarr;</a>
+        </div>`;
+    }
+
+    const runs = info.runs || [];
+    const runRows = runs.length ? runs.map(r => `
+      <li class="flex items-center justify-between gap-3 py-2 border-t border-slate-100 first:border-t-0">
+        <div class="min-w-0 text-sm text-slate-700">
+          ${runStatusBadge(r)}
+          <span class="ml-2 font-mono text-xs text-slate-500">${escapeHtml(r.head_sha || '')}</span>
+          <span class="ml-2 text-xs text-slate-500">${escapeHtml(r.event || '')}</span>
+          <span class="ml-2 text-xs text-slate-500">${escapeHtml(r.updated_at ? new Date(r.updated_at).toLocaleString('en-GB') : '')}</span>
+        </div>
+        <a href="${escapeHtml(r.html_url || '#')}" target="_blank" rel="noopener" class="text-sm text-indigo-600 hover:text-indigo-700 shrink-0">Open run &rarr;</a>
+      </li>
+    `).join('') : `<li class="py-3 text-sm text-slate-500">No builds yet. Click <em>Build now</em> to start one.</li>`;
+
+    return `
+      <div class="rounded-2xl ring-1 ring-slate-200 p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h3 class="font-bold truncate">${escapeHtml(productName)}</h3>
+            <p class="mt-1 text-xs text-slate-500">Sandbox: <span class="font-mono">${escapeHtml(slug)}</span></p>
+          </div>
+          <button data-mobile-build="${escapeHtml(slug)}" class="shrink-0 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition">Build now</button>
+        </div>
+        <ul class="mt-4">${runRows}</ul>
+        <p data-mobile-status="${escapeHtml(slug)}" class="mt-3 text-sm hidden"></p>
+      </div>`;
+  }
+
+  async function renderMobile(sandboxes) {
+    const body = $('mobileBuildsBody');
+    const live = (sandboxes || []).filter(s => s.slug);
+    if (!live.length) {
+      body.innerHTML = `<div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 text-sm text-slate-600">No active sandbox yet &mdash; create one first and mobile builds will appear here.</div>`;
+      return;
+    }
+    body.innerHTML = `<p class="text-sm text-slate-500">Loading build history&hellip;</p>`;
+    const cards = [];
+    for (const s of live) {
+      try {
+        const info = await fetchJSON(`/api/account/mobile-builds/${encodeURIComponent(s.slug)}`);
+        cards.push(renderMobileCard(s, info));
+      } catch (e) {
+        cards.push(`<div class="rounded-2xl ring-1 ring-rose-200 bg-rose-50 p-6 text-sm text-rose-700">Couldn't load build history for <span class="font-mono">${escapeHtml(s.slug)}</span>.</div>`);
+      }
+    }
+    body.innerHTML = cards.join('');
+    body.querySelectorAll('[data-mobile-build]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const slug = btn.getAttribute('data-mobile-build');
+        const statusEl = body.querySelector(`[data-mobile-status="${slug}"]`);
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-not-allowed');
+        try {
+          const res = await fetchJSON(`/api/account/mobile-builds/${encodeURIComponent(slug)}/trigger`, { method: 'POST', body: JSON.stringify({ platforms: 'both' }) });
+          if (statusEl) {
+            statusEl.textContent = res.message || 'Build queued. Refresh in a few minutes to see progress.';
+            statusEl.className = 'mt-3 text-sm text-emerald-700';
+            statusEl.classList.remove('hidden');
+          }
+          // Refresh after 4 seconds so the new "queued" run shows up.
+          setTimeout(() => renderMobile(sandboxes), 4000);
+        } catch (err) {
+          let msg = "Couldn't queue a build. Try again in a moment.";
+          if (err && err.status === 429) {
+            try { msg = (JSON.parse(err.message || '{}').detail || {}).message || msg; } catch (_) {}
+          } else if (err && err.status === 409) {
+            try { msg = (JSON.parse(err.message || '{}').detail || {}).message || msg; } catch (_) {}
+          }
+          if (statusEl) {
+            statusEl.textContent = msg;
+            statusEl.className = 'mt-3 text-sm text-rose-600';
+            statusEl.classList.remove('hidden');
+          }
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+      });
+    });
+    body.querySelectorAll('[data-tab-jump]').forEach(a => {
+      a.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        const name = a.getAttribute('data-tab-jump');
+        document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+        document.querySelectorAll('[data-tab-panel]').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === name));
+      });
+    });
+  }
+
   function setupTabs() {
     document.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -306,6 +456,7 @@
       renderSandboxes(me.sandboxes || []);
       renderUpgrade();
       renderBilling();
+      renderMobile(me.sandboxes || []);
       show('dashboard');
     } catch (e) {
       if (e.status === 401) {
