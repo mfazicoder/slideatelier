@@ -44,11 +44,38 @@ when we cross 25 sandboxes.
 |---|---|
 | `provision.py` | Takes a signup row from the signups DB → allocates port + slug → renders a per-tenant compose stack from the substrate-template → starts it → updates host Caddy → sends "your sandbox is ready" email |
 | `decommission.py` | Inverse of provision — stops tenant containers, removes from Caddy, frees the port (used when customer upgrades to Launch or churns out) |
+| `lifecycle.py` | Daily reconciler: warns at day 23 + 29, archives at day 30, purges at day 37. Run from `hatchik-lifecycle.timer`. See `LIFECYCLE_TESTING.md`. |
+| `restore.py` | Admin CLI: revive an archived sandbox from `/var/hatchik-archive/<slug>/`. Counterpart to `decommission.py`. |
+| `hatchik-lifecycle.service` + `.timer` | systemd units that fire `lifecycle.py` daily at 02:00 UTC |
 | `host-caddy/Caddyfile.template` | Host-level Caddy config with the per-tenant routes templated in |
 | `host-caddy/docker-compose.yml` | Runs host Caddy with the cloudflare DNS plugin baked in (custom image build) |
 | `host-caddy/Dockerfile.caddy-cf` | Caddy image with `caddy-dns/cloudflare` module compiled in |
 | `registry.json` | Source of truth: which slugs are allocated to which ports, status, signup linkage |
 | `setup-host.sh` | One-time host bootstrap — creates `/opt/hatchik-tenants/` tree, sets up the host-Caddy systemd unit, installs the registry file |
+
+## Lifecycle timer install (one-time, on the sandbox host)
+
+```bash
+# Drop the two unit files into place
+install -m 0644 hatchik-lifecycle.service /etc/systemd/system/
+install -m 0644 hatchik-lifecycle.timer   /etc/systemd/system/
+
+# /opt/hatchik-orchestrator/.env should already exist (provision.py reads it
+# too). It must export RESEND_API_KEY, HATCHIK_FROM_EMAIL, HATCHIK_FOUNDER_EMAIL.
+
+systemctl daemon-reload
+systemctl enable --now hatchik-lifecycle.timer
+
+# Verify
+systemctl list-timers hatchik-lifecycle.timer
+journalctl -u hatchik-lifecycle.service -n 200 --no-pager
+```
+
+Trigger an immediate dry-run reconcile by hand (handy after deploy):
+
+```bash
+sudo -u root python3 /opt/hatchik-orchestrator/lifecycle.py --dry-run --json
+```
 
 ## Tenant lifecycle
 

@@ -1,0 +1,17 @@
+[Unit]
+Description=Daily timer for the Hatchik sandbox idle-archive reconciler
+
+[Timer]
+# Fire once a day at 02:00 UTC. Low-traffic window for the sandbox host
+# (most customers are EU/US daytime). Persistent=true catches up if the
+# host was off when the timer should have fired.
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+# Add up to 5 minutes of random jitter so a fleet of hosts (when we
+# scale to multi-host in v2) doesn't hit Resend's rate limit
+# simultaneously. Safe to leave on a single host too.
+RandomizedDelaySec=5min
+Unit=hatchik-lifecycle.service
+
+[Install]
+WantedBy=timers.target

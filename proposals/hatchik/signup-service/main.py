@@ -77,6 +77,10 @@ PADDLE_BILLING_PORTAL_BASE = os.environ.get(
 DECOMMISSION_SCRIPT = os.environ.get(
     "HATCHIK_DECOMMISSION_SCRIPT", "/opt/hatchik-orchestrator/decommission.py"
 )
+# Path to restore.py — subprocess'd for archive → live.
+RESTORE_SCRIPT = os.environ.get(
+    "HATCHIK_RESTORE_SCRIPT", "/opt/hatchik-orchestrator/restore.py"
+)
 
 # Paddle Billing webhook config. Hatchik's selling entity is Omani, so we
 # use Paddle as Merchant of Record (see PRODUCT_OFFERING.md §8.1) — Stripe
@@ -886,6 +890,137 @@ async def admin_delete_account(
     log.info("admin decommission requested: slug=%s hard=%s", slug, hard)
     _record_cancellation_transition(slug, note="admin decommission")
     return _run_decommission(slug, hard=hard)
+
+
+def _run_restore(slug: str) -> dict[str, Any]:
+    """Subprocess restore.py and parse its JSON summary.
+
+    Restore is expensive — volume untar + compose up + healthcheck =
+    60–120s — so we give it a much longer timeout than decommission.
+    """
+    import subprocess
+    if not Path(RESTORE_SCRIPT).exists():
+        raise HTTPException(status_code=500, detail="restore.py not deployed")
+    cmd = ["python3", RESTORE_SCRIPT, slug, "--json", "--quiet"]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        log.error("restore.py failed for %s: %s", slug, r.stderr)
+        raise HTTPException(status_code=500, detail=f"restore failed: {r.stderr.strip()[:200]}")
+    try:
+        return json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return {"slug": slug, "raw": r.stdout.strip()}
+
+
+@app.post("/api/admin/account/{slug}/restore")
+async def admin_restore_account(
+    slug: str,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Admin: revive an archived sandbox.
+
+    Customers don't hit this directly — they request restore via
+    POST /api/account/request-restore which mails the founder, then the
+    founder reviews + invokes this endpoint (or runs restore.py on the
+    host). Archives are valuable to spammers so we keep restore
+    gate-kept by an admin until we have a stronger anti-abuse story.
+    """
+    _require_admin(x_admin_token)
+    log.info("admin restore requested: slug=%s", slug)
+    return _run_restore(slug)
+
+
+class RestoreRequest(BaseModel):
+    email: EmailStr
+    note: str = Field("", max_length=2000)
+
+
+@app.post("/api/account/request-restore", status_code=202)
+async def request_restore(req: RestoreRequest, request: Request) -> dict[str, Any]:
+    """Self-serve: customer asks to restore an archived sandbox.
+
+    No automatic action — archives are valuable to spammers if abused,
+    so this just emails the founder with the customer's email + any
+    note they left. The founder reviews, then runs ``restore.py <slug>``
+    on the host (or POSTs to /api/admin/account/{slug}/restore). The
+    customer gets the "your sandbox is back" email from restore.py
+    itself once it completes.
+
+    Anti-enumeration: always returns 202 with the same body whether or
+    not an archived sandbox actually exists for that email.
+    """
+    ip = (request.headers.get("CF-Connecting-IP")
+          or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+          or (request.client.host if request.client else "unknown"))
+    if not check_rate_limit(ip):
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    email = str(req.email).lower().strip()
+    # Look up any archived tenant for this email — we include the slug
+    # in the founder email so the admin can act without further
+    # research.
+    reg = _load_registry()
+    matches: list[tuple[str, dict[str, Any]]] = []
+    for slug, tenant in reg.get("tenants", {}).items():
+        if (tenant.get("email") or "").lower() == email and tenant.get("status") == "archived":
+            matches.append((slug, tenant))
+
+    await _notify_founder_restore_request(email, req.note, matches, ip)
+    log.info(
+        "restore request from %s (%d archived match%s found)",
+        email, len(matches), "es" if len(matches) != 1 else "",
+    )
+    return {
+        "ok": True,
+        "message": (
+            "Thanks — if we have an archived sandbox for that email, an "
+            "admin will revive it within a working day and email you a "
+            "sign-in link."
+        ),
+    }
+
+
+async def _notify_founder_restore_request(
+    email: str, note: str, matches: list[tuple[str, dict[str, Any]]], ip: str
+) -> None:
+    if not RESEND_API_KEY:
+        log.warning("RESEND_API_KEY not set — skipping restore request notification")
+        return
+    if matches:
+        match_lines = "\n".join(
+            f"  • slug={slug}  port={t.get('port')}  archived_at={t.get('archived_at')}"
+            for slug, t in matches
+        )
+    else:
+        match_lines = "  (no archived tenant matched this email — check /api/admin/accounts)"
+
+    body = f"""\
+Restore-sandbox request.
+
+  Email:    {email}
+  IP:       {ip}
+  Matches:
+{match_lines}
+
+  Customer note:
+  {note or '(none)'}
+
+To restore, SSH the sandbox host and run:
+  python3 /opt/hatchik-orchestrator/restore.py <slug>
+
+Or POST /api/admin/account/<slug>/restore with X-Admin-Token.
+restore.py emails the customer automatically once the sandbox is live.
+"""
+    try:
+        await _resend_send({
+            "from": FROM_EMAIL,
+            "to": [FOUNDER_EMAIL],
+            "reply_to": email,
+            "subject": f"[Hatchik] Restore request — {email}",
+            "text": body,
+        })
+    except Exception as e:  # noqa: BLE001
+        log.error("Failed to send restore-request notification: %s", e)
 
 
 @app.get("/api/admin/accounts")

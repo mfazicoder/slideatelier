@@ -278,6 +278,106 @@ endpoint in parallel on every Refresh — fail-gracefully on empty DB
 These numbers are what we use to **retire the assumed conversion /
 churn figures from `MARKETING_PLAN.md` §7** by the time we hit signup
 #50.
+## Idle-archive lifecycle
+
+The customer-facing copy on hatchik.com promises "archived if idle 30
+days". `sandbox-orchestrator/lifecycle.py` enforces that. The daily
+cadence:
+
+| Day | Action | Customer sees |
+|---|---|---|
+| 0 | Provisioned, status=`live` | Sandbox ready email |
+| 23 | Polite warning sent (if no sign-in since) | "Your sandbox is heading for archive" + magic-link |
+| 29 | Firmer reminder | "Tomorrow we archive" + fresh magic-link |
+| 30 | Archived: containers stopped, volumes snapshot to `/var/hatchik-archive/<slug>/`, Caddy route removed, status=`archived` | "Your sandbox has been archived" + restore form link |
+| 30+7 | Purged: snapshots + tenant dir removed, status=`purged`, signup row status=`archived_purged` | "Your sandbox data has been deleted" |
+
+"Idle" = no Supabase auth activity (max of `last_sign_in_at` and
+`created_at` on `auth.users`). Any sign-in resets the clock — the
+reconciler re-probes activity on every run.
+
+### Install the timer (one-time)
+
+```bash
+ssh -i ~/.ssh/hatchik-deploy root@178.105.139.144
+cd /opt/hatchik-orchestrator   # where provision.py + decommission.py + lifecycle.py + restore.py live
+install -m 0644 hatchik-lifecycle.service /etc/systemd/system/
+install -m 0644 hatchik-lifecycle.timer   /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now hatchik-lifecycle.timer
+systemctl list-timers hatchik-lifecycle.timer    # next firing should be ~02:00 UTC
+```
+
+The service reads `/opt/hatchik-orchestrator/.env` (same file
+`provision.py` uses) for `RESEND_API_KEY` + `HATCHIK_FROM_EMAIL` +
+`HATCHIK_FOUNDER_EMAIL`. No new env vars needed.
+
+### Manually run a reconcile
+
+```bash
+# Dry-run: print what *would* happen, no state changes
+python3 /opt/hatchik-orchestrator/lifecycle.py --dry-run --json
+
+# Real run, single tenant (faster + safer when debugging)
+python3 /opt/hatchik-orchestrator/lifecycle.py --slug <slug> --json
+
+# Full run (same as the timer)
+python3 /opt/hatchik-orchestrator/lifecycle.py
+```
+
+### Manually trigger archive / restore
+
+Archive happens automatically on day 30. To force-archive earlier (e.g.
+customer asked to put it on ice without losing data):
+
+```bash
+# Set the fake-now env to a date >= 30 days after provisioning
+HATCHIK_LIFECYCLE_FAKE_NOW=2030-01-01T02:00:00Z python3 /opt/hatchik-orchestrator/lifecycle.py --slug <slug>
+```
+
+To restore an archived sandbox (within the 7-day grace window):
+
+```bash
+# CLI
+python3 /opt/hatchik-orchestrator/restore.py <slug>
+
+# Or via the admin API
+curl -X POST https://hatchik.com/api/admin/account/<slug>/restore \
+  -H "X-Admin-Token: $HATCHIK_ADMIN_TOKEN"
+```
+
+`restore.py` re-extracts the snapshot, brings up the compose stack,
+re-mints a magic-link, and emails the customer "your sandbox is back".
+
+### Customer restore-request flow
+
+Customers fill `https://hatchik.com/restore-sandbox` (or reply to the
+archival notice email). The form POSTs to `/api/account/request-restore`
+which emails the founder with the matching archived slug(s). The
+founder reviews, then runs `restore.py <slug>` on the host (or POSTs to
+the admin endpoint above). Restores are **gate-kept** by an admin
+because archived snapshots are valuable to spammers if abused — no
+self-serve restore by clicking an email link.
+
+### When something goes wrong
+
+- **Reconciler crashed mid-run**: it's idempotent — re-run. Any tenant
+  it already archived will be skipped on the next pass (their
+  registry status is now `archived`).
+- **Archive failed but the email went out**: check
+  `journalctl -u hatchik-lifecycle.service -e`. If the volume snapshot
+  is missing in `/var/hatchik-archive/<slug>/`, restore won't work —
+  manually `docker compose up` from the original tenant dir if it's
+  still around. We have not lost data because the archive path uses
+  `docker compose stop` (not `down -v`) until *after* snapshots succeed.
+- **Customer asks to restore past day 37**: the snapshots are gone.
+  Honest answer: "Sorry, the snapshot is past its 7-day grace period —
+  but you can sign up again at hatchik.com and we'll get you set up
+  fresh in five minutes."
+
+See `sandbox-orchestrator/LIFECYCLE_TESTING.md` for the test
+procedure (fake-now env vars, collapsing the 30-day cycle to seconds
+for end-to-end checks).
 
 ### Resetting the SQLite signup sequence
 
