@@ -80,13 +80,38 @@ if [[ ! -f "$APP_DIR/.env" ]]; then
         echo "→ creating empty .env (no template found in repo)"
         touch "$APP_DIR/.env"
     fi
-    # Substrate domain — always overwrite on bootstrap. Caddyfile reads this.
-    sed -i.bak \
-        -e "s/^DOMAIN=.*$/DOMAIN=${DOMAIN}/" \
-        -e "/^DOMAIN=/!{\$aDOMAIN=${DOMAIN}
-}" \
-        "$APP_DIR/.env"
-    rm -f "$APP_DIR/.env.bak"
+fi
+
+# Always ensure DOMAIN line is present + correct (idempotent)
+if grep -qE '^DOMAIN=' "$APP_DIR/.env"; then
+    sed -i.bak -E "s|^DOMAIN=.*$|DOMAIN=${DOMAIN}|" "$APP_DIR/.env"
+else
+    echo "DOMAIN=${DOMAIN}" >> "$APP_DIR/.env"
+fi
+rm -f "$APP_DIR/.env.bak"
+
+# ─── 3b. Activate the production Caddyfile block ───────────────────────
+# Substrate ships with a commented-out production block keyed on
+# `{{DOMAIN}}`. We:
+#   - Replace `{{DOMAIN}}` with the real domain
+#   - Strip leading `# ` from the production block lines
+# Idempotent: if the substitution + uncomment has already happened
+# (no `{{DOMAIN}}` left in the file), this is a no-op.
+if [[ -f "$APP_DIR/Caddyfile" ]] && grep -q '{{DOMAIN}}' "$APP_DIR/Caddyfile"; then
+    echo "→ activating production Caddyfile block for $DOMAIN"
+    # First substitute the placeholder
+    sed -i.bak "s|{{DOMAIN}}|${DOMAIN}|g" "$APP_DIR/Caddyfile"
+    # Then uncomment lines from "# DOMAIN {" through the matching "# }"
+    # using awk so we can track nesting depth.
+    awk -v dom="$DOMAIN" '
+        BEGIN { in_block = 0 }
+        $0 ~ "^# " dom " \\{" { in_block = 1 }
+        in_block && /^# / { sub(/^# /, ""); print; if (/^\}/) in_block = 0; next }
+        in_block && /^#$/  { print ""; next }
+        { print }
+    ' "$APP_DIR/Caddyfile" > "$APP_DIR/Caddyfile.tmp"
+    mv "$APP_DIR/Caddyfile.tmp" "$APP_DIR/Caddyfile"
+    rm -f "$APP_DIR/Caddyfile.bak"
 fi
 
 # ─── 4. Migrate DB from sandbox (if applicable) ────────────────────────

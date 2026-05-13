@@ -250,6 +250,30 @@
         </div>
       </div>
     </section>
+
+    <section>
+      <h2>Launch tenants</h2>
+      <div class="panel" style="overflow-x:auto;">
+        <div id="launch-summary" style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Loading...</div>
+        <table id="launch-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid #1f2a44;">
+              <th style="padding:8px 6px;">Slug</th>
+              <th style="padding:8px 6px;">Customer</th>
+              <th style="padding:8px 6px;">Domain</th>
+              <th style="padding:8px 6px;">Tier</th>
+              <th style="padding:8px 6px;">Status</th>
+              <th style="padding:8px 6px;">Region</th>
+              <th style="padding:8px 6px;">IP</th>
+              <th style="padding:8px 6px;">Created</th>
+              <th style="padding:8px 6px;">Canceled</th>
+            </tr>
+          </thead>
+          <tbody id="launch-tbody"></tbody>
+        </table>
+        <div id="launch-empty" class="empty" style="display:none;">No Launch tenants yet — the table populates once your first customer upgrades.</div>
+      </div>
+    </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -388,18 +412,69 @@
     async function refresh() {
       showError("");
       try {
-        const [funnel, cohorts, dist] = await Promise.all([
+        const [funnel, cohorts, dist, launch] = await Promise.all([
           api("/api/admin/metrics/funnel"),
           api(`/api/admin/metrics/cohorts?granularity=${state.granularity}`),
           api("/api/admin/metrics/distribution"),
+          api("/api/admin/launch-tenants"),
         ]);
         state.cohorts = cohorts.cohorts || [];
         renderTiles(funnel, dist);
         renderCohortTable();
         renderCohortChart();
         renderDistChart(dist);
+        renderLaunchTenants(launch);
       } catch (e) {
         showError(e.message);
+      }
+    }
+
+    function renderLaunchTenants(payload) {
+      const summary = document.getElementById("launch-summary");
+      const tbody = document.getElementById("launch-tbody");
+      const empty = document.getElementById("launch-empty");
+      tbody.innerHTML = "";
+
+      if (!payload.registry_present) {
+        summary.textContent = "Launch registry not present on this host yet — promote.py has never run.";
+        empty.style.display = "block";
+        return;
+      }
+
+      const tenants = payload.tenants || [];
+      const counts = payload.counts || {};
+      const parts = Object.entries(counts).map(([k, v]) => `${k} ${v}`);
+      summary.textContent = `${payload.total} tenants · ${parts.join(" · ") || "no buckets yet"}`;
+
+      if (!tenants.length) {
+        empty.style.display = "block";
+        return;
+      }
+      empty.style.display = "none";
+
+      const fmt = (s) => s ? s.split("T")[0] : "—";
+      for (const t of tenants) {
+        const statusColor = {
+          live: "#34d399",
+          provisioning: "#fbbf24",
+          suspended: "#f97316",
+          decommissioned: "#94a3b8",
+          unknown: "#94a3b8",
+        }[t.status] || "#94a3b8";
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid #1f2a44";
+        tr.innerHTML = `
+          <td style="padding:8px 6px;font-family:monospace;">${t.slug}</td>
+          <td style="padding:8px 6px;">${t.customer_email || "—"}</td>
+          <td style="padding:8px 6px;">${t.customer_domain || "—"}</td>
+          <td style="padding:8px 6px;">${t.tier || "—"}</td>
+          <td style="padding:8px 6px;color:${statusColor};font-weight:600;">${t.status}</td>
+          <td style="padding:8px 6px;">${t.hetzner_location || "—"}</td>
+          <td style="padding:8px 6px;font-family:monospace;font-size:11px;">${t.ip || "—"}</td>
+          <td style="padding:8px 6px;font-size:12px;color:var(--text-dim);">${fmt(t.created_at)}</td>
+          <td style="padding:8px 6px;font-size:12px;color:${t.canceled_at ? "#f87171" : "var(--text-dim)"};">${fmt(t.canceled_at)}</td>
+        `;
+        tbody.appendChild(tr);
       }
     }
 
