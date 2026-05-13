@@ -1,25 +1,57 @@
 # Hatchik — First-Customer Runbook
 
-For the concierge-MVP phase (signups before the wizard + provisioning
-worker exist). When someone signs up via `hatchik.com`, do this. End to
-end: 30–45 minutes per customer, more if you're learning the steps.
+For the concierge-MVP phase. Sandbox tier is now **fully automated** by
+the orchestrator on the sandbox host — see `sandbox-orchestrator/` for
+internals. Launch tier remains manual until the cross-region
+provisioning worker is built. End to end: ~5 minutes per Sandbox
+customer (mostly waiting for DNS + container boot), 45–90 minutes per
+Launch customer.
 
 The goal during this phase is to deliver the same experience the
-automated pipeline will eventually deliver — just slower and by hand.
-Customers shouldn't feel they're a beta; they should feel they're
-hand-shaped.
+automated pipeline will eventually deliver. Customers shouldn't feel
+they're a beta; they should feel they're hand-shaped.
 
 ---
 
+## Infrastructure summary (where things live)
+
+Everything Sandbox-tier runs on one VPS — the **sandbox host** at
+`178.105.139.144` (Hetzner CAX21, Nuremberg). On that box:
+
+- **Apex `hatchik.com`** — static marketing files at `/var/www/hatchik`,
+  served by host Caddy with wildcard TLS
+- **Signup API `hatchik.com/api/signup`** — `hatchik-signup.service`
+  (systemd, FastAPI on `127.0.0.1:8090`) at `/opt/hatchik-signup/`
+- **Sandbox orchestrator** — `provision.py` at
+  `/opt/hatchik-orchestrator/` (called by signup-service via subprocess)
+- **Per-tenant compose stacks** — `/opt/hatchik-orchestrator/sandboxes/<slug>/`,
+  each bound to a unique localhost port 18000–18099
+- **Host Caddy** — `/opt/hatchik-host-caddy/` (compose stack with
+  wildcard cert + `import tenants.d/*.caddy` for per-tenant routes)
+
+The Resend `from` address is set in `/etc/hatchik-signup.env`. Currently
+`noreply@loftik.namaasol.com` until `hatchik.com` is verified in Resend —
+once verified, change to `noreply@hatchik.com` and `systemctl restart
+hatchik-signup`.
+
 ## Trigger
 
-A signup form submission arrives at `hello@hatchik.com` (or in your
-signup backend). It contains:
+A signup form submission posts to `https://hatchik.com/api/signup`. The
+signup-service:
+
+1. Records the signup in `/var/lib/hatchik/signups.json`
+2. Sends the welcome acknowledgement email via Resend
+3. For Sandbox tier: subprocess-spawns `provision.py <email> <slug>
+   <product>` which mints JWTs, renders the substrate, writes a tenant
+   Caddyfile, runs `docker compose up`, reloads host Caddy, and emails
+   the customer when their sandbox is live
+
+Payload contains:
 
 - Customer email
 - Product name / description (what they want to build)
 - Tier (Sandbox / Launch)
-- For Launch: Stripe payment confirmation, region preference, domain
+- For Launch: Paddle payment confirmation, region preference, domain
   preference (BYO existing or new)
 
 ## Within 1 hour — Acknowledge
@@ -34,33 +66,37 @@ Use the template at `WELCOME_EMAILS.md §1` as your skeleton. Aim for
 If Launch tier: the £79 charge is in Stripe. Confirm payment landed,
 note the amount and customer ID in your tracking sheet.
 
-## Provisioning — Sandbox tier (free)
+## Provisioning — Sandbox tier (free, automated)
 
-1. SSH to your Hatchik infrastructure VPS (the shared sandbox host).
-2. Clone the substrate template into a per-customer directory:
+The orchestrator handles steps 1–6 automatically when the signup
+arrives. Your job is to verify it worked and finish off the human-only
+bits (Linear board, personalised welcome).
+
+1. **Verify provisioning landed.** SSH into the sandbox host
+   (`ssh -i ~/.ssh/hatchik-deploy root@178.105.139.144`) and check:
    ```bash
-   cd /opt/loftik/sandboxes
-   git clone /opt/loftik/substrate-template <customer-slug>
-   cd <customer-slug>
+   tail -20 /var/lib/hatchik/signups.json    # confirm signup was recorded
+   ls /opt/hatchik-orchestrator/sandboxes/    # confirm tenant directory exists
+   docker ps --format "{{.Names}}" | grep <slug>    # confirm 9 containers up
+   curl -sk -o /dev/null -w "%{http_code}\n" https://<slug>.hatchik.com/
    ```
-3. Generate the `.env` from `.env.example`, substituting:
-   - `PRODUCT_NAME` = customer's chosen name
-   - `DOMAIN` = `<customer-slug>.hatchik.com`
-   - `JWT_SECRET` = `openssl rand -hex 32`
-   - `POSTGRES_PASSWORD` = `openssl rand -hex 24`
-   - `SITE_URL` = `https://<customer-slug>.hatchik.com`
-   - All other secrets left empty / test mode
-4. Update the Caddyfile on the sandbox VPS to add a new subdomain
-   block routing `<customer-slug>.hatchik.com` → this customer's docker
-   containers
-5. `docker compose up -d` from the customer's directory
-6. Wait ~30s, verify `https://<customer-slug>.hatchik.com` loads
-7. Trigger a quick smoke test: sign-up flow works, login works,
-   Supabase Studio accessible at `/studio`
-8. Create the customer's Linear board (next section)
-9. Send the welcome email (§4 below)
+2. **Smoke-test the sandbox:** sign-up flow works, login works,
+   Supabase Studio accessible at `/studio`, the static marketing copy
+   on `/` shows `{{PRODUCT_NAME}}` substituted to the customer's name.
+3. **If provisioning failed** (no containers, 404 from `<slug>.hatchik.com`):
+   re-run manually:
+   ```bash
+   cd /opt/hatchik-orchestrator
+   python3 provision.py <email> <slug> "<product description>"
+   ```
+   Watch the log for the failing step. Most failures are DNS
+   propagation (transient) or substrate boot bugs (fix in the local
+   template, rsync to host).
+4. **Create the customer's Linear board** (next section).
+5. **Send the welcome email** (§4 below) — personalise on top of the
+   automated "your sandbox is live" Resend email.
 
-Time: 10–15 minutes once you've done it twice.
+Time: 5 minutes if the orchestrator worked, ~15 if you need to debug.
 
 ## Provisioning — Launch tier (paid)
 
@@ -91,9 +127,9 @@ Time: 10–15 minutes once you've done it twice.
    apt update && apt install -y caddy git python3-venv
 
    # Clone the substrate template
-   mkdir -p /opt/loftik
-   cd /opt/loftik
-   git clone /opt/loftik/substrate-template-mirror <customer-slug>
+   mkdir -p /opt/hatchik
+   cd /opt/hatchik
+   git clone /opt/hatchik/substrate-template-mirror <customer-slug>
    # (or scp the substrate-template directory from your dev machine
    # since the git repo isn't pushed anywhere public yet)
    ```
@@ -130,7 +166,7 @@ Time: 10–15 minutes once you've done it twice.
 
 8. **Configure Caddyfile and start the stack**
    ```bash
-   cd /opt/loftik/<customer-slug>
+   cd /opt/hatchik/<customer-slug>
    # Uncomment the production block in Caddyfile, fill in {{DOMAIN}}
    docker compose up -d
    ```

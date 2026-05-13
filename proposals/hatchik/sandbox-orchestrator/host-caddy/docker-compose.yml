@@ -16,6 +16,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./tenants.d:/etc/caddy/tenants.d:ro    # provision.py writes per-tenant routes here
+      - /var/www/hatchik:/var/www/hatchik:ro   # marketing static files served at apex
       - caddy_data:/data
       - caddy_config:/config
 
