@@ -1564,6 +1564,19 @@
               class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none"
             ></textarea>
           </div>
+          <div>
+            <label class="sr-only" for="signupGithub">GitHub username (optional)</label>
+            <input
+              id="signupGithub"
+              name="github_username"
+              type="text"
+              autocomplete="off"
+              pattern="[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}"
+              placeholder="GitHub username (optional, e.g. alexcoder)"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            />
+            <p class="mt-1 text-xs text-slate-500">Your GitHub username, not your product name. Used to give you owner access on the repo we create for you.</p>
+          </div>
           <!-- Cloudflare Turnstile widget — managed mode. Renders only
                when window.HATCHIK_TURNSTILE_SITEKEY is set to a real key. -->
           <div id="signupTurnstile" class="flex justify-center"></div>
@@ -1770,6 +1783,7 @@
   const firstNameInput = document.getElementById('signupFirstName');
   const emailInput = document.getElementById('signupEmail');
   const ideaInput = document.getElementById('signupIdea');
+  const githubInput = document.getElementById('signupGithub');
   const submitBtn = form.querySelector('button[type="submit"]');
 
   let turnstileWidgetId = null;
@@ -1800,6 +1814,7 @@
     const firstName = (firstNameInput && firstNameInput.value || '').trim();
     const email = (emailInput.value || '').trim();
     const idea = (ideaInput.value || '').trim();
+    const githubUsername = (githubInput && githubInput.value || '').trim().replace(/^@/, '');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errorEl.textContent = 'Please enter a valid email address.';
       errorEl.classList.remove('hidden');
@@ -1810,6 +1825,11 @@
       errorEl.classList.remove('hidden');
       return;
     }
+    if (githubUsername && !/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(githubUsername)) {
+      errorEl.textContent = "That doesn't look like a GitHub username. Leave it blank if you'd rather we handle it.";
+      errorEl.classList.remove('hidden');
+      return;
+    }
     submitBtn.disabled = true;
     submitBtn.style.opacity = '0.7';
     try {
@@ -1817,7 +1837,7 @@
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name: firstName, email, idea, product_name: productName, plan: 'sandbox', turnstile_token: turnstileToken, source: 'marketing-page' })
+        body: JSON.stringify({ first_name: firstName, email, idea, product_name: productName, plan: 'sandbox', github_username: githubUsername, turnstile_token: turnstileToken, source: 'marketing-page' })
       });
       // 409 = the customer already has an active Sandbox. The API returns
       // {ok:false, error:'sandbox_exists', message:'...'} — render the

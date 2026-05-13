@@ -136,7 +136,20 @@ HATCHIK_GITHUB_TOKEN = os.environ.get("HATCHIK_GITHUB_TOKEN", "")
 HATCHIK_GITHUB_ORG = os.environ.get("HATCHIK_GITHUB_ORG", "hatchik-sandboxes")
 GITHUB_API_URL = "https://api.github.com"
 GITHUB_API_TIMEOUT_SECONDS = 10.0
+# Tighter cap on the inline /api/signup handle-validation check: the
+# request handler awaits it inline so a slow GitHub API turn would block
+# the customer's signup. Fail-open on timeout (see _github_user_exists).
+GITHUB_USER_LOOKUP_TIMEOUT_SECONDS = 1.2
 MOBILE_BUILD_WORKFLOW_FILE = "build-mobile.yml"
+# Re-invite endpoint: cap per email to prevent spam-loops (e.g. customer
+# repeatedly editing their handle). 5/hour matches the abuse-protection
+# posture on the rest of the account API.
+GITHUB_INVITE_RATE_LIMIT_MAX = int(
+    os.environ.get("HATCHIK_GITHUB_INVITE_RATE_LIMIT_MAX", "5")
+)
+GITHUB_INVITE_RATE_LIMIT_WINDOW_SECONDS = int(
+    os.environ.get("HATCHIK_GITHUB_INVITE_RATE_LIMIT_WINDOW_SECONDS", "3600")
+)
 # Mobile builds are expensive (especially the macOS leg). Cap per-tenant
 # at 3/hour to prevent runaway loops and stay inside GitHub's free-tier
 # minute allowance.
@@ -364,6 +377,58 @@ async def lookup_geo_ip(ip: str) -> dict[str, str]:
         "city": str(data.get("city") or "")[:80],
         "asn": str(data.get("asn") or "")[:32],
     }
+
+
+# ─── GitHub handle existence check ──────────────────────────────────────
+async def _github_user_exists(handle: str) -> tuple[bool, str]:
+    """Check whether a GitHub username resolves to a real user.
+
+    Returns ``(exists, reason)``:
+      - ``(True, "ok")``        — GitHub returned 200 for the user.
+      - ``(False, "not_found")`` — GitHub returned 404.
+      - ``(True, "skipped")``   — token unset, network error, rate-limit,
+        timeout, or any other upstream wobble. The check is advisory:
+        signup must not fail because GitHub had a bad minute.
+
+    Tight timeout (``GITHUB_USER_LOOKUP_TIMEOUT_SECONDS``) because this
+    runs inline in the POST /api/signup handler and we need the
+    end-to-end request to stay under 1.5s. The PAT is never logged or
+    returned to the caller.
+    """
+    if not handle:
+        return True, "ok"
+    if not HATCHIK_GITHUB_TOKEN:
+        # Without a token we'd be hitting the unauthenticated 60-req/h
+        # bucket — quickly exhausted by a single noisy IP. Fail-open
+        # rather than gate signup on a check we can't reliably perform.
+        log.info("github user check skipped — no HATCHIK_GITHUB_TOKEN configured")
+        return True, "skipped"
+    headers = {
+        "Authorization": f"Bearer {HATCHIK_GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=GITHUB_USER_LOOKUP_TIMEOUT_SECONDS) as client:
+            r = await client.get(f"{GITHUB_API_URL}/users/{handle}", headers=headers)
+    except httpx.HTTPError as e:
+        # Network blip, DNS hiccup, timeout — fail-open. Signup must
+        # never depend on GitHub's availability.
+        log.warning("github user check failed for %s — fail-open: %s", handle, e)
+        return True, "skipped"
+    if r.status_code == 200:
+        return True, "ok"
+    if r.status_code == 404:
+        return False, "not_found"
+    # 403 (rate limited), 5xx, anything else: fail-open so the signup
+    # goes through. The collaborator invite is the eventual source of
+    # truth — if the handle really is bogus, the invite will surface it
+    # via the re-invite endpoint or admin tooling.
+    log.warning(
+        "github user check for %s returned %s — fail-open",
+        handle, r.status_code,
+    )
+    return True, "skipped"
 
 
 # ─── Provisioning throttle ───────────────────────────────────────────────
@@ -1211,6 +1276,29 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
                 "message": "Sign-ups from your region aren't currently supported. If this is a mistake, email hello@hatchik.com.",
             },
         )
+
+    # GitHub handle existence check. Pydantic validates the regex shape,
+    # but customers regularly paste their product name (e.g. "myidea")
+    # which is regex-valid but resolves to nothing — they then end up
+    # with a private repo they can't see. Reject with a friendly message
+    # so they fix it at signup rather than after provisioning.
+    if req.github_username:
+        exists, reason = await _github_user_exists(req.github_username)
+        if not exists and reason == "not_found":
+            log.info("rejected unknown github handle from %s: %s", ip, req.github_username)
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "ok": False,
+                    "error": "github_user_not_found",
+                    "message": (
+                        f"We couldn't find a GitHub user called "
+                        f"'{req.github_username}'. Please double-check — "
+                        f"this should be your GitHub username (e.g. 'alice'), "
+                        f"not your product name."
+                    ),
+                },
+            )
 
     # One active Sandbox per email. Launch/Growth packages stay unrestricted.
     # 409 body is shaped {ok, error, message} (no `detail` wrapper) so the
@@ -2639,6 +2727,101 @@ async def _github_post(path: str, payload: dict[str, Any]) -> int:
     return r.status_code
 
 
+async def _github_put(path: str, payload: dict[str, Any]) -> tuple[int, str]:
+    """Authenticated PUT. Returns (status_code, body_text)."""
+    if not HATCHIK_GITHUB_TOKEN:
+        return 0, ""
+    headers = {
+        "Authorization": f"Bearer {HATCHIK_GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
+            r = await client.put(f"{GITHUB_API_URL}{path}", headers=headers, json=payload)
+    except httpx.HTTPError as e:
+        log.warning("GitHub PUT %s failed: %s", path, e)
+        return 0, str(e)
+    return r.status_code, r.text
+
+
+# In-process rate-limit history for the re-invite endpoint, keyed by
+# customer email. Single-worker service so per-process state is fine;
+# bumps to SQLite if we ever scale horizontally.
+_github_invite_history: dict[str, list[float]] = {}
+
+
+def _github_invite_check_rate_limit(email: str) -> bool:
+    """True if a re-invite call for this email is allowed; False if capped."""
+    now = datetime.now(timezone.utc).timestamp()
+    cutoff = now - GITHUB_INVITE_RATE_LIMIT_WINDOW_SECONDS
+    key = email.lower().strip()
+    history = [t for t in _github_invite_history.get(key, []) if t >= cutoff]
+    if len(history) >= GITHUB_INVITE_RATE_LIMIT_MAX:
+        _github_invite_history[key] = history
+        return False
+    history.append(now)
+    _github_invite_history[key] = history
+    return True
+
+
+async def _invite_github_collaborator(slug: str, handle: str) -> dict[str, Any]:
+    """Invite ``handle`` as an admin collaborator on ``slug`` repo.
+
+    Returns a structured result the caller can shape into an HTTP
+    response. Recognised outcomes:
+
+      - ``status="invitation_sent"``       — 201 (new invite) or 204
+        (already invited, no change). Treat both as success.
+      - ``status="already_collaborator"``  — 422 with the
+        ``"is already a collaborator"`` body message, or 304 (no-op).
+        Surface as success: customer already has access.
+      - ``status="not_found"``              — 404. Either the repo or
+        the handle doesn't exist. We special-case "handle doesn't
+        exist" via the user-existence pre-check on the caller.
+      - ``status="forbidden"``              — 403. PAT lacks org permission.
+        Founder-notification flag logged for journalctl.
+      - ``status="upstream_error"``         — anything else, including
+        network failures (status_code == 0).
+    """
+    if not HATCHIK_GITHUB_TOKEN:
+        return {
+            "status": "upstream_error",
+            "http_status": 0,
+            "detail": "HATCHIK_GITHUB_TOKEN not configured server-side",
+        }
+    code, body = await _github_put(
+        f"/repos/{HATCHIK_GITHUB_ORG}/{slug}/collaborators/{handle}",
+        {"permission": "admin"},
+    )
+    if code == 201:
+        return {"status": "invitation_sent", "http_status": code}
+    if code == 204:
+        # GitHub returns 204 when the invite was already extended /
+        # the user is already a collaborator — treat as success.
+        return {"status": "invitation_sent", "http_status": code}
+    if code == 304:
+        # Documented "not modified" — invite already exists.
+        return {"status": "already_collaborator", "http_status": code}
+    if code == 422 and "already a collaborator" in (body or "").lower():
+        return {"status": "already_collaborator", "http_status": code}
+    if code == 404:
+        return {"status": "not_found", "http_status": code, "detail": (body or "")[:300]}
+    if code == 403:
+        # PAT lacks org permission — founder needs to fix the token.
+        # Surface clearly + log founder-notification flag for journalctl.
+        log.error(
+            "FOUNDER_NOTIFY: github invite forbidden slug=%s handle=%s body=%s",
+            slug, handle, (body or "")[:300],
+        )
+        return {"status": "forbidden", "http_status": code, "detail": (body or "")[:300]}
+    log.warning(
+        "github invite returned unexpected status slug=%s handle=%s code=%s body=%s",
+        slug, handle, code, (body or "")[:300],
+    )
+    return {"status": "upstream_error", "http_status": code, "detail": (body or "")[:300]}
+
+
 @app.get("/api/account/mobile-builds/{slug}")
 async def list_mobile_builds(
     slug: str,
@@ -2831,6 +3014,156 @@ async def get_services(
         "repo_url": repo_url or None,
         **inventory,
     }
+@app.post("/api/account/sandboxes/{slug}/github-invite")
+async def reinvite_github_collaborator(
+    slug: str,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+) -> JSONResponse:
+    """Re-fire the GitHub collaborator invite for the customer's current handle.
+
+    Provisioning's one-shot invite at signup time can miss for legitimate
+    reasons — customer typo'd their handle, then fixed it in Settings.
+    This endpoint reads the customer's current ``github_username`` from
+    the signups table and PUTs a fresh collaborator invite at the repo.
+
+    Owner-checked: the signed-in session's email must own the slug in
+    the tenant registry. Rate-limited per email
+    (``GITHUB_INVITE_RATE_LIMIT_MAX``/hour) to prevent spam loops.
+
+    Outcomes (returned in the JSON body):
+      - 200 ``{ok: true, invited, status: "invitation_sent"}``
+      - 200 ``{ok: true, invited, status: "already_collaborator"}``
+      - 400 ``{ok: false, error: "no_github_username", ...}``
+      - 404 ``{ok: false, error: "github_user_not_found", ...}``
+      - 403 ``{ok: false, error: "github_permission_denied", ...}``
+      - 429 rate-limited
+      - 502 GitHub upstream wobble
+    """
+    session = _resolve_session(hatchik_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    email = session["email"]
+
+    # Owner check — slug must belong to this signed-in customer.
+    tenant = _tenant_for_session(slug, email)
+    if not tenant:
+        # Either slug doesn't exist or it's owned by someone else. Use
+        # 403 to avoid leaking existence to non-owners — same posture as
+        # most multi-tenant endpoints.
+        raise HTTPException(status_code=403, detail="not your sandbox")
+    if not tenant.get("repo_url"):
+        return JSONResponse(
+            status_code=409,
+            content={
+                "ok": False,
+                "error": "no_repo",
+                "message": (
+                    "No GitHub repo on record for this sandbox yet. "
+                    "If your sandbox just provisioned, give it a minute and try again."
+                ),
+            },
+        )
+
+    # Rate-limit per email — protects against spam loops on the
+    # Settings page (customer mashes Save).
+    if not _github_invite_check_rate_limit(email):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "ok": False,
+                "error": "rate_limited",
+                "message": (
+                    f"You've re-invited yourself "
+                    f"{GITHUB_INVITE_RATE_LIMIT_MAX} times in the last "
+                    f"{GITHUB_INVITE_RATE_LIMIT_WINDOW_SECONDS // 60} minutes — "
+                    "give it a moment before trying again."
+                ),
+            },
+        )
+
+    # Read the customer's most recent github_username from signups.
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT github_username FROM signups "
+            "WHERE LOWER(email) = ? AND github_username IS NOT NULL "
+            "AND github_username != '' "
+            "ORDER BY id DESC LIMIT 1",
+            (email,),
+        ).fetchone()
+    handle = (row["github_username"] if row else "") or ""
+    if not handle:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "ok": False,
+                "error": "no_github_username",
+                "message": (
+                    "No GitHub username set — update your settings first, "
+                    "then try again."
+                ),
+            },
+        )
+
+    result = await _invite_github_collaborator(slug, handle)
+    status = result["status"]
+
+    if status in ("invitation_sent", "already_collaborator"):
+        log.info(
+            "github reinvite ok email=%s slug=%s handle=%s status=%s",
+            email, slug, handle, status,
+        )
+        return JSONResponse(
+            status_code=200,
+            content={
+                "ok": True,
+                "invited": handle,
+                "status": status,
+            },
+        )
+
+    if status == "not_found":
+        # Either the repo or the user doesn't exist. The repo is ours
+        # so if we can't see it that's a much bigger problem — log it,
+        # but assume the more likely case (bad handle) for the message.
+        return JSONResponse(
+            status_code=404,
+            content={
+                "ok": False,
+                "error": "github_user_not_found",
+                "invited": handle,
+                "message": (
+                    f"GitHub user '{handle}' doesn't exist. "
+                    "Double-check the spelling in Settings → Connect GitHub."
+                ),
+            },
+        )
+
+    if status == "forbidden":
+        return JSONResponse(
+            status_code=403,
+            content={
+                "ok": False,
+                "error": "github_permission_denied",
+                "invited": handle,
+                "message": (
+                    "We hit a permissions error talking to GitHub. "
+                    "The founder is on it."
+                ),
+            },
+        )
+
+    return JSONResponse(
+        status_code=502,
+        content={
+            "ok": False,
+            "error": "github_upstream_error",
+            "invited": handle,
+            "message": (
+                "GitHub didn't accept the invite just now — try again in a moment."
+            ),
+        },
+    )
 
 
 @app.get("/healthz")

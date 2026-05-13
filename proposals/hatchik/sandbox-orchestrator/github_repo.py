@@ -92,13 +92,44 @@ def _create_org_repo(slug: str, description: str) -> str | None:
 
 
 def _invite_collaborator(slug: str, github_username: str) -> bool:
-    """Invite the customer to the repo as an admin collaborator."""
+    """Invite the customer to the repo as an admin collaborator.
+
+    Callable on demand from the signup-service's re-invite endpoint as
+    well as the initial provision flow. Treats already-a-collaborator
+    (422 with "already a collaborator" in the body) and 304 (no change)
+    as success — re-invokes mustn't surface a confusing error to the
+    customer when nothing actually needs to happen.
+
+    On 403 (PAT lacks org permission) and 404 (repo or user gone) we
+    log loudly with a FOUNDER_NOTIFY tag — those are configuration
+    issues that need eyes on, not retryable failures.
+    """
     r = _api_put(
         f"/repos/{GITHUB_ORG}/{slug}/collaborators/{github_username}",
         {"permission": "admin"},
     )
     if r.status_code in (201, 204):
         return True
+    if r.status_code == 304:
+        # GitHub's documented "not modified" — invite already extended.
+        return True
+    if r.status_code == 422 and "already a collaborator" in (r.text or "").lower():
+        # Pre-existing collaborator on the repo — nothing to do.
+        return True
+    if r.status_code == 403:
+        # PAT lacks org permission. Surface a founder-notification
+        # flag so journalctl alerting can pick it up.
+        print(
+            f"FOUNDER_NOTIFY: GitHub invite forbidden for {github_username} on "
+            f"{GITHUB_ORG}/{slug} (403): {r.text[:200]}"
+        )
+        return False
+    if r.status_code == 404:
+        print(
+            f"FOUNDER_NOTIFY: GitHub invite 404 for {github_username} on "
+            f"{GITHUB_ORG}/{slug} — user or repo missing: {r.text[:200]}"
+        )
+        return False
     print(f"WARN: GitHub invite for {github_username} failed ({r.status_code}): {r.text[:200]}")
     return False
 
