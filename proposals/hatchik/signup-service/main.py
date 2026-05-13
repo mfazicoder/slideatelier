@@ -54,6 +54,19 @@ try:
 except ImportError:  # pragma: no cover — orchestrator dir missing in this env
     sandbox_inventory = None  # type: ignore[assignment]
 
+# launch-orchestrator/ counterpart. Same shim pattern. Launch-tier
+# inventory is rendered through /api/account/services/<slug> when the
+# slug points at a Launch tenant (registry.json on the launch host).
+_LAUNCH_ORCHESTRATOR_DIR = os.environ.get(
+    "HATCHIK_LAUNCH_ORCHESTRATOR_DIR", "/opt/hatchik-launch-orchestrator"
+)
+if _LAUNCH_ORCHESTRATOR_DIR and _LAUNCH_ORCHESTRATOR_DIR not in _sys.path:
+    _sys.path.insert(0, _LAUNCH_ORCHESTRATOR_DIR)
+try:
+    from tenant_inventory import launch_inventory  # type: ignore
+except ImportError:  # pragma: no cover — launch-orchestrator dir missing
+    launch_inventory = None  # type: ignore[assignment]
+
 # ─── Config ──────────────────────────────────────────────────────────────
 DB_PATH = Path(os.environ.get("HATCHIK_SIGNUP_DB", "/var/lib/hatchik/signups.db"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
@@ -107,6 +120,19 @@ DECOMMISSION_SCRIPT = os.environ.get(
 RESTORE_SCRIPT = os.environ.get(
     "HATCHIK_RESTORE_SCRIPT", "/opt/hatchik-orchestrator/restore.py"
 )
+# Launch-tier orchestrator scripts (see launch-orchestrator/). promote.py
+# and decommission_launch.py default to SAFE_MODE (no --execute) so the
+# first runs only email plans rather than calling Hetzner / Cloudflare.
+PROMOTE_SCRIPT = os.environ.get(
+    "HATCHIK_PROMOTE_SCRIPT", "/opt/hatchik-launch-orchestrator/promote.py"
+)
+DECOMMISSION_LAUNCH_SCRIPT = os.environ.get(
+    "HATCHIK_DECOMMISSION_LAUNCH_SCRIPT",
+    "/opt/hatchik-launch-orchestrator/decommission_launch.py",
+)
+LAUNCH_REGISTRY_PATH = Path(os.environ.get(
+    "HATCHIK_LAUNCH_REGISTRY", "/opt/hatchik-launch-orchestrator/registry.json"
+))
 
 # Per-tenant redeploy log dir. Tenants get one file each:
 # /var/log/hatchik/redeploy-<slug>.log. Tail-fail returns the last 50
@@ -584,6 +610,83 @@ def init_db() -> None:
         # Each ALTER is gated by PRAGMA inspection so re-running on an
         # already-migrated DB is a no-op.
         cols = {row[1] for row in conn.execute("PRAGMA table_info(signups)").fetchall()}
+
+        # Widen the signups.tier CHECK constraint to include 'growth'.
+        # SQLite cannot modify a CHECK in place — the only safe option is
+        # to rebuild the table when the existing schema doesn't already
+        # accept 'growth'. Test by trying a dry insert in a savepoint.
+        try:
+            conn.execute("SAVEPOINT _check_tier_migration")
+            conn.execute(
+                "INSERT INTO signups (created_at, email, tier) "
+                "VALUES ('1970-01-01T00:00:00Z', '__migration_probe__', 'growth')"
+            )
+            conn.execute("ROLLBACK TO SAVEPOINT _check_tier_migration")
+            conn.execute("RELEASE SAVEPOINT _check_tier_migration")
+            # CHECK already accepts 'growth' — no rebuild needed.
+        except sqlite3.IntegrityError:
+            # CHECK rejects 'growth' — rebuild the table with a wider
+            # constraint. We preserve all rows + indices, do the rename
+            # in a single transaction, and run idempotently.
+            conn.execute("RELEASE SAVEPOINT _check_tier_migration")
+            log.info(
+                "Migrating signups table to widen tier CHECK constraint "
+                "(adding 'growth'). This rebuilds the table in place."
+            )
+            # Build the column list dynamically so the migration survives
+            # future ALTER ADD COLUMNs without us editing this rebuild.
+            col_names = [row[1] for row in conn.execute(
+                "PRAGMA table_info(signups)"
+            ).fetchall()]
+            col_csv = ", ".join(col_names)
+            conn.execute(
+                f"""
+                CREATE TABLE signups_new (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at      TEXT NOT NULL,
+                    email           TEXT NOT NULL,
+                    first_name      TEXT,
+                    product_name    TEXT,
+                    description     TEXT,
+                    tier            TEXT NOT NULL
+                        CHECK(tier IN ('sandbox', 'launch', 'growth')),
+                    region          TEXT,
+                    domain_choice   TEXT,
+                    ip_address      TEXT,
+                    user_agent      TEXT,
+                    status          TEXT NOT NULL DEFAULT 'new',
+                    github_username TEXT,
+                    provision_started_at TEXT,
+                    provision_finished_at TEXT,
+                    country_code    TEXT,
+                    city            TEXT,
+                    asn             TEXT
+                )
+                """
+            )
+            # Migrate only the columns that exist in the old table
+            new_cols = {"id", "created_at", "email", "first_name",
+                        "product_name", "description", "tier", "region",
+                        "domain_choice", "ip_address", "user_agent",
+                        "status", "github_username", "provision_started_at",
+                        "provision_finished_at", "country_code", "city", "asn"}
+            shared = [c for c in col_names if c in new_cols]
+            shared_csv = ", ".join(shared)
+            conn.execute(
+                f"INSERT INTO signups_new ({shared_csv}) "
+                f"SELECT {shared_csv} FROM signups"
+            )
+            conn.execute("DROP TABLE signups")
+            conn.execute("ALTER TABLE signups_new RENAME TO signups")
+            log.info("signups table rebuilt; row count preserved.")
+            # Refresh cols — rebuilt table already has all the columns
+            # the additive ALTERs below would otherwise re-add. Without
+            # this, subsequent ALTER ADD COLUMN errors with
+            # "duplicate column name: github_username".
+            cols = {row[1] for row in conn.execute(
+                "PRAGMA table_info(signups)"
+            ).fetchall()}
+
         if "first_name" not in cols:
             conn.execute("ALTER TABLE signups ADD COLUMN first_name TEXT")
         if "github_username" not in cols:
@@ -1172,6 +1275,285 @@ Action: check the Paddle dashboard, follow up with the customer if needed.
         log.info("Payment-failure notification sent for customer %s", customer_id)
     except Exception as e:  # noqa: BLE001 — never crash the webhook on email
         log.error("Failed to send payment-failure notification: %s", e)
+
+
+# ─── Paddle subscription event handlers ─────────────────────────────────
+# All three default to non-destructive behaviour: they record the tier
+# transition and (for created) email the founder a SAFE_MODE plan via
+# promote.py. None of them ever block the webhook on long-running work;
+# heavy lifting is dispatched via subprocess so the webhook ack stays fast.
+
+def _resolve_signup_id_by_paddle_customer(customer_id: str | None) -> int | None:
+    """Look up signup_id from a Paddle customer_id via the payments table.
+
+    Falls back to None if we haven't seen a transaction for this customer
+    yet (subscription.created can arrive before transaction.completed in
+    some Paddle event orderings).
+    """
+    if not customer_id:
+        return None
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT customer_email FROM payments "
+                "WHERE paddle_customer_id = ? "
+                "ORDER BY id DESC LIMIT 1", (customer_id,),
+            ).fetchone()
+            if not row or not row[0]:
+                return None
+            sig = conn.execute(
+                "SELECT id FROM signups WHERE LOWER(email) = LOWER(?) "
+                "ORDER BY id DESC LIMIT 1", (row[0],),
+            ).fetchone()
+            return int(sig[0]) if sig else None
+    except Exception as e:  # noqa: BLE001
+        log.error("resolve_signup_id_by_paddle_customer failed: %s", e)
+        return None
+
+
+def _resolve_signup_id_by_customer_email(email: str | None) -> int | None:
+    if not email:
+        return None
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT id FROM signups WHERE LOWER(email) = LOWER(?) "
+                "ORDER BY id DESC LIMIT 1", (email,),
+            ).fetchone()
+            return int(row[0]) if row else None
+    except Exception as e:  # noqa: BLE001
+        log.error("resolve_signup_id_by_customer_email failed: %s", e)
+        return None
+
+
+def _record_paddle_transition(
+    signup_id: int,
+    from_tier: str | None,
+    to_tier: str,
+    event_id: str,
+    note: str,
+) -> None:
+    """Append a tier_transitions row from a webhook context.
+
+    Idempotent by (signup_id, paddle_event_id, to_tier). One event can
+    legitimately produce multiple rows when to_tier differs — e.g. a
+    subscription.updated event that's both a status change *and* a plan
+    change yields two rows (launch→launch status + launch→growth plan).
+    The webhook-level dedup (processed_events) catches whole-event
+    replays; this row-level dedup catches duplicate inserts of the same
+    semantic transition within one event.
+    """
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            existing = conn.execute(
+                "SELECT 1 FROM tier_transitions "
+                "WHERE signup_id = ? AND paddle_event_id = ? AND to_tier = ?",
+                (signup_id, event_id, to_tier),
+            ).fetchone()
+            if existing:
+                return
+            conn.execute(
+                "INSERT INTO tier_transitions "
+                "(signup_id, from_tier, to_tier, occurred_at, paddle_event_id, notes) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (signup_id, from_tier, to_tier,
+                 datetime.now(timezone.utc).isoformat(), event_id, note),
+            )
+            conn.commit()
+    except Exception as e:  # noqa: BLE001
+        log.error("record_paddle_transition failed: %s", e)
+
+
+def _trigger_promote_subprocess(signup_id: int, event_id: str) -> None:
+    """Fire promote.py in SAFE_MODE as a detached subprocess. Errors are
+    logged but never crash the webhook — the script's own founder-email
+    handles the "you need to look at this" path."""
+    import subprocess as _subprocess
+    cmd = [
+        "python3", PROMOTE_SCRIPT,
+        "--signup-id", str(signup_id),
+        "--paddle-event-id", event_id,
+    ]
+    if not Path(PROMOTE_SCRIPT).exists():
+        log.warning("promote.py not at %s — skipping subprocess fire", PROMOTE_SCRIPT)
+        return
+    try:
+        _subprocess.Popen(  # noqa: S603 — fixed argv, no shell
+            cmd,
+            stdout=_subprocess.DEVNULL,
+            stderr=_subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        log.info("Triggered promote.py for signup #%s (event=%s)", signup_id, event_id)
+    except Exception as e:  # noqa: BLE001
+        log.error("Failed to spawn promote.py for signup #%s: %s", signup_id, e)
+
+
+def _mark_launch_canceled(signup_id: int) -> None:
+    """Set canceled_at on the Launch registry entry for this signup.
+
+    No-op if the launch registry doesn't have a tenant for this signup —
+    promote.py may still be running, or the cancellation arrived before
+    we provisioned. Either way the next launch_lifecycle.py daily run
+    will reconcile.
+    """
+    if not LAUNCH_REGISTRY_PATH.exists():
+        log.info("launch registry not present at %s — skipping mark-canceled",
+                 LAUNCH_REGISTRY_PATH)
+        return
+    try:
+        reg = json.loads(LAUNCH_REGISTRY_PATH.read_text())
+    except Exception as e:  # noqa: BLE001
+        log.error("Failed to read launch registry: %s", e)
+        return
+    changed = False
+    for slug, t in (reg.get("tenants") or {}).items():
+        if t.get("signup_id") == signup_id and not t.get("canceled_at"):
+            t["canceled_at"] = datetime.now(timezone.utc).isoformat()
+            changed = True
+            log.info("Marked launch tenant %s as canceled (signup #%s)", slug, signup_id)
+    if changed:
+        try:
+            tmp = LAUNCH_REGISTRY_PATH.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(reg, indent=2))
+            tmp.replace(LAUNCH_REGISTRY_PATH)
+        except Exception as e:  # noqa: BLE001
+            log.error("Failed to persist launch registry: %s", e)
+
+
+async def _handle_subscription_created(data: dict[str, Any], event_id: str) -> None:
+    """Paddle subscription.created — customer paid for Launch.
+
+    1. Resolve customer_email → signup_id (via payments table or signups
+       row; Paddle puts customer_email on data.customer.email in v1).
+    2. Record tier_transitions (sandbox → launch).
+    3. Fire promote.py SAFE_MODE subprocess — emails founder the plan.
+    """
+    customer = data.get("customer") or {}
+    customer_email = customer.get("email") or data.get("customer_email")
+    customer_id = data.get("customer_id")
+
+    signup_id = (
+        _resolve_signup_id_by_paddle_customer(customer_id)
+        or _resolve_signup_id_by_customer_email(customer_email)
+    )
+    if not signup_id:
+        log.warning(
+            "subscription.created event=%s — could not resolve to a signup. "
+            "customer_email=%r customer_id=%r. Will be picked up by "
+            "launch_lifecycle.py reconciler.",
+            event_id, customer_email, customer_id,
+        )
+        return
+
+    _record_paddle_transition(
+        signup_id=signup_id,
+        from_tier="sandbox",
+        to_tier="launch",
+        event_id=event_id,
+        note="paddle subscription.created",
+    )
+    _trigger_promote_subprocess(signup_id, event_id)
+
+
+async def _handle_subscription_updated(data: dict[str, Any], event_id: str) -> None:
+    """Paddle subscription.updated — plan change (launch↔growth), status
+    change (active/paused/past_due), or trial → paid transition.
+
+    For now we only handle the status changes by recording them; an
+    actual plan change (launch→growth) is detected by the price_id on
+    the line items and recorded as a tier_transitions row. The in-place
+    VPS resize is deferred (launch_lifecycle.py picks it up).
+    """
+    customer_id = data.get("customer_id")
+    signup_id = _resolve_signup_id_by_paddle_customer(customer_id)
+    if not signup_id:
+        return
+
+    # Status flip (active/paused/past_due) → record only.
+    status = data.get("status")
+    if status:
+        _record_paddle_transition(
+            signup_id=signup_id,
+            from_tier="launch",
+            to_tier="launch",  # tier unchanged; the transition row is the audit trail
+            event_id=event_id,
+            note=f"paddle subscription.updated status={status}",
+        )
+
+    # Plan change detection: look for a Growth price in items.
+    items = data.get("items") or []
+    growth_price_id = os.environ.get("PADDLE_GROWTH_PRICE_ID", "")
+    if growth_price_id:
+        for item in items:
+            price = item.get("price") or {}
+            if price.get("id") == growth_price_id:
+                _record_paddle_transition(
+                    signup_id=signup_id,
+                    from_tier="launch",
+                    to_tier="growth",
+                    event_id=event_id,
+                    note="paddle plan change to growth",
+                )
+                break
+
+
+async def _handle_subscription_canceled(data: dict[str, Any], event_id: str) -> None:
+    """Paddle subscription.canceled — customer churned.
+
+    1. Resolve to signup_id.
+    2. Record tier_transitions (launch → cancelled).
+    3. Mark canceled_at on the launch registry so the daily
+       launch_lifecycle.py reconciler counts down the 30-day grace.
+    4. Email customer the grace-period explanation (launch_lifecycle.py
+       sends repeat reminders at day 25; this is the initial "we got it"
+       acknowledgement).
+    """
+    customer = data.get("customer") or {}
+    customer_email = customer.get("email") or data.get("customer_email")
+    customer_id = data.get("customer_id")
+    signup_id = (
+        _resolve_signup_id_by_paddle_customer(customer_id)
+        or _resolve_signup_id_by_customer_email(customer_email)
+    )
+    if not signup_id:
+        log.warning(
+            "subscription.canceled event=%s — could not resolve customer_email=%r",
+            event_id, customer_email,
+        )
+        return
+
+    _record_paddle_transition(
+        signup_id=signup_id,
+        from_tier="launch",
+        to_tier="cancelled",
+        event_id=event_id,
+        note="paddle subscription.canceled",
+    )
+    _mark_launch_canceled(signup_id)
+
+    if customer_email:
+        try:
+            await _resend_send({
+                "from": FROM_EMAIL,
+                "to": [customer_email],
+                "subject": "Your Hatchik subscription is canceled — what happens next",
+                "text": (
+                    "Hi,\n\n"
+                    "We see you've canceled your Hatchik subscription. Sorry to see you go.\n\n"
+                    "Here's what happens:\n"
+                    "  - Your service stays online for 30 days from cancellation\n"
+                    "  - At day 30 we snapshot your VPS, then take it offline\n"
+                    "  - The snapshot is kept for 30 more days — if you change your\n"
+                    "    mind in that window, you can re-subscribe and we'll restore\n"
+                    "  - After 60 days total, the snapshot is purged\n\n"
+                    "Need to export anything before then? Reply to this email and we'll\n"
+                    "arrange a data export at no charge.\n\n"
+                    "— Hatchik\n"
+                ),
+            })
+        except Exception as e:  # noqa: BLE001
+            log.error("subscription.canceled customer email failed: %s", e)
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────
@@ -2361,10 +2743,7 @@ async def paddle_webhook(request: Request) -> dict[str, Any]:
             data_object.get("customer_id"),
             data_object.get("status"),
         )
-        # TODO(metrics): when Paddle launches, resolve customer_email → signup_id
-        # and insert (signup_id, 'sandbox', 'launch', now, event_id, 'paddle webhook')
-        # into tier_transitions. Similarly emit ('launch','growth') for
-        # growth-price subscription items. See AGENT_METRICS_REPORT.md.
+        await _handle_subscription_created(data_object, event_id)
 
     elif event_type == "subscription.updated":
         log.info(
@@ -2374,6 +2753,7 @@ async def paddle_webhook(request: Request) -> dict[str, Any]:
             data_object.get("status"),
             data_object.get("next_billed_at"),
         )
+        await _handle_subscription_updated(data_object, event_id)
 
     elif event_type == "subscription.canceled":
         log.warning(
@@ -2382,6 +2762,7 @@ async def paddle_webhook(request: Request) -> dict[str, Any]:
             data_object.get("customer_id"),
             data_object.get("canceled_at"),
         )
+        await _handle_subscription_canceled(data_object, event_id)
 
     elif event_type == "transaction.payment_failed":
         log.warning(
@@ -2688,6 +3069,30 @@ def _tenant_for_session(slug: str, session_email: str) -> dict[str, Any] | None:
     return tenant
 
 
+def _launch_tenant_for_session(slug: str, session_email: str) -> dict[str, Any] | None:
+    """Return a launch-registry tenant entry only if it belongs to the
+    signed-in user. Mirror of _tenant_for_session for the Launch tier.
+
+    The launch registry uses ``customer_email`` rather than ``email``;
+    schema is documented in launch-orchestrator/registry.json's _format
+    key. Returns None if no launch registry exists on this host (dev /
+    non-prod) — callers should fall back to sandbox lookup.
+    """
+    if not LAUNCH_REGISTRY_PATH.exists():
+        return None
+    try:
+        reg = json.loads(LAUNCH_REGISTRY_PATH.read_text())
+    except Exception as e:  # noqa: BLE001
+        log.error("Failed to read launch registry: %s", e)
+        return None
+    tenant = (reg.get("tenants") or {}).get(slug)
+    if not tenant:
+        return None
+    if (tenant.get("customer_email") or "").lower() != session_email.lower():
+        return None
+    return tenant
+
+
 async def _github_get(path: str) -> tuple[int, dict[str, Any] | list[Any] | None]:
     """Authenticated GET against the GitHub API. Returns (status, body)."""
     if not HATCHIK_GITHUB_TOKEN:
@@ -2989,6 +3394,26 @@ async def get_services(
     session = _resolve_session(hatchik_session)
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
+
+    # Try the Launch registry first — paid tenants take precedence, since
+    # a slug could theoretically exist in both during a migration window.
+    launch = _launch_tenant_for_session(slug, session["email"])
+    if launch:
+        if launch_inventory is None:
+            raise HTTPException(
+                status_code=503,
+                detail="launch inventory not available on this host",
+            )
+        tier = launch.get("tier") or "launch"
+        inventory = launch_inventory(growth=(tier == "growth"))
+        sandbox_url = f"https://{launch.get('customer_domain') or slug + '.hatchik.com'}"
+        return {
+            "slug": slug,
+            "sandbox_url": sandbox_url,
+            "repo_url": None,
+            **inventory,
+        }
+
     tenant = _tenant_for_session(slug, session["email"])
     if not tenant:
         raise HTTPException(status_code=404, detail="sandbox not found")

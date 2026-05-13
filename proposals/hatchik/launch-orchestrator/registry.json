@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "tenants": {},
+  "_format": {
+    "tenants": "Object keyed by slug. Each value: { signup_id, customer_email, customer_domain, tier ('launch'|'growth'), hetzner_server_id, hetzner_location, ip, status ('provisioning'|'live'|'suspended'|'canceled'|'decommissioned'), paddle_subscription_id, created_at, last_seen_at, canceled_at, decommissioned_at, region }"
+  }
+}
