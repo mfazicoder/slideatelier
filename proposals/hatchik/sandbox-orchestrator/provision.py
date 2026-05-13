@@ -257,6 +257,23 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
             f.write(f'\nVITE_SUPABASE_URL="https://{slug}.{DOMAIN}"\n')
             f.write(f'VITE_SUPABASE_ANON_KEY="{anon_jwt}"\n')
             f.write(f'VITE_PRODUCT_NAME="{product_name}"\n')
+            # Resend SMTP for tenant Supabase Auth — lets magic-link, password
+            # reset and signup confirmation emails work out of the box in
+            # sandboxes. Tenants share Hatchik's Resend account; the from
+            # header is noreply@hatchik.com until the customer brings their
+            # own domain on Launch.
+            if RESEND_API_KEY:
+                f.write('SMTP_HOST="smtp.resend.com"\n')
+                f.write('SMTP_PORT="587"\n')
+                f.write('SMTP_USER="resend"\n')
+                f.write(f'SMTP_PASSWORD="{RESEND_API_KEY}"\n')
+                f.write(f'SMTP_ADMIN_EMAIL="{HATCHIK_FROM_EMAIL}"\n')
+                f.write('AUTH_MAGIC_LINK_ENABLED="true"\n')
+            else:
+                f.write('AUTH_MAGIC_LINK_ENABLED="false"\n')
+            # Google OAuth off by default — customer enables after registering
+            # their own OAuth app and pasting client_id/secret here.
+            f.write('GOOGLE_OAUTH_ENABLED="false"\n')
 
     # Override the Caddy port mapping in docker-compose to bind the tenant
     # Caddy to the allocated host port instead of the hardcoded 8080.
