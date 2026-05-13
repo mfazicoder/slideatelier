@@ -273,7 +273,7 @@ Hi,
 
 {next_step}
 
-Questions? See the FAQ at https://hatchik.com/#faq.
+Further information can be found at https://hatchik.com/#faq if you need it.
 
 — Hatchik
 
@@ -301,7 +301,7 @@ Questions? See the FAQ at https://hatchik.com/#faq.
               <p style="margin:0 0 16px 0;">Hi,</p>
               <p style="margin:0 0 16px 0;">{intro_html}</p>
               <p style="margin:0 0 16px 0;">{next_html}</p>
-              <p style="margin:0 0 16px 0;">Questions? See the <a href="https://hatchik.com/#faq" style="color:#4f46e5;text-decoration:underline;">FAQ</a>.</p>
+              <p style="margin:0 0 16px 0;">Further information can be found <a href="https://hatchik.com/#faq" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
               <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
               <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
             </td>

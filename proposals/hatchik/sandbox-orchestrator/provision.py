@@ -340,7 +340,7 @@ What to do next:
 4. When you're ready to make it real (your own domain, live payments,
    mobile builds), upgrade to Launch.
 
-Questions? See the FAQ at {faq_url}.
+Further information can be found at {faq_url} if you need it.
 
 — Hatchik
 
@@ -371,7 +371,7 @@ Questions? See the FAQ at {faq_url}.
                 <li style="margin:0 0 8px 0;">Have a play, kick the tyres</li>
                 <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, mobile builds), upgrade to Launch.</li>
               </ol>
-              <p style="margin:0 0 16px 0;">Questions? See the <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">FAQ</a>.</p>
+              <p style="margin:0 0 16px 0;">Further information can be found <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
               <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
               <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
             </td>
