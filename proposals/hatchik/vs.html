@@ -181,7 +181,7 @@
             <td><span class="yes">&check;</span></td>
           </tr>
           <tr>
-            <td>Real auth, payments, mail and mobile wired</td>
+            <td>Real auth, payments, mail wired (mobile shells included)</td>
             <td class="hatchik-col"><span class="yes">&check;</span></td>
             <td><span class="no">&times;</span></td>
             <td><span class="mid">~</span><sup><a href="#fn-lovable-infra" title="Auth + DB via Supabase integration; payments + mail + mobile are not wired by default">4</a></sup></td>
@@ -221,8 +221,8 @@
             <td><span class="no">&times;</span></td>
           </tr>
           <tr>
-            <td>Mobile builds (iOS + Android)</td>
-            <td class="hatchik-col"><span class="yes">&check;</span></td>
+            <td>Mobile scaffold (iOS + Android shells)</td>
+            <td class="hatchik-col"><span class="mid">~</span><sup><a href="#fn-hatchik-mobile" title="Capacitor scaffold ships in your repo; you build the binaries locally today, cloud-build pipeline shipping on Launch tier shortly">30</a></sup></td>
             <td><span class="no">&times;</span></td>
             <td><span class="no">&times;</span></td>
             <td><span class="no">&times;</span></td>
@@ -428,7 +428,7 @@
     <div class="max-w-2xl">
       <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Pricing snapshot</p>
       <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">A year of value, side by side.</h2>
-      <p class="mt-4 text-slate-600">First-year all-in cost on the entry tier. Hatchik is roughly the cheapest production-grade option here, and the only one that ships mobile + Paddle MoR at this price.</p>
+      <p class="mt-4 text-slate-600">First-year all-in cost on the entry tier. Hatchik is roughly the cheapest production-grade option here, and the only one that bundles a mobile scaffold + Paddle MoR at this price.</p>
     </div>
 
     <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -436,7 +436,7 @@
         <div class="name">Hatchik <span class="chip ml-1 text-[10px] py-0 px-2 align-middle">Recommended</span></div>
         <div class="price">£0 &rarr; £108/yr</div>
         <div class="ltv">Free Sandbox; £79 setup + £9/mo Launch &asymp; £187 in year 1, £108/yr after</div>
-        <div class="note">Includes domain year 1, mobile shells, Paddle MoR.</div>
+        <div class="note">Includes domain year 1, Capacitor mobile scaffold, Paddle MoR.</div>
       </div>
       <div class="price-card">
         <div class="name">Bolt.new Pro</div>
@@ -484,9 +484,11 @@
 
     <p class="mt-6 text-xs text-slate-500 max-w-3xl leading-relaxed">
       GBP figures use approximate FX (1 GBP &asymp; 1.25 USD) and are
-      directional, not exact. Mobile, payments compliance, and a custom
-      domain are bundled in Hatchik's price; with the alternatives you'd
-      typically add those separately.
+      directional, not exact. A mobile scaffold (Capacitor), payments
+      compliance (Paddle MoR), and a custom domain are bundled in
+      Hatchik's price; with the alternatives you'd typically add those
+      separately. Competitor pricing was correct as of the date stamped
+      on the hero — double-check on the vendor's site before you sign up.
     </p>
   </div>
 </section>
@@ -572,6 +574,7 @@
       <li id="fn-bubble-price">Bubble Starter ~$39/mo, Growth ~$119/mo. Source: <a class="underline" href="https://bubble.io/pricing" target="_blank" rel="noopener">bubble.io/pricing</a>.</li>
       <li id="fn-shipfast-price">ShipFast lifetime licence ~$199. Source: <a class="underline" href="https://shipfa.st" target="_blank" rel="noopener">shipfa.st</a>.</li>
       <li id="fn-diy-price">Vercel Pro $20/mo + Supabase Pro $25/mo &asymp; $45/mo combined. Sources: <a class="underline" href="https://vercel.com/pricing" target="_blank" rel="noopener">vercel.com/pricing</a>, <a class="underline" href="https://supabase.com/pricing" target="_blank" rel="noopener">supabase.com/pricing</a>.</li>
+      <li id="fn-hatchik-mobile">Hatchik's Capacitor scaffold lands in your repo at provision time; today you build the iOS / Android binaries locally with the bundled instructions. A one-click cloud-build pipeline is shipping shortly on Launch tier. Store submission remains yours (Apple Developer + Google Play accounts required).</li>
     </ol>
   </div>
 </section>
@@ -613,7 +616,8 @@
     <div class="border-t border-slate-100 pt-6 text-xs text-slate-400 leading-relaxed max-w-3xl">
       Pricing and capabilities accurate as of late 2025 / early 2026. Competitors evolve fast &mdash;
       when this page goes stale, <a href="mailto:hello@hatchik.com" class="underline">ping us</a>.
-      Hatchik is operated globally as a service of a company registered in Muscat, Sultanate of Oman.
+      Hatchik is a service of a company registered in Muscat, Sultanate of Oman, with production
+      hosting today in Nuremberg, Germany (Hetzner Cloud) &mdash; additional regions open on demand.
       Payments are processed by Paddle (Paddle.com Market Ltd) as Merchant of Record &mdash; Paddle handles
       VAT, GST and local sales tax in your jurisdiction and appears on your statement as
       "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle support.

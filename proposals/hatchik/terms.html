@@ -77,7 +77,7 @@
       <li><strong>Growth — £24/month.</strong> Automatic graduation after your app's 15th sign-up. We email a month before the change.</li>
     </ul>
     <p>Setup fee is non-refundable after 14 days. Within 14 days, full refund if we haven't yet provisioned your stack. Monthly fees are pro-rated on cancellation.</p>
-    <p>Stripe handles payments. We never see your card details.</p>
+    <p>Paddle (Paddle.com Market Ltd) is our Merchant of Record. They handle the checkout, the tax compliance, and your card data — we never see your card details. Your bank statement will read "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle.</p>
 
     <h2>5. What we provide</h2>
     <p>See the marketing page's "What's included" section for the canonical list — domain, server, mail, payments, mobile shells, etc.</p>
@@ -87,20 +87,20 @@
     <ul>
       <li>An accurate email address you can receive mail at</li>
       <li>A product idea that doesn't break the law or our acceptable use policy (no scams, no malware, no illegal content, no spam apps)</li>
-      <li>If on the Launch / Growth tier: a working Stripe Connect account for taking payments from your customers</li>
+      <li>If you want your <em>end-users</em> to pay you: your own Stripe account (the substrate wires it in once you add the secret key), or a Paddle account if you'd rather have a Merchant of Record</li>
       <li>If submitting mobile apps to stores: your own Apple Developer and Google Play accounts (we don't submit on your behalf — see §8)</li>
     </ul>
 
     <h2>7. Your code, your data, your infrastructure</h2>
     <p>Hatchik's substrate code is licensed permissively to you. Your product code (everything you build on top) is yours alone.</p>
-    <p>Your Hatchik runs on infrastructure provisioned in your name. If you cancel, you keep:</p>
+    <p>Your Hatchik runs on infrastructure provisioned in your name (on Launch tier — Sandbox tier runs on Hatchik-managed shared infrastructure). If you cancel, you keep:</p>
     <ul>
-      <li>The GitHub repo (already under your account)</li>
-      <li>The domain (already in your name)</li>
-      <li>The server (root credentials transferred to you)</li>
-      <li>The database (full export to your email)</li>
+      <li>The GitHub repo (under your account from day one, once you connect a GitHub username)</li>
+      <li>The domain (registered in your name on Launch tier)</li>
+      <li>The server (Launch tier: root credentials transferred to you on offboarding)</li>
+      <li>A Postgres dump of your database (we run the export on offboarding, or you can take one any time via Supabase Studio)</li>
       <li>Customer data (unchanged on your server)</li>
-      <li>Mailboxes (Infomaniak credentials transferred to you)</li>
+      <li>Mailboxes on your domain (Launch tier: Infomaniak credentials transferred to you)</li>
     </ul>
     <p>No exit fee. No data extraction charge. Walk away with everything.</p>
 

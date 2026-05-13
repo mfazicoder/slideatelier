@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Hatchik — Your app idea, launched.</title>
-<meta name="description" content="Vibe-code your app idea into a real business. We handle every boring bit (hosting, payments, mail, mobile) so you can focus on the actual product. Built for the busy professional with an idea worth launching." />
+<meta name="description" content="Vibe-code your app idea into a real business. We handle the boring bits (hosting, payments, mail, mobile scaffold, security) so you can focus on the actual product. Built for the busy professional with an idea worth launching." />
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- NOTE: deploy script overwrites this value with the real Cloudflare
      Turnstile sitekey before publishing. Until then the widget renders
@@ -328,7 +328,7 @@
         <p class="mt-6 text-lg text-slate-600 max-w-xl leading-normal">
           Vibe-code it into reality — without becoming an infrastructure expert.
           We handle the boring bit that makes an app work
-          <span class="text-slate-900 font-medium">(hosting, payments, emails, mobile apps, security, backups)</span>
+          <span class="text-slate-900 font-medium">(hosting, payments, emails, security, the mobile-app scaffold)</span>
           so you focus on what you actually care about: your idea itself.
         </p>
         <p class="mt-5 text-sm text-slate-500 max-w-xl leading-relaxed">
@@ -589,7 +589,7 @@
             <span class="chip">Postgres database</span>
             <span class="text-xs text-slate-400">the kind big tech runs on</span>
           </div>
-          <p class="mt-2 text-sm text-slate-600">A production-grade database (same kind Instagram and Netflix use), backed up every night, ready from the first minute. You'll never see a setup screen.</p>
+          <p class="mt-2 text-sm text-slate-600">A production-grade database (same kind Instagram and Netflix use), ready from the first minute, with on-demand snapshots whenever you want one. You'll never see a setup screen.</p>
         </div>
       </div>
 
@@ -694,10 +694,11 @@
         </div>
         <div class="p-6">
           <div class="flex items-center gap-2 flex-wrap mb-1">
-            <span class="chip">iOS + Android apps</span>
+            <span class="chip">iOS + Android shells</span>
             <span class="text-xs text-slate-400">from one codebase</span>
+            <span class="chip chip-amber">Launch tier</span>
           </div>
-          <p class="mt-2 text-sm text-slate-600">We generate iPhone and Android versions automatically from the same code as your website. Build a feature once, runs everywhere. Submit them to the app stores when you're ready — you'll need your own Apple Developer and Google Play accounts, and your app must meet each store's guidelines.</p>
+          <p class="mt-2 text-sm text-slate-600">Your repo ships with a Capacitor mobile scaffold that wraps the same code as your website — one feature, one place. Today you build the iOS and Android binaries locally (we provide the step-by-step guide); a one-click cloud-build pipeline is shipping on Launch tier shortly. Either way, store submission is yours — you'll need your own Apple Developer and Google Play accounts, and your app must meet each store's guidelines.</p>
         </div>
       </div>
 
@@ -726,32 +727,32 @@
             <span class="text-2xl">🛟</span>
             <h3 class="font-bold">A safety net when things go wrong</h3>
           </div>
-          <p class="mt-3 text-sm text-slate-600">Because something always goes wrong eventually. Backups, alerts, and a way to undo yesterday with one click.</p>
+          <p class="mt-3 text-sm text-slate-600">Because something always goes wrong eventually. Monitoring on day one, with on-demand database snapshots whenever you're about to do something risky.</p>
         </div>
         <div class="p-6">
           <div class="flex items-center gap-2 flex-wrap mb-1">
-            <span class="chip">Backups + monitoring</span>
-            <span class="text-xs text-slate-400">nightly · alerts · rollback</span>
+            <span class="chip">Monitoring + on-demand snapshots</span>
+            <span class="text-xs text-slate-400">automated backups on the roadmap</span>
           </div>
-          <p class="mt-2 text-sm text-slate-600">Every night, the entire app and its data are backed up. Restore yesterday's version with one click. If your app goes down or has errors, we email you — usually before any customer notices.</p>
+          <p class="mt-2 text-sm text-slate-600">Uptime monitoring and an alerts inbox are wired from day one — if your app goes down, we email you. For data, you can take a Postgres snapshot any time from Supabase Studio (a couple of clicks) and download it locally. Automated nightly off-site backups are on the near-term roadmap; until they're live we'll happily run a snapshot for you on request.</p>
         </div>
       </div>
 
-      <!-- 10. Backlog / Linear (repositioned) -->
+      <!-- 10. Backlog -->
       <div class="grid md:grid-cols-2 gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition-shadow">
         <div class="p-6 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200">
           <div class="flex items-center gap-3">
             <span class="text-2xl">📋</span>
             <h3 class="font-bold">A clear list of what to build next</h3>
           </div>
-          <p class="mt-3 text-sm text-slate-600">Features, bugs, ideas — all in one place. As your AI works on each task, it updates the status (started, launched, tested) so you always know where things are, without having to ask.</p>
+          <p class="mt-3 text-sm text-slate-600">Features, bugs, ideas — all in one place. As your AI works on each task, it ticks them off so you always know where things are, without having to ask.</p>
         </div>
         <div class="p-6">
           <div class="flex items-center gap-2 flex-wrap mb-1">
-            <span class="chip">Free to-do board, set up for you</span>
-            <span class="text-xs text-slate-400">or use whatever you prefer</span>
+            <span class="chip">Starter backlog in your repo</span>
+            <span class="text-xs text-slate-400">BACKLOG.md · use any tool</span>
           </div>
-          <p class="mt-2 text-sm text-slate-600">We create a clean to-do list pre-populated with about twenty starter tasks based on what you described. Your AI assistant reads from it and writes back to it as it works. Prefer a notebook or another tool? Use that instead — this is just there to help, not a requirement.</p>
+          <p class="mt-2 text-sm text-slate-600">Your repo ships with a <span class="mono text-xs">BACKLOG.md</span> file pre-populated with about twenty starter tasks based on what you described. Your AI assistant reads from it and updates it like any other file. Prefer a notebook, Notion, or a dedicated tracker? Use that instead — this is just a starting point, not a requirement.</p>
         </div>
       </div>
 
@@ -826,11 +827,11 @@
             <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
           </tr>
           <tr>
-            <td class="px-5 py-3"><span class="font-medium text-slate-900">Mobile builds</span> <span class="text-slate-500">— iOS + Android, store-ready</span></td>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Mobile scaffold</span> <span class="text-slate-500">— iOS + Android Capacitor wrapper, you build locally (cloud-build coming on Launch)</span></td>
             <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
           </tr>
           <tr>
-            <td class="px-5 py-3"><span class="font-medium text-slate-900">Backups, monitoring, patches</span></td>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Monitoring + patches</span> <span class="text-slate-500">— uptime alerts, OS updates (automated backups on the roadmap)</span></td>
             <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
           </tr>
 
@@ -838,7 +839,7 @@
             <td colspan="4" class="px-5 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">AI</td>
           </tr>
           <tr>
-            <td class="px-5 py-3"><span class="font-medium text-slate-900">AI MCP integration</span> <span class="text-slate-500">— config for Claude / Cursor / Windsurf</span></td>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">AI-tool handoff</span> <span class="text-slate-500">— AI_CONTEXT.md in the repo for Claude / Cursor / Windsurf</span></td>
             <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
           </tr>
           <tr>
@@ -1002,7 +1003,7 @@
       <div class="card relative">
         <div class="absolute -top-3 left-6"><span class="chip chip-slate">If you already use an AI assistant</span></div>
         <h3 class="text-xl font-bold mt-2">From your AI assistant</h3>
-        <p class="mt-2 text-sm text-slate-600">Already chatting with Claude or another AI helper? Sign up right there.</p>
+        <p class="mt-2 text-sm text-slate-600">Already chatting with Claude or another AI helper? You can drive most of signup right there. (The MCP signup path is rolling out — for now, you'll bounce to the website wizard for the actual checkout.)</p>
 
         <ol class="mt-6 space-y-4">
           <li class="flex gap-4">
@@ -1106,44 +1107,44 @@
   <div class="max-w-6xl mx-auto px-6">
     <div class="max-w-2xl">
       <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Where it lives</p>
-      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Your app, in the region you choose.</h2>
-      <p class="mt-4 text-slate-600 text-lg">Closer to your customers = faster pages, and (in some places) regulators happier. Pick where the server lives — we do the rest.</p>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Your app, in a region that suits you.</h2>
+      <p class="mt-4 text-slate-600 text-lg">Today every sandbox lives on our Germany host. As we onboard Launch-tier customers we open the regions below — pick yours at upgrade and we'll provision there once the host is online.</p>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-10">
       <div class="card text-center">
         <div class="text-3xl">🇩🇪</div>
         <h3 class="mt-2 font-bold">Germany</h3>
-        <p class="text-xs text-slate-500 mt-1">Falkenstein · Nuremberg</p>
-        <p class="text-xs text-slate-500 mt-2">EU GDPR · default for UK + EU customers</p>
+        <p class="text-xs text-slate-500 mt-1">Nuremberg</p>
+        <p class="text-xs text-emerald-600 mt-2 font-semibold">Live today</p>
       </div>
       <div class="card text-center">
         <div class="text-3xl">🇫🇮</div>
         <h3 class="mt-2 font-bold">Finland</h3>
         <p class="text-xs text-slate-500 mt-1">Helsinki</p>
-        <p class="text-xs text-slate-500 mt-2">Northern Europe · renewable-powered</p>
+        <p class="text-xs text-slate-400 mt-2">Opening on request</p>
       </div>
       <div class="card text-center">
         <div class="text-3xl">🇺🇸</div>
         <h3 class="mt-2 font-bold">US East</h3>
         <p class="text-xs text-slate-500 mt-1">Ashburn, VA</p>
-        <p class="text-xs text-slate-500 mt-2">Closest to US East Coast customers</p>
+        <p class="text-xs text-slate-400 mt-2">Opening on request</p>
       </div>
       <div class="card text-center">
         <div class="text-3xl">🇺🇸</div>
         <h3 class="mt-2 font-bold">US West</h3>
         <p class="text-xs text-slate-500 mt-1">Hillsboro, OR</p>
-        <p class="text-xs text-slate-500 mt-2">Best for US West + APAC reach</p>
+        <p class="text-xs text-slate-400 mt-2">Opening on request</p>
       </div>
       <div class="card text-center">
         <div class="text-3xl">🇸🇬</div>
         <h3 class="mt-2 font-bold">Singapore</h3>
         <p class="text-xs text-slate-500 mt-1">Singapore</p>
-        <p class="text-xs text-slate-500 mt-2">Best for Asia-Pacific customers</p>
+        <p class="text-xs text-slate-400 mt-2">Opening on request</p>
       </div>
     </div>
 
-    <p class="mt-8 text-sm text-slate-500 text-center">All regions powered by Hetzner Cloud. One provider keeps things simple — same SLA, same hardware, same backups everywhere.</p>
+    <p class="mt-8 text-sm text-slate-500 text-center">All regions on Hetzner Cloud — same hardware family everywhere. Tell us your preferred region at upgrade and we'll spin up the host as soon as we have demand there.</p>
   </div>
 </section>
 
@@ -1152,45 +1153,51 @@
   <div class="max-w-6xl mx-auto px-6">
     <div class="max-w-2xl">
       <p class="text-sm font-semibold text-amber-400 uppercase tracking-wider">Safe to experiment</p>
-      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Mess about freely.<br>We catch the mistakes.</h2>
+      <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Mess about freely.<br>The sandbox catches the mistakes.</h2>
       <p class="mt-4 text-slate-300 text-lg">
-        Vibe-coding with an AI is fun precisely because you can move fast. But fast + your live customers' data = scary. Four built-in rails make experiments safe.
+        Vibe-coding with an AI is fun precisely because you can move fast. But fast + your live customers' data = scary. Four ideas keep experiments safe — the first two are wired today, the others are on the near-term roadmap.
       </p>
     </div>
 
     <div class="grid md:grid-cols-2 gap-5 mt-12">
       <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 01</div>
-        <h3 class="mt-2 text-xl font-bold">Try changes in a private copy first</h3>
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 01</div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-900/40 px-2 py-0.5 rounded-full">Live</span>
+        </div>
+        <h3 class="mt-2 text-xl font-bold">The sandbox itself is a safe playground</h3>
         <p class="mt-3 text-slate-300 text-sm leading-relaxed">
-          Every change goes onto a private test version of your app first — with its own web address.
-          Share with a friend, see if it works, then decide if you want it on the real version.
-          Nothing scary makes it to your customers without you saying yes.
+          Your free Sandbox <em>is</em> the private copy. It runs at <span class="mono text-xs">yoursubdomain.hatchik.com</span> with payments in test mode and no real customers, so you can break things freely. When you're ready for a real audience, you upgrade to Launch and we provision a separate production stack.
         </p>
       </div>
       <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 02</div>
-        <h3 class="mt-2 text-xl font-bold">Your AI can't accidentally wipe your data</h3>
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 02</div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-900/40 px-2 py-0.5 rounded-full">Live</span>
+        </div>
+        <h3 class="mt-2 text-xl font-bold">Migrations don't run themselves</h3>
         <p class="mt-3 text-slate-300 text-sm leading-relaxed">
-          If your AI suggests a change to your database (adding a new field, removing an old one), it doesn't run on its own.
-          You see the change in plain English, click "apply," and we take a backup first.
-          AI writes; you decide what runs.
+          If your AI suggests a database change (adding a field, dropping one), it lands as a migration file in your repo — it does not auto-apply. You review the SQL, run it via Supabase Studio when you're happy, and CLAUDE.md tells your AI never to drop tables or columns without your say-so.
         </p>
       </div>
       <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 03</div>
-        <h3 class="mt-2 text-xl font-bold">Yesterday is one click away</h3>
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 03</div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded-full">Roadmap</span>
+        </div>
+        <h3 class="mt-2 text-xl font-bold">One-click rollback</h3>
         <p class="mt-3 text-slate-300 text-sm leading-relaxed">
-          We back up your app's data every night. Made a mess? Restore yesterday's version in thirty seconds.
-          We keep a week of snapshots so you can roll further back if you need to.
+          Today: every change is a git commit, so any AI-coding tool can "go back to the previous version" by reverting. Automated nightly off-site backups with one-click restore are on the near-term roadmap; until they're live you can take an on-demand Postgres snapshot any time from Supabase Studio.
         </p>
       </div>
       <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
-        <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 04</div>
-        <h3 class="mt-2 text-xl font-bold">Pause the real app while you tinker</h3>
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 04</div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded-full">Roadmap</span>
+        </div>
+        <h3 class="mt-2 text-xl font-bold">Read-only mode for risky changes</h3>
         <p class="mt-3 text-slate-300 text-sm leading-relaxed">
-          When you're trying something risky, flip a switch — your customers can still see the app,
-          but nothing they do can change anything. Experiment freely, flip back when ready.
+          A toggle to put your live app in read-only mode while you experiment — customers can still browse, nothing they do can write — is on the roadmap for Launch tier. Until it ships, the workflow is: try the change in your Sandbox, gut-check it, then promote.
         </p>
       </div>
     </div>
@@ -1205,7 +1212,7 @@
         </div>
 <pre class="text-[0.78rem]"><span style="color:#94a3b8"># later, when you're building features:</span>
 
-<span style="color:#a78bfa">You</span>: what's next on the to-do list?
+<span style="color:#a78bfa">You</span>: what's next on BACKLOG.md?
 
 <span style="color:#94a3b8">Claude</span>:
   <span style="color:#fbbf24">→</span> Recipes (task 23) — high priority
@@ -1215,16 +1222,16 @@
 <span style="color:#a78bfa">You</span>: do task 23
 
 <span style="color:#94a3b8">Claude</span>: <span style="color:#10b981">✓</span> built the recipes page
-       <span style="color:#10b981">✓</span> tested on the private copy
-       <span style="color:#10b981">✓</span> moved task 23 to "In Review"
-       try it: 23-recipes.prepsheet.app</pre>
+       <span style="color:#10b981">✓</span> pushed to your sandbox
+       <span style="color:#10b981">✓</span> ticked task 23 on BACKLOG.md
+       live at: prepsheet.hatchik.com</pre>
       </div>
       <div>
-        <h3 class="text-2xl font-bold">Your AI reads the to-do list.<br>Your AI builds the feature.<br>You approve when you're happy.</h3>
+        <h3 class="text-2xl font-bold">Your AI reads the backlog.<br>Your AI builds the feature.<br>You see it on your sandbox.</h3>
         <p class="mt-3 text-slate-300 leading-relaxed">
           You stay in charge of what launches. Your AI does the heavy lifting,
-          tests its own work, updates the to-do list, and shows you a private preview
-          to try first. When you're happy, one click pushes it to the real app.
+          updates <span class="mono text-xs">BACKLOG.md</span> as it works, and pushes to your sandbox so you
+          can kick the tyres before you upgrade to a real domain.
         </p>
       </div>
     </div>
@@ -1257,11 +1264,11 @@
           <tr class="row-divider"><td class="px-5 py-3 font-medium">Custom domain configured</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">DIY</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">limited</td></tr>
           <tr class="row-divider"><td class="px-5 py-3 font-medium">Mailboxes on your domain</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td></tr>
           <tr class="row-divider"><td class="px-5 py-3 font-medium">Real payments (Stripe)</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td><td class="px-5 py-3 partial text-center">via add-on</td></tr>
-          <tr class="row-divider"><td class="px-5 py-3 font-medium">iPhone + Android apps</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">paid tier</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">iPhone + Android scaffold</td><td class="px-5 py-3 partial text-center">shells, you build</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">paid tier</td></tr>
           <tr class="row-divider"><td class="px-5 py-3 font-medium">Pick your hosting region</td><td class="px-5 py-3 tick text-center">✓ any</td><td class="px-5 py-3 partial text-center">your server</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">their cloud</td><td class="px-5 py-3 cross text-center">their cloud</td></tr>
           <tr class="row-divider"><td class="px-5 py-3 font-medium">You own the code</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 partial text-center">export</td><td class="px-5 py-3 cross text-center">—</td></tr>
           <tr class="row-divider"><td class="px-5 py-3 font-medium">Sign up inside your AI tool</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 cross text-center">—</td></tr>
-          <tr class="row-divider"><td class="px-5 py-3 font-medium">Safety rails (preview, rollback, gating)</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td></tr>
+          <tr class="row-divider"><td class="px-5 py-3 font-medium">Safety rails (sandbox, migration gating)</td><td class="px-5 py-3 tick text-center">✓</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td><td class="px-5 py-3 cross text-center">—</td><td class="px-5 py-3 partial text-center">partial</td></tr>
           <tr class="row-divider bg-indigo-50/40"><td class="px-5 py-3 font-semibold">Year-1 cost (typical)</td><td class="px-5 py-3 text-indigo-700 font-bold text-center">£178</td><td class="px-5 py-3 text-center">~£400+</td><td class="px-5 py-3 text-center">~£700+</td><td class="px-5 py-3 text-center">~£300+</td><td class="px-5 py-3 text-center">~£400+</td></tr>
         </tbody>
       </table>
@@ -1317,10 +1324,10 @@
           <li class="flex gap-2"><span class="tick">✓</span> Your own domain — bring an existing one, or get a new one registered (year 1 in the £79)</li>
           <li class="flex gap-2"><span class="tick">✓</span> Your own server, your chosen region</li>
           <li class="flex gap-2"><span class="tick">✓</span> 5 mailboxes on your domain</li>
-          <li class="flex gap-2"><span class="tick">✓</span> Real payments (Stripe live)</li>
-          <li class="flex gap-2"><span class="tick">✓</span> iPhone + Android app shells (you handle store submission)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Real payments via Paddle (Merchant of Record) or your own Stripe</li>
+          <li class="flex gap-2"><span class="tick">✓</span> iPhone + Android scaffold (build locally today; cloud build coming) — store submission is yours</li>
           <li class="flex gap-2"><span class="tick">✓</span> Your code in your GitHub</li>
-          <li class="flex gap-2"><span class="tick">✓</span> Nightly backups + downtime alerts</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Uptime monitoring + on-demand snapshots (automated nightly backups on the roadmap)</li>
           <li class="flex gap-2"><span class="tick">✓</span> ~£3/month AI token allowance — or bring your own key</li>
           <li class="flex gap-2"><span class="tick">✓</span> Sign up via web or your AI tool</li>
         </ul>
@@ -1338,7 +1345,7 @@
         <p class="mt-3 text-slate-600 text-sm">Once your 15th user signs up to your app, the monthly graduates. Same product, more breathing room, deeper support — by now you've got proof there's an audience.</p>
         <ul class="mt-6 space-y-2 text-sm text-slate-700">
           <li class="flex gap-2"><span class="tick">✓</span> Everything in Launch, plus:</li>
-          <li class="flex gap-2"><span class="tick">✓</span> More server headroom + extended backup retention (30 days)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> More server headroom + extended backup retention once automated backups land</li>
           <li class="flex gap-2"><span class="tick">✓</span> ~£10/month AI token allowance (3× Launch)</li>
           <li class="flex gap-2"><span class="tick">✓</span> Free annual domain renewal (years 2+)</li>
           <li class="flex gap-2"><span class="tick">✓</span> Priority same-day support + monthly health check</li>
@@ -1427,35 +1434,35 @@
           <span class="font-semibold">How do backups actually work?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Tiered by environment, so you pay for protection where it matters. Your preview and dev branches get nightly backups with 7-day retention. The optional test environment (if you add one) gets weekly backups with 2-week retention. Production gets nightly with 14-day retention on Launch, extended to 30 days on Growth. One-click restore from any snapshot via the Hatchik dashboard. You can trigger an on-demand backup any time you're about to do something risky. Everything is encrypted at rest with your own key and stored off-site (Backblaze B2), in the same region as your server.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Honest answer: automated nightly off-site backups aren't wired yet — they're on the near-term roadmap and will be rolled out on Launch + Growth tiers. Today, you can take an on-demand Postgres snapshot any time from Supabase Studio (a couple of clicks) and download it locally — handy before any risky migration. When automated backups land we'll email everyone with the details; the plan is nightly with 14-day retention on Launch and 30-day retention on Growth, encrypted at rest and stored off-site in the same region as your server. Until then, if you'd like us to run a snapshot for you, email <a href="mailto:hello@hatchik.com" class="text-indigo-600 underline">hello@hatchik.com</a> and we'll do it the same day.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
           <span class="font-semibold">Can I really sign up through my AI tool?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Yes. Paste a small config block into Claude / Cursor / Windsurf (we give you the instructions for your specific tool at <a href="/install" class="text-indigo-600 underline">hatchik.com/install</a>), then chat: "I want to build X." Your AI walks you through naming, domain availability, region, and shows you the price — all in chat. The only moment you leave is to pay, because we will never take payment information through chat. A secure checkout opens in your browser, you confirm, you're back. Same outcome as the website wizard: your app on your domain, your code in your GitHub.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Mostly, with a caveat. Today the easiest path is the website wizard at <a href="/start" class="text-indigo-600 underline">hatchik.com/start</a> — it's a couple of fields and a button. The MCP-based "sign up entirely from chat" flow is rolling out: once you've connected Hatchik to Claude / Cursor / Windsurf (instructions at <a href="/install" class="text-indigo-600 underline">hatchik.com/install</a>), your AI can already manage an existing project — deploys, status, redeploys — and the from-chat <em>new project</em> creation flow lands shortly. Payment will always bounce to your browser, because we'll never take card details through chat. Same outcome either way: your app on your domain, your code in your GitHub.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
           <span class="font-semibold">How quickly do I actually get my Hatchik after signup?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Right now: an email from a real human (the founder) within the hour, and your stack live within 24 hours. We're hand-onboarding the first cohort while we finish the self-serve wizard you can see in the demo above — that ships in the next few weeks, after which the whole flow is under 10 minutes from "I have an idea" to "my app is live on my own domain." You get the same product either way; only the speed of provisioning differs while we're warming up.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Free Sandbox: ~60–90 seconds from form submit to a working subdomain at <span class="mono text-xs">yoursubdomain.hatchik.com</span>, with the sign-in email landing right after. Launch tier (your own domain, mailboxes, server in your region) takes a bit longer because we register the domain and wire DNS — that path is currently a hand-onboarded step, so expect an email from the founder within the hour and your stack live within 24 hours while we automate the last mile. Same product either way; only the provisioning path differs.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
           <span class="font-semibold">Is it safe to let my AI manage my live app?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">We designed for that risk. Your AI can read most things safely (deploy status, error logs, the to-do list) — those don't change anything. But every action that costs money, changes your live app, or could affect customer data requires a one-time confirmation in your browser. Your AI can ask; you click. This stops malicious instructions hidden in code from tricking your AI into something destructive. Defence in depth, with you in the loop on anything that matters.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Today the boundary is your free Sandbox: your AI builds and pushes freely there, breaks nothing real (test-mode payments, no live customers), and you only promote to a Launch tier with a real domain once you're happy. Inside the substrate we already gate destructive actions — CLAUDE.md tells your AI never to drop tables or columns without your say-so, migrations land as files for you to apply, and your repo's commit history makes any change reversible. Explicit browser confirmations for money-moving or data-destructive AI actions are on the roadmap once we have customers running real payments; for now, "use the Sandbox first" is the rail.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
           <span class="font-semibold">Where is my data hosted?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">You pick at signup. We offer Hetzner Cloud servers in Germany (Falkenstein / Nuremberg), Finland (Helsinki), US East (Ashburn), US West (Hillsboro), and Singapore — 5 regions across 3 continents. Your server is provisioned in your name, your backups go to an off-site location in the same region, and an edge network sits in front to keep pages fast worldwide. If you have specific rules to meet (GDPR for EU customers, HIPAA for US healthcare), pick the matching region and we'll send you the paperwork.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Today every sandbox lives on our Germany host (Hetzner Cloud, Nuremberg — EU GDPR jurisdiction). When you upgrade to Launch, you can ask for Finland, US East, US West or Singapore and we'll provision a host there once we have demand — all Hetzner, same hardware family. Your server is provisioned in your name. If you have specific rules to meet (GDPR for EU customers, HIPAA for US healthcare), tell us at upgrade and we'll match the region; we'll also send you the relevant paperwork.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
@@ -1476,7 +1483,7 @@
           <span class="font-semibold">How does the to-do list work?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">When you sign up, we create a clean to-do list pre-populated with about twenty starter tasks based on what you described you wanted to build. As your AI assistant works on features, it updates each task (started, launched, ready to test). You see progress at a glance, can re-order priorities, add new ideas, leave comments. We use Linear (free for solo founders) under the hood, but you're free to use Notion, Trello, a notebook, or nothing at all — the list is there to help you and your AI stay organised, not to lock you in.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">When we provision your sandbox we drop a <span class="mono text-xs">BACKLOG.md</span> file at the root of your repo pre-populated with about twenty starter tasks based on what you described. As your AI assistant works on features, it ticks them off — it reads and writes that file like any other. You see progress at a glance and can re-order, add new ideas, or leave notes inline. <span class="mono text-xs">BACKLOG.md</span> works with any tool you point at the repo. We're also planning a Linear integration as a Launch-tier upsell for customers who'd rather work in a proper tracker; until then, Markdown is the path.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
@@ -1490,7 +1497,7 @@
           <span class="font-semibold">What if I outgrow Hatchik?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">A single server comfortably runs an app with several thousand paying users — we've stress-tested. When you need more, the underlying setup is plain enough that moving to a bigger server (or splitting across several) takes hours, not weeks. At that point you've probably hired your first developer; we'll help them with the handover.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">A single dedicated VPS will comfortably carry a Launch-tier app well into its first thousand paying users. When you need more, the underlying setup is plain Docker + Postgres + Caddy — moving to a bigger server (or splitting across several) is hours of work, not weeks. At that point you've probably hired your first developer; we'll help them with the handover.</p>
       </details>
     </div>
   </div>
@@ -1578,8 +1585,8 @@
 
         <ul class="mt-5 space-y-2 text-sm text-slate-700">
           <li class="flex gap-2"><span class="tick">✓</span> Bring your own domain or register a new one</li>
-          <li class="flex gap-2"><span class="tick">✓</span> Dedicated VPS in your chosen region</li>
-          <li class="flex gap-2"><span class="tick">✓</span> 5 mailboxes + Stripe live + iOS/Android shells</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Dedicated VPS in your chosen region (open hosts: Germany; others on request)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> 5 mailboxes + Paddle MoR payments + Capacitor mobile scaffold</li>
           <li class="flex gap-2"><span class="tick">✓</span> Private GitHub repo under your account</li>
         </ul>
 
@@ -1638,7 +1645,8 @@
       <div class="text-xs text-slate-400">Host anywhere · You own your code · Built for founders</div>
     </div>
     <div class="border-t border-slate-100 pt-6 text-xs text-slate-400 leading-relaxed max-w-3xl">
-      Hatchik is operated globally as a service of a company registered in Muscat, Sultanate of Oman.
+      Hatchik is a service of a company registered in Muscat, Sultanate of Oman, with production
+      hosting today in Nuremberg, Germany (Hetzner Cloud) — additional regions open on demand.
       Payments are processed by Paddle (Paddle.com Market Ltd) as Merchant of Record — Paddle handles
       VAT, GST and local sales tax in your jurisdiction and appears on your statement as
       "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle support.

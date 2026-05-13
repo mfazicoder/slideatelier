@@ -471,7 +471,7 @@ proposing changes. Accept, push, watch the sandbox update.
 - Sandbox: {sandbox_url}
 - Supabase Studio: {sandbox_url}/studio (sign in with the owner magic link)
 - Hatchik account: https://hatchik.com/account
-- Docs: https://hatchik.com/docs
+- FAQ: https://hatchik.com/#faq
 
 — Hatchik (this file is generated per-tenant by provision.py)
 """
@@ -652,7 +652,8 @@ What to do next:
 1. Click the link above to open your sandbox as the owner
 2. Have a play, kick the tyres
 3. When you're ready to make it real (your own domain, live payments,
-   mobile builds), upgrade to Launch from hatchik.com/account.
+   the mobile scaffold ready to build), upgrade to Launch from
+   hatchik.com/account.
 
 To manage your Hatchik subscription (delete sandbox, upgrade, edit your
 name) go to https://hatchik.com/account.
@@ -687,7 +688,7 @@ Further information can be found at {faq_url} if you need it.
               <ol style="margin:0 0 16px 0;padding-left:20px;">
                 <li style="margin:0 0 8px 0;">Click the button above to open your sandbox</li>
                 <li style="margin:0 0 8px 0;">Have a play, kick the tyres</li>
-                <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, mobile builds), upgrade to Launch from <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">your Hatchik account</a>.</li>
+                <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, the mobile scaffold ready to build), upgrade to Launch from <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">your Hatchik account</a>.</li>
               </ol>
               <p style="margin:24px 0 16px 0;color:#555;font-size:14px;">To manage your Hatchik subscription (delete sandbox, upgrade, edit your name) go to <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">hatchik.com/account</a>.</p>
               <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Further information can be found <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
@@ -742,7 +743,9 @@ def send_walkthrough_email(
         return False
     greeting = f"Hi {first_name}," if first_name else "Hi,"
     clone_cmd = f"git clone {repo_url}.git"
-    docs_url = f"https://{DOMAIN}/docs"
+    # docs.hatchik.com is under construction — link to the FAQ until it's
+    # ready so customers don't land on a 404.
+    docs_url = f"https://{DOMAIN}/#faq"
     text = f"""{greeting}
 
 Your {product_name} sandbox is up — now to the fun part: building it.
