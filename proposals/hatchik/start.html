@@ -136,6 +136,21 @@
         </div>
       </div>
 
+      <!-- Optional GitHub handle so we can give them owner access on the per-tenant repo -->
+      <div>
+        <label for="githubUsername" class="field-label">GitHub username <span class="font-normal lowercase tracking-normal text-slate-400">(optional)</span></label>
+        <input
+          id="githubUsername"
+          name="github_username"
+          type="text"
+          autocomplete="off"
+          placeholder="alexcoder"
+          pattern="[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}"
+          class="mt-1 mono w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+        />
+        <p class="mt-1 text-xs text-slate-500">We'll create a private repo for your sandbox and give you owner access. Skip this and we'll just email you the repo link.</p>
+      </div>
+
       <button
         id="submitBtn"
         type="submit"
@@ -223,6 +238,7 @@
     const email = ($('email').value || '').trim();
     const idea = ($('idea').value || '').trim();
     const productName = ($('productName').value || '').trim() || idea.slice(0, 80);
+    const githubUsername = ($('githubUsername').value || '').trim().replace(/^@/, '');
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return showError('Please enter a valid email address.');
@@ -232,6 +248,9 @@
     }
     if (!productName) {
       return showError('Give your idea a working name.');
+    }
+    if (githubUsername && !/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(githubUsername)) {
+      return showError("That doesn't look like a GitHub username. Leave it blank if you'd rather we handle it.");
     }
 
     submitBtn.disabled = true;
@@ -247,6 +266,7 @@
           idea,
           product_name: productName,
           tier: plan,
+          github_username: githubUsername,
           source: 'launch-wizard',
         })
       });

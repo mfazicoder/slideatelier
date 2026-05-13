@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import sqlite3
 import logging
@@ -110,10 +111,15 @@ def init_db() -> None:
             )
             """
         )
-        # Additive migration for live DBs that pre-date first_name.
+        # Additive migration for live DBs that pre-date first_name +
+        # github_username. github_username is optional — if blank, the
+        # tenant repo lands under the Hatchik-owned org; if set, the
+        # provisioner invites the customer as owner-collaborator.
         cols = {row[1] for row in conn.execute("PRAGMA table_info(signups)").fetchall()}
         if "first_name" not in cols:
             conn.execute("ALTER TABLE signups ADD COLUMN first_name TEXT")
+        if "github_username" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN github_username TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS rate_limit (
@@ -254,6 +260,11 @@ class SignupRequest(BaseModel):
     tier: Literal["sandbox", "launch"] = "sandbox"
     region: str | None = Field(None, max_length=40)
     domain_choice: str | None = Field(None, max_length=255)
+    github_username: str = Field(
+        "",
+        max_length=39,
+        validation_alias=AliasChoices("github_username", "githubUsername"),
+    )
 
     @field_validator("product_name", "description")
     @classmethod
@@ -268,6 +279,18 @@ class SignupRequest(BaseModel):
         # better than firing the whole string into a greeting).
         token = v.strip().split()[0] if v.strip() else ""
         return token[:1].upper() + token[1:] if token else ""
+
+    @field_validator("github_username")
+    @classmethod
+    def clean_github_username(cls, v: str) -> str:
+        # GitHub usernames: 1–39 chars, alphanumeric + single hyphens, no
+        # leading/trailing hyphen. Strip @ prefix if a customer pastes one.
+        v = v.strip().lstrip("@")
+        if not v:
+            return ""
+        if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}", v):
+            raise ValueError("github_username must be a valid GitHub handle")
+        return v
 
 
 class SignupResponse(BaseModel):
@@ -723,13 +746,14 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
             """
             INSERT INTO signups (
                 created_at, email, first_name, product_name, description, tier,
-                region, domain_choice, ip_address, user_agent, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')
+                region, domain_choice, ip_address, user_agent, github_username,
+                status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')
             """,
             (
                 created_at, str(req.email), req.first_name, req.product_name,
                 req.description, req.tier, req.region, req.domain_choice,
-                ip, user_agent,
+                ip, user_agent, req.github_username or None,
             ),
         )
         signup_id = cur.lastrowid or 0
@@ -1241,8 +1265,8 @@ async def get_me(
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         signup_rows = conn.execute(
-            "SELECT id, first_name, product_name, tier, created_at, status "
-            "FROM signups WHERE LOWER(email) = ? ORDER BY id DESC",
+            "SELECT id, first_name, product_name, tier, created_at, status, "
+            "github_username FROM signups WHERE LOWER(email) = ? ORDER BY id DESC",
             (email,),
         ).fetchall()
     reg = _load_registry()
@@ -1253,9 +1277,12 @@ async def get_me(
     }
     sandboxes = []
     first_name = ""
+    github_username = ""
     for r in signup_rows:
         if not first_name and r["first_name"]:
             first_name = r["first_name"]
+        if not github_username and r["github_username"]:
+            github_username = r["github_username"]
         tenant = tenants_by_signup.get(r["id"])
         sandboxes.append({
             "signup_id": r["id"],
@@ -1265,12 +1292,19 @@ async def get_me(
             "status": tenant.get("status") if tenant else r["status"],
             "url": tenant.get("url") if tenant else None,
             "slug": tenant.get("slug") if tenant else None,
+            "repo_url": tenant.get("repo_url") if tenant else None,
         })
-    return {"email": email, "first_name": first_name, "sandboxes": sandboxes}
+    return {
+        "email": email,
+        "first_name": first_name,
+        "github_username": github_username,
+        "sandboxes": sandboxes,
+    }
 
 
 class UpdateMeRequest(BaseModel):
     first_name: str | None = Field(None, max_length=80)
+    github_username: str | None = Field(None, max_length=39)
 
     @field_validator("first_name")
     @classmethod
@@ -1279,6 +1313,18 @@ class UpdateMeRequest(BaseModel):
             return None
         token = v.strip().split()[0] if v.strip() else ""
         return token[:1].upper() + token[1:] if token else ""
+
+    @field_validator("github_username")
+    @classmethod
+    def clean_github_username(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip().lstrip("@")
+        if not v:
+            return ""
+        if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}", v):
+            raise ValueError("github_username must be a valid GitHub handle")
+        return v
 
 
 @app.patch("/api/account/me")
@@ -1290,11 +1336,20 @@ async def update_me(
     if not session:
         raise HTTPException(status_code=401, detail="not signed in")
     email = session["email"]
+    updates: list[tuple[str, Any]] = []
     if body.first_name is not None:
+        updates.append(("first_name", body.first_name))
+    if body.github_username is not None:
+        # Empty string clears the field — customer is opting out of BYO
+        # GitHub for any future repo handoffs.
+        updates.append(("github_username", body.github_username or None))
+    if updates:
+        set_clause = ", ".join(f"{col} = ?" for col, _ in updates)
+        params = [val for _, val in updates] + [email]
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute(
-                "UPDATE signups SET first_name = ? WHERE LOWER(email) = ?",
-                (body.first_name, email),
+                f"UPDATE signups SET {set_clause} WHERE LOWER(email) = ?",
+                params,
             )
             conn.commit()
     return {"ok": True}

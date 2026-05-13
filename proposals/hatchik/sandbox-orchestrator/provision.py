@@ -48,6 +48,8 @@ from typing import Any
 
 import httpx
 
+from github_repo import GITHUB_ORG, create_tenant_repo
+
 
 # Auto-load /opt/hatchik-orchestrator/.env if present so the script can be
 # invoked from anywhere (cron, manual, signup-service subprocess) and still
@@ -199,7 +201,7 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
         "PROJECT_SLUG": slug,
         "PROJECT_DIR": str(target),
         "SERVER_IP": os.environ.get("HATCHIK_HOST_IP", "178.105.139.144"),
-        "REPO_URL": f"https://github.com/hatchik/{slug}",
+        "REPO_URL": f"https://github.com/{GITHUB_ORG}/{slug}",
         "LINEAR_PROJECT_URL": "https://linear.app/hatchik",
         "PRODUCT_DESCRIPTION": idea[:200] if idea else "",
         "ADMIN_EMAIL": email,
@@ -308,6 +310,160 @@ def render_substrate(slug: str, port: int, product_name: str, email: str, idea: 
         text = text.replace('- "8080:80"', f'- "127.0.0.1:{port}:80"')
         text = text.replace('- "8443:443"', f'# tenant TLS handled by host Caddy; no public 443 binding')
         compose.write_text(text)
+
+    # AI_CONTEXT.md — the file customer-facing AI tools (Claude Code,
+    # Cursor, Windsurf) read first. Lives at the repo root so opening
+    # the folder in a coding agent gives it everything it needs.
+    write_ai_context(target, slug, port, product_name, idea, email)
+
+
+def write_ai_context(target: Path, slug: str, port: int, product_name: str, idea: str, email: str) -> None:
+    """Write AI_CONTEXT.md at the tenant repo root.
+
+    Goal: any AI coding tool opened in this directory should be able to
+    pick up the substrate boundaries, the live sandbox URL, and the
+    Supabase anon key without having to grep half the codebase. No
+    secrets — service-role JWT and Postgres password stay in .env (which
+    is gitignored).
+    """
+    anon_key = _extract_env_value(target / ".env", "VITE_SUPABASE_ANON_KEY") or ""
+    sandbox_url = f"https://{slug}.{DOMAIN}"
+    first_prompt = first_prompt_template(product_name, idea, sandbox_url, anon_key)
+
+    body = f"""# AI_CONTEXT — {product_name}
+
+This file is for Claude Code, Cursor, Windsurf, or any other AI coding
+tool you point at this repo. Read it first.
+
+## What this is
+
+A Hatchik sandbox for **{product_name}**. The substrate (auth, database,
+hosting, mail, payments-in-test) is already wired up — your job is to
+add the product features on top.
+
+What the customer wants to build:
+> {idea or '(no description provided yet)'}
+
+## Live sandbox
+
+- URL: {sandbox_url}
+- Owner email: {email}
+- The URL is also the Supabase project URL — Hatchik routes
+  `/auth/v1/*`, `/rest/v1/*`, `/storage/v1/*`, `/realtime/v1/*` and
+  `/studio` through Caddy to the per-tenant Supabase stack.
+
+## Supabase
+
+```
+SUPABASE_URL          = {sandbox_url}
+SUPABASE_ANON_KEY     = {anon_key or '(see .env in this repo)'}
+```
+
+The anon key is safe to expose in the frontend (`VITE_*` env vars).
+**Do not** put the service-role key or Postgres password into the
+frontend or commit them — they live in `.env`, which is gitignored.
+
+## Database access
+
+The Postgres database lives inside the sandbox host's Docker network.
+You **cannot** connect to it directly from your laptop — port 5432
+isn't exposed publicly. Two ways to talk to it:
+
+1. **Via Supabase JS client** (recommended) — use the anon key for
+   end-user reads/writes governed by RLS policies, or the service-role
+   key from your `apps/api/` backend code for admin queries.
+2. **Via Supabase Studio** — open `{sandbox_url}/studio` in your
+   browser. SQL editor, table browser, auth user list, the lot.
+
+When you push commits, Hatchik picks up the change within the hour
+(automatic push-to-deploy ships soon) and your schema migrations /
+API code run inside the substrate's network with full DB access.
+See "Dev workflow" below.
+
+## Repo layout — where to add your code
+
+```
+apps/
+  web/
+    src/
+      product/        ← put your product UI here (pages, components)
+      lib/            ← shared client-side helpers
+      App.tsx         ← entry point — wire new routes in here
+  api/
+    src/
+      product/        ← put your product backend here (routes, business logic)
+      index.ts        ← Fastify entry — register your new routes here
+supabase/
+  migrations/         ← drop new .sql files here for schema changes
+```
+
+**Edit freely:** anything under `apps/web/src/product/`,
+`apps/api/src/product/`, and `supabase/migrations/`.
+
+**Don't edit** (these are substrate plumbing — changing them breaks the
+sandbox):
+- `docker-compose.yml`
+- `Caddyfile`
+- Anything under `supabase/volumes/` or `supabase/config/`
+- `apps/web/src/lib/supabase.ts` (auto-wired from env)
+- `apps/api/src/lib/supabase.ts` (auto-wired from env)
+- `apps/api/src/lib/auth.ts` (JWT verification — uses substrate JWT_SECRET)
+
+## Dev workflow
+
+Hatchik treats your GitHub repo as the source of truth. The flow is:
+
+1. Clone this repo to your laptop
+2. Open in your AI tool (Claude Code / Cursor / Windsurf)
+3. Make changes — focus on `apps/web/src/product/` and friends
+4. `git add . && git commit -m "..." && git push`
+5. Hatchik redeploys your sandbox within an hour (automatic
+   push-to-deploy ships soon — for now there's a short manual step)
+
+You don't run the stack locally — Docker + Supabase + Caddy is too heavy.
+The sandbox is your dev environment. Push small, push often.
+
+## First-prompt template — paste into your AI tool
+
+Once you've cloned the repo and opened it in Claude Code (or Cursor):
+
+> {first_prompt}
+
+The AI will read this file, understand the substrate, and start
+proposing changes. Accept, push, watch the sandbox update.
+
+## Useful URLs
+
+- Sandbox: {sandbox_url}
+- Supabase Studio: {sandbox_url}/studio (sign in with the owner magic link)
+- Hatchik account: https://hatchik.com/account
+- Docs: https://hatchik.com/docs
+
+— Hatchik (this file is generated per-tenant by provision.py)
+"""
+    (target / "AI_CONTEXT.md").write_text(body)
+
+
+def _extract_env_value(env_file: Path, key: str) -> str | None:
+    if not env_file.exists():
+        return None
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if line.startswith(f"{key}="):
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return None
+
+
+def first_prompt_template(product_name: str, idea: str, sandbox_url: str, anon_key: str) -> str:
+    return (
+        f"I want to build {product_name}. The idea is: \"{idea or 'a new product'}\". "
+        f"This repo is a Hatchik substrate — auth, database, hosting and email are "
+        f"already wired up. The live sandbox is at {sandbox_url} and the Supabase "
+        f"anon key is in AI_CONTEXT.md. Read AI_CONTEXT.md, then help me design the "
+        f"first feature: a minimal user-facing flow that proves the core value. "
+        f"Put new UI under apps/web/src/product/ and new API routes under "
+        f"apps/api/src/product/. Don't touch the substrate files."
+    )
 
 
 # ─── Caddy tenant route ───────────────────────────────────────────────────
@@ -533,6 +689,143 @@ Further information can be found at {faq_url} if you need it.
         return False
 
 
+def send_walkthrough_email(
+    to: str,
+    slug: str,
+    product_name: str,
+    repo_url: str,
+    first_name: str = "",
+    first_prompt: str = "",
+) -> bool:
+    """Send the "get started with Claude Code" follow-up email.
+
+    Fires right after send_sandbox_ready_email so the customer has both
+    inbox messages by the time they sit down to actually build. Failures
+    are logged but don't fail provisioning.
+    """
+    if not RESEND_API_KEY:
+        print("WARN: no RESEND_API_KEY, skipping walkthrough email")
+        return False
+    greeting = f"Hi {first_name}," if first_name else "Hi,"
+    clone_cmd = f"git clone {repo_url}.git"
+    docs_url = f"https://{DOMAIN}/docs"
+    text = f"""{greeting}
+
+Your {product_name} sandbox is up — now to the fun part: building it.
+
+Hatchik gives you a GitHub repo that mirrors the substrate running in
+your sandbox. Clone it, open it in an AI coding tool, push your
+changes; we'll redeploy your sandbox within the hour (automatic
+push-to-deploy ships soon).
+
+Step 1 — open your repo
+{repo_url}
+
+Step 2 — clone it locally
+  {clone_cmd}
+
+Step 3 — open the folder in Claude Code, Cursor, or Windsurf
+Any one of them will do. They all read the AI_CONTEXT.md file in the
+repo root, which tells them where the substrate boundaries are and how
+to talk to your sandbox.
+
+Step 4 — paste this prompt to get rolling
+  {first_prompt}
+
+Step 5 — push your changes
+  git add . && git commit -m "first feature" && git push
+Hatchik redeploys your sandbox within the hour after your push.
+(Automatic push-to-deploy ships soon — until then there's a short
+manual step on our side.)
+
+Stuck? Reply to this email — Farhan reads everything personally.
+
+— Hatchik
+
+More at {docs_url}.
+
+(This is an automated message — please don't reply.)
+"""
+    html = f"""\
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get started building {product_name}</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background:#ffffff;border-radius:8px;padding:32px;">
+          <tr>
+            <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
+              <p style="margin:0 0 16px 0;">{greeting}</p>
+              <p style="margin:0 0 16px 0;">Your <strong>{product_name}</strong> sandbox is up &mdash; now to the fun part: building it.</p>
+              <p style="margin:0 0 24px 0;">Hatchik gives you a GitHub repo that mirrors the substrate running in your sandbox. Clone it, open it in an AI coding tool, push your changes; we&rsquo;ll redeploy your sandbox within the hour (automatic push-to-deploy ships soon).</p>
+
+              <p style="margin:24px 0 8px 0;font-weight:600;">Step 1 &mdash; open your repo</p>
+              <p style="margin:0 0 16px 0;"><a href="{repo_url}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;">Open on GitHub &rarr;</a></p>
+
+              <p style="margin:24px 0 8px 0;font-weight:600;">Step 2 &mdash; clone it locally</p>
+              <pre style="margin:0 0 16px 0;background:#f6f5f1;padding:12px 16px;border-radius:8px;font-size:13px;overflow:auto;"><code>{clone_cmd}</code></pre>
+
+              <p style="margin:24px 0 8px 0;font-weight:600;">Step 3 &mdash; open the folder in your AI tool</p>
+              <p style="margin:0 0 16px 0;">Claude Code, Cursor, or Windsurf &mdash; any of them. They all read the <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> file in the repo root, which tells them where the substrate boundaries are and how to talk to your sandbox.</p>
+
+              <p style="margin:24px 0 8px 0;font-weight:600;">Step 4 &mdash; paste this prompt to get rolling</p>
+              <blockquote style="margin:0 0 16px 0;padding:12px 16px;background:#f6f5f1;border-left:3px solid #4f46e5;border-radius:0 8px 8px 0;font-size:14px;color:#333;">{_html_escape(first_prompt)}</blockquote>
+
+              <p style="margin:24px 0 8px 0;font-weight:600;">Step 5 &mdash; push your changes</p>
+              <pre style="margin:0 0 16px 0;background:#f6f5f1;padding:12px 16px;border-radius:8px;font-size:13px;overflow:auto;"><code>git add . &amp;&amp; git commit -m "first feature" &amp;&amp; git push</code></pre>
+              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Hatchik redeploys your sandbox within the hour after your push. (Automatic push-to-deploy ships soon &mdash; until then there&rsquo;s a short manual step on our side.)</p>
+
+              <p style="margin:32px 0 16px 0;">Stuck? Reply to this email &mdash; Farhan reads everything personally.</p>
+
+              <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
+              <p style="margin:24px 0 0 0;color:#555;font-size:14px;">More at <a href="{docs_url}" style="color:#4f46e5;text-decoration:underline;">{docs_url}</a>.</p>
+              <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+    payload = {
+        "from": HATCHIK_FROM_EMAIL,
+        "to": to,
+        "subject": f"Start building {product_name} — your AI-coding handoff",
+        "text": text,
+        "html": html,
+    }
+    try:
+        r = httpx.post(
+            RESEND_API_URL,
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=10,
+        )
+        r.raise_for_status()
+        return True
+    except httpx.HTTPError as e:
+        print(f"WARN: failed to send walkthrough email: {e}")
+        return False
+
+
+def _html_escape(s: str) -> str:
+    """Minimal HTML escape for inline embedding in the walkthrough email."""
+    return (
+        s.replace("&", "&amp;")
+         .replace("<", "&lt;")
+         .replace(">", "&gt;")
+         .replace('"', "&quot;")
+    )
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────
 def fetch_signup(signup_id: int) -> dict[str, Any]:
     conn = sqlite3.connect(SIGNUPS_DB)
@@ -552,6 +845,7 @@ def main() -> None:
     ap.add_argument("--product", help="Product name (manual mode)")
     ap.add_argument("--idea", default="A new app", help="Product description")
     ap.add_argument("--first-name", default="", help="Customer first name (manual mode)")
+    ap.add_argument("--github-username", default="", help="Customer GitHub handle for repo invite (manual mode)")
     ap.add_argument("--no-email", action="store_true", help="Skip the customer email")
     args = ap.parse_args()
 
@@ -560,14 +854,17 @@ def main() -> None:
         email = row["email"]
         product_name = row["product_name"] or "Untitled"
         idea = row["description"] or "A new app"
-        # first_name added to schema after some signups landed — be defensive.
+        # first_name + github_username added to schema after some signups
+        # landed — be defensive when the columns are missing.
         first_name = (row["first_name"] if "first_name" in row.keys() else "") or ""
+        github_username = (row["github_username"] if "github_username" in row.keys() else "") or ""
         signup_id = args.signup_id
     elif args.slug and args.email and args.product:
         email = args.email
         product_name = args.product
         idea = args.idea
         first_name = args.first_name
+        github_username = args.github_username
         signup_id = 0
     else:
         ap.error("either signup_id OR --slug + --email + --product required")
@@ -621,8 +918,38 @@ def main() -> None:
             print("  7. send sandbox-ready email")
             send_sandbox_ready_email(email, slug, product_name, first_name, signin_link)
 
+        # GitHub handoff — create per-tenant repo, push the rendered
+        # substrate, invite the customer if they gave us their GH handle.
+        # Resilient: any failure here is logged and the customer still
+        # has a working sandbox + the AI_CONTEXT.md file written locally.
+        print("  8. create GitHub repo + push substrate")
+        gh_result = create_tenant_repo(slug, target, product_name, idea, github_username)
+        repo_url = gh_result.get("repo_url")
+        if repo_url:
+            print(f"     ✓ repo at {repo_url} (pushed={gh_result['pushed']} invited={gh_result['invited']})")
+        else:
+            print(f"     (skipped: {gh_result.get('skipped_reason')})")
+
+        # Walkthrough email — only useful if the repo actually exists, so
+        # skip silently when GitHub was unavailable.
+        if not args.no_email and repo_url:
+            print("  9. send walkthrough email")
+            sandbox_url = f"https://{slug}.{DOMAIN}"
+            anon_key = _extract_env_value(target / ".env", "VITE_SUPABASE_ANON_KEY") or ""
+            send_walkthrough_email(
+                email,
+                slug,
+                product_name,
+                repo_url,
+                first_name,
+                first_prompt_template(product_name, idea, sandbox_url, anon_key),
+            )
+
         reg = load_registry()
         reg["tenants"][slug]["status"] = "live"
+        if repo_url:
+            reg["tenants"][slug]["repo_url"] = repo_url
+            reg["tenants"][slug]["github_username"] = github_username or None
         save_registry(reg)
 
         print(f"✓ live at https://{slug}.{DOMAIN}")
