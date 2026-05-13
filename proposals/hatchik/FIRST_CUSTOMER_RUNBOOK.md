@@ -29,10 +29,11 @@ Everything Sandbox-tier runs on one VPS — the **sandbox host** at
 - **Host Caddy** — `/opt/hatchik-host-caddy/` (compose stack with
   wildcard cert + `import tenants.d/*.caddy` for per-tenant routes)
 
-The Resend `from` address is set in `/etc/hatchik-signup.env`. Currently
-`noreply@loftik.namaasol.com` until `hatchik.com` is verified in Resend —
-once verified, change to `noreply@hatchik.com` and `systemctl restart
-hatchik-signup`.
+The Resend `from` header is set in `/etc/hatchik-signup.env` as
+`HATCHIK_FROM_EMAIL=Hatchik <noreply@hatchik.com>`. The display-name
+prefix (`Hatchik <...>`) is what Gmail shows in the inbox sender column;
+without it Gmail extracts the local-part and shows `noreply`. After any
+change here, `systemctl restart hatchik-signup`.
 
 ## Trigger
 
