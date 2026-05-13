@@ -36,7 +36,7 @@ as an early-stage startup. We qualify.
 >
 > **Stage:** Idea / Pre-revenue
 >
-> **Year founded:** {{YEAR_LOFTIK_INCORPORATED}}
+> **Year founded:** {{YEAR_HATCHIK_INCORPORATED}}
 >
 > **Number of employees:** 1
 >
@@ -83,7 +83,7 @@ employees. We qualify on all three.
 >
 > **Website:** https://hatchik.com
 >
-> **Date founded:** {{LOFTIK_FOUNDED_DATE}}
+> **Date founded:** {{HATCHIK_FOUNDED_DATE}}
 >
 > **Funding raised:** $0
 >
@@ -176,7 +176,7 @@ schedule a 15-min call to verify legitimacy.
 
 ## 4. MCP Directory Submissions (Smithery + Cursor + mcp.so + official registry)
 
-**Prerequisite:** The `@loftik/mcp` server needs to be published to
+**Prerequisite:** The `@hatchik/mcp` server needs to be published to
 npm first (or be runnable via `npx`). This means:
 1. Polish the MCP server (the one specced in `mcp-signup-flow.md`)
 2. Publish to npm: `npm publish --access=public`
@@ -196,9 +196,9 @@ just point at the GitHub repo.
 >
 > **Author:** {{YOUR_NAME / Hatchik}}
 >
-> **GitHub URL:** https://github.com/{{YOUR_ORG}}/loftik-mcp
+> **GitHub URL:** https://github.com/{{YOUR_ORG}}/hatchik-mcp
 >
-> **NPM package:** @loftik/mcp
+> **NPM package:** @hatchik/mcp
 >
 > **Description:** Sign up for Hatchik (a SaaS substrate-as-a-service)
 > directly inside your AI tool, and manage your deployment ongoing.
@@ -250,7 +250,7 @@ privacy policy, public docs, working demo.
 
 **Prerequisites before applying:**
 
-- [ ] `@loftik/mcp` published to npm
+- [ ] `@hatchik/mcp` published to npm
 - [ ] Privacy policy live at https://hatchik.com/privacy ✓
 - [ ] MCP docs page (at hatchik.com/install or docs subdomain)
 - [ ] Demo video showing the MCP in use (60-90s screen recording)
@@ -261,7 +261,7 @@ privacy policy, public docs, working demo.
 
 > **Connector name:** Hatchik
 >
-> **Submission URL:** https://github.com/{{YOUR_ORG}}/loftik-mcp
+> **Submission URL:** https://github.com/{{YOUR_ORG}}/hatchik-mcp
 >
 > **Description (1-2 sentences):**
 > Hatchik lets you launch and operate a complete SaaS — domain, server,

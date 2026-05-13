@@ -12,7 +12,7 @@ From your local machine:
 
 ```bash
 # Copy the service files to the VPS
-rsync -avz signup-service/ root@83.228.247.210:/opt/loftik-signup/
+rsync -avz signup-service/ root@83.228.247.210:/opt/hatchik-signup/
 ```
 
 SSH to the VPS:
@@ -21,23 +21,23 @@ SSH to the VPS:
 ssh root@83.228.247.210
 
 # Install dependencies
-cd /opt/loftik-signup
+cd /opt/hatchik-signup
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
 # Create the DB directory
-mkdir -p /var/lib/loftik
-chown www-data:www-data /var/lib/loftik
+mkdir -p /var/lib/hatchik
+chown www-data:www-data /var/lib/hatchik
 
 # Install the systemd unit
-cp loftik-signup.service /etc/systemd/system/
-# Edit /etc/systemd/system/loftik-signup.service to fill in:
+cp hatchik-signup.service /etc/systemd/system/
+# Edit /etc/systemd/system/hatchik-signup.service to fill in:
 #   - RESEND_API_KEY (from resend.com dashboard)
-#   - LOFTIK_FOUNDER_EMAIL (your real inbox)
+#   - HATCHIK_FOUNDER_EMAIL (your real inbox)
 
 systemctl daemon-reload
-systemctl enable --now loftik-signup
-systemctl status loftik-signup
+systemctl enable --now hatchik-signup
+systemctl status hatchik-signup
 ```
 
 Then update the Caddyfile site block for hatchik.com to include:
@@ -76,8 +76,8 @@ curl -X POST https://hatchik.com/api/signup \
 Expected: HTTP 201, `{"ok": true, "message": "Thanks. We're setting your Hatchik up..."}`
 
 Check:
-- `journalctl -u loftik-signup -f` shows the request
-- SQLite has the row: `sqlite3 /var/lib/loftik/signups.db "SELECT * FROM signups"`
+- `journalctl -u hatchik-signup -f` shows the request
+- SQLite has the row: `sqlite3 /var/lib/hatchik/signups.db "SELECT * FROM signups"`
 - Your inbox got the founder notification
 - The test email address got the customer acknowledgement
 
@@ -87,7 +87,7 @@ The simplest way during the concierge phase:
 
 ```bash
 ssh root@83.228.247.210
-sqlite3 /var/lib/loftik/signups.db <<'EOF'
+sqlite3 /var/lib/hatchik/signups.db <<'EOF'
 .headers on
 .mode column
 SELECT id, created_at, email, tier, product_name, status FROM signups WHERE status = 'new' ORDER BY created_at DESC;
@@ -97,8 +97,8 @@ EOF
 Mark as in-progress / done once you start provisioning:
 
 ```bash
-sqlite3 /var/lib/loftik/signups.db "UPDATE signups SET status = 'provisioning' WHERE id = 1"
-sqlite3 /var/lib/loftik/signups.db "UPDATE signups SET status = 'live' WHERE id = 1"
+sqlite3 /var/lib/hatchik/signups.db "UPDATE signups SET status = 'provisioning' WHERE id = 1"
+sqlite3 /var/lib/hatchik/signups.db "UPDATE signups SET status = 'live' WHERE id = 1"
 ```
 
 ## Stats endpoint (public)

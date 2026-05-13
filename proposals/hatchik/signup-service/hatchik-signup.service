@@ -8,8 +8,8 @@ WorkingDirectory=/opt/hatchik-signup
 Environment=HATCHIK_SIGNUP_DB=/var/lib/hatchik/signups.db
 Environment=RESEND_API_KEY=re_2BEvKi5N_MMaWD8uebJNaFtMNarThK9qf
 Environment=HATCHIK_FOUNDER_EMAIL=appmanager@namaasol.com
-Environment=HATCHIK_FROM_EMAIL=noreply@loftik.namaasol.com
-Environment=HATCHIK_ALLOWED_ORIGINS=https://loftik.namaasol.com,https://www.loftik.namaasol.com
+Environment=HATCHIK_FROM_EMAIL=hello@hatchik.com
+Environment=HATCHIK_ALLOWED_ORIGINS=https://hatchik.com,https://www.hatchik.com
 ExecStart=/opt/hatchik-signup/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8090
 Restart=always
 RestartSec=5

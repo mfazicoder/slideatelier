@@ -221,7 +221,7 @@ BLOCKED_COUNTRIES = {
 }
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-log = logging.getLogger("loftik-signup")
+log = logging.getLogger("hatchik-signup")
 
 # ─── Disposable-email block-list ────────────────────────────────────────
 # Curated subset (~180 entries) of the most-trafficked throwaway-email

@@ -8,7 +8,7 @@ marketing claim real, end-to-end, via a one-click cloud build.
 ### Substrate-template (nested git repo at `proposals/hatchik/substrate-template/`)
 
 - `apps/mobile/capacitor.config.ts` — rebrand bundle ID to
-  `com.hatchik.{{PROJECT_SLUG}}` (was the stale `app.loftik.*`) and add
+  `com.hatchik.{{PROJECT_SLUG}}` (was the stale `app.hatchik.*`) and add
   a header comment explaining the placeholder substitution.
 - `apps/mobile/package.json` — add `build`, `build:ios`, `build:android`
   scripts that shell out to `build.sh`; rename `build` → `build:web` to

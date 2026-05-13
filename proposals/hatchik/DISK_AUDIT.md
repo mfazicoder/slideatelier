@@ -23,7 +23,7 @@ Together those two account for ~103 GB. Almost everything else on disk is struct
 | **slideAtelier** | ~455 MB | ~0 GB | high | `/opt/slideatelier` = 47 MB (43 MB library thumbnails), `slideatelier:latest` image = 408 MB. All in use. There's a stale duplicate tag `slideatelier:vps-amd64` pointing to the same image ID — costs 0 extra bytes (deduplicated). |
 | **ThreadLine** | **not deployed** | — | — | No `/opt/threadline`, no `/var/www/threadline`, no `threadline` container, no `threadline` image. ThreadLine is **not on this VPS**. |
 | **sereneintel** | **not deployed** | — | — | No matching directory or container found. **Not on this VPS** either. |
-| **Hatchik** | ~56 MB | ~0 MB | high | `/var/www/loftik` = 112 KB (static), `/opt/loftik-signup` = 56 MB (mostly the 56 MB Python venv). Just deployed — leave it. |
+| **Hatchik** | ~56 MB | ~0 MB | high | `/var/www/hatchik` = 112 KB (static), `/opt/hatchik-signup` = 56 MB (mostly the 56 MB Python venv). Just deployed — leave it. |
 
 ## Docker detail
 
@@ -104,7 +104,7 @@ This Docker uses the **containerd image-store** mode. The 28 GB you see in `/var
 | /var/lib/docker/volumes | 31 GB | Mostly nextcloud_nextcloud (29 GB real user data). |
 | /var/www/stackr | 720 MB | 561 MB `app` (376 MB `.git`, 115 MB `public`, 69 MB `src`), 159 MB `dist` |
 | /opt/supabase | 70 MB | code only |
-| /opt/loftik-signup | 56 MB | Python venv |
+| /opt/hatchik-signup | 56 MB | Python venv |
 | /opt/slideatelier | 47 MB | mostly library thumbnails (43 MB) |
 | /var/log/journal | 177 MB | systemd journal (capped at 253 MB per `journalctl --disk-usage`) |
 | /boot | 117 MB | 2 kernels: `5.15.0-176-generic` + `5.15.0-177-generic` (current). One reclaimable. |

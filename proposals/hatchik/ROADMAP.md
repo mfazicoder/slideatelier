@@ -138,7 +138,7 @@ without contacting support.
 
 **Goal:** The differentiating "sign up inside your AI tool" experience.
 
-- [ ] `@loftik/mcp` npm package scaffold
+- [ ] `@hatchik/mcp` npm package scaffold
 - [ ] MCP server (Node + `@modelcontextprotocol/sdk`)
 - [ ] Signup-mode tools (start_signup, suggest_domains, set_choices,
       checkout, status, complete)

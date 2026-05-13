@@ -68,11 +68,11 @@ Agent responds inline in the dashboard with conversation thread.
 ### AI tool chat (via MCP)
 
 Customer running Cursor / Claude Code / Windsurf can invoke the
-`loftik.support` tool directly:
+`hatchik.support` tool directly:
 
 ```
 You: my deploy keeps failing
-Cursor: (Calls loftik.support with context)
+Cursor: (Calls hatchik.support with context)
 Hatchik support agent: I can see your last deploy failed because the
 TypeScript check in apps/web didn't pass. Specifically, the error
 was at apps/web/src/product/recipes.tsx:42 — `recipe.name` is
@@ -171,7 +171,7 @@ email" etc.
 Two layers:
 
 1. **Public knowledge base** — derived from `docs/` (substrate docs)
-   + `proposals/loftik/` (product docs) + community FAQ. Agent reads
+   + `proposals/hatchik/` (product docs) + community FAQ. Agent reads
    from this for "how do I" and "what does X mean" questions.
 
 2. **Internal knowledge base** — internal runbooks, post-mortems,

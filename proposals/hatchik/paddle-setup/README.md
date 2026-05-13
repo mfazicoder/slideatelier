@@ -21,7 +21,7 @@ not Paddle Classic. Endpoints look like `api.paddle.com/products` — not
      - Business registration documents (Omani entity)
      - Bank account in a Paddle-supported settlement currency (GBP works)
      - Website live with terms, privacy, refund policy (we have these
-       in `proposals/loftik/{terms,privacy}.html`)
+       in `proposals/hatchik/{terms,privacy}.html`)
      - Tax ID where applicable
 2. **API key.** Paddle dashboard → Developer Tools → Authentication →
    "Create API key". Sandbox keys start `pdl_sdbx_apikey_…`, live keys
@@ -31,7 +31,7 @@ not Paddle Classic. Endpoints look like `api.paddle.com/products` — not
 ## Install
 
 ```bash
-cd proposals/loftik/paddle-setup
+cd proposals/hatchik/paddle-setup
 pip install -r requirements.txt
 ```
 
@@ -47,12 +47,12 @@ The script will:
 
 1. Create the **Hatchik Launch** product (or reuse if it already exists,
    identified by `custom_data.lookup_key`)
-2. Create a **£89 one-time** price (lookup_key: `loftik_launch_setup`)
+2. Create a **£89 one-time** price (lookup_key: `hatchik_launch_setup`)
 3. Create a **£14/month** price with a 30-day trial (lookup_key:
-   `loftik_launch_monthly`) — the trial means the first £14 charges 30
+   `hatchik_launch_monthly`) — the trial means the first £14 charges 30
    days after signup, so the £89 setup naturally covers month 1
 4. Create the **Hatchik Growth** product
-5. Create a **£39/month** price (lookup_key: `loftik_growth_monthly`)
+5. Create a **£39/month** price (lookup_key: `hatchik_growth_monthly`)
 6. Create a hosted **Payment Link** (Paddle transaction) bundling setup
    + monthly. The response includes `checkout.url` — that's the link
    you paste into `index.html`.
@@ -84,7 +84,7 @@ top of `setup.py` — edit them as you learn more about each market.
 
 ## Wire it into the marketing page
 
-1. Open `proposals/loftik/index.html`
+1. Open `proposals/hatchik/index.html`
 2. Find both occurrences of:
 
    ```
@@ -134,10 +134,10 @@ a payment fails. Set this up *once*, separately from this script:
 5. Copy that into the VPS:
 
    ```bash
-   # On loftik VPS, edit the systemd unit:
-   sudo systemctl edit loftik-signup.service
+   # On hatchik VPS, edit the systemd unit:
+   sudo systemctl edit hatchik-signup.service
    # add: Environment="PADDLE_WEBHOOK_SECRET=pdl_ntfset_..."
-   sudo systemctl restart loftik-signup.service
+   sudo systemctl restart hatchik-signup.service
    ```
 
 The receiving handler must verify the `Paddle-Signature` header against
@@ -178,7 +178,7 @@ This isn't automatic. When you see a customer cross the threshold:
 
 1. Paddle dashboard → Customers → find them → their subscription
 2. "Manage" → "Add charge / change items"
-3. Remove the `loftik_launch_monthly` price, add `loftik_growth_monthly`
+3. Remove the `hatchik_launch_monthly` price, add `hatchik_growth_monthly`
 4. Set proration to "do not prorate" (per `PRODUCT_OFFERING.md §2.3`)
 
 Email the customer a month in advance per `PRODUCT_OFFERING.md §2.3`.

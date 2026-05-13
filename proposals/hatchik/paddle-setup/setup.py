@@ -173,7 +173,7 @@ def ensure_product(paddle: Paddle, lookup_key: str, name: str, description: str,
         "tax_category": "saas",  # Paddle's SaaS tax category
         "custom_data": {
             "lookup_key": lookup_key,
-            "loftik_tier": tier,
+            "hatchik_tier": tier,
         },
     }
     resp = paddle.post("/products", payload)
@@ -249,7 +249,7 @@ def create_payment_link(paddle: Paddle, setup_price_id: str, monthly_price_id: s
             {"price_id": monthly_price_id, "quantity": 1},
         ],
         "collection_mode": "automatic",
-        "custom_data": {"loftik_flow": "launch_signup"},
+        "custom_data": {"hatchik_flow": "launch_signup"},
         # TODO: replace this success URL with your real post-checkout page.
         # Paddle substitutes `{transaction_id}` placeholder at redirect time.
         "checkout": {
@@ -407,7 +407,7 @@ def main() -> int:
     print(f"  {checkout_url}")
     print()
     print("Next steps:")
-    print("  1. Open proposals/loftik/index.html")
+    print("  1. Open proposals/hatchik/index.html")
     print("  2. Find both occurrences of:")
     print("       mailto:hello@hatchik.com?subject=Hatchik%20Launch%20-%20early%20access")
     print("  3. Replace with the Payment Link URL above")

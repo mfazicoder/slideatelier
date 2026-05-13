@@ -294,7 +294,7 @@ Why these choices:
 ### AI integration
 
 - **For development (the customer's AI coder)** — MCP server hosted at
-  `npm:@loftik/mcp` for Cursor / Claude Code / Windsurf / Cline. Lists
+  `npm:@hatchik/mcp` for Cursor / Claude Code / Windsurf / Cline. Lists
   the customer's project ID + provides tools for ops.
 - **For runtime (AI inside the customer's app)** — Optional AI credits
   passthrough via OpenRouter. Customer flips a switch in dashboard, their

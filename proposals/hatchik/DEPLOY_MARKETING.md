@@ -44,13 +44,13 @@ From your local machine:
 
 ```bash
 # From the worktree
-cd /Users/farhan/Projects/slideAtelier/.claude/worktrees/cranky-nash-5e9af5/proposals/loftik
+cd /Users/farhan/Projects/slideAtelier/.claude/worktrees/cranky-nash-5e9af5/proposals/hatchik
 
 # Create remote target dir
-ssh root@83.228.247.210 'mkdir -p /var/www/loftik'
+ssh root@83.228.247.210 'mkdir -p /var/www/hatchik'
 
 # Copy the marketing page
-rsync -avz index.html root@83.228.247.210:/var/www/loftik/
+rsync -avz index.html root@83.228.247.210:/var/www/hatchik/
 
 # Optionally also copy proposal docs (private — not served publicly)
 # (skip if you don't want them on the server at all)
@@ -74,7 +74,7 @@ Add a new site block:
 # /etc/caddy/Caddyfile (or your Caddyfile)
 
 hatchik.com, www.hatchik.com {
-    root * /var/www/loftik
+    root * /var/www/hatchik
     file_server
     encode gzip zstd
 
@@ -152,7 +152,7 @@ list. Setup:
 Tiny FastAPI service (~20 lines):
 
 ```python
-# /opt/loftik-waitlist/main.py
+# /opt/hatchik-waitlist/main.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, EmailStr
 import httpx
@@ -187,23 +187,23 @@ Install + run as a systemd service:
 ```bash
 ssh root@83.228.247.210
 
-mkdir -p /opt/loftik-waitlist
-cd /opt/loftik-waitlist
+mkdir -p /opt/hatchik-waitlist
+cd /opt/hatchik-waitlist
 # (scp main.py up to here, or paste with cat > main.py)
 python3 -m venv .venv
 .venv/bin/pip install fastapi uvicorn[standard] httpx pydantic email-validator
 
-cat > /etc/systemd/system/loftik-waitlist.service <<'EOF'
+cat > /etc/systemd/system/hatchik-waitlist.service <<'EOF'
 [Unit]
 Description=Hatchik waitlist endpoint
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/loftik-waitlist
+WorkingDirectory=/opt/hatchik-waitlist
 Environment=RESEND_API_KEY=...
 Environment=RESEND_AUDIENCE_ID=...
-ExecStart=/opt/loftik-waitlist/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8090
+ExecStart=/opt/hatchik-waitlist/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8090
 Restart=always
 User=www-data
 
@@ -212,8 +212,8 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now loftik-waitlist
-systemctl status loftik-waitlist
+systemctl enable --now hatchik-waitlist
+systemctl status hatchik-waitlist
 ```
 
 Then uncomment the `/api/waitlist` block in the Caddyfile and reload.
@@ -283,7 +283,7 @@ apt update && apt install -y caddy
 cat > /etc/caddy/Caddyfile <<'EOF'
 # Hatchik marketing site
 hatchik.com, www.hatchik.com {
-    root * /var/www/loftik
+    root * /var/www/hatchik
     file_server
 }
 EOF
@@ -306,14 +306,14 @@ flush local DNS cache.
 syntax issues. `journalctl -u caddy -f` shows live logs.
 
 **Waitlist endpoint 502** — uvicorn not running. `systemctl status
-loftik-waitlist` then `journalctl -u loftik-waitlist -f`.
+hatchik-waitlist` then `journalctl -u hatchik-waitlist -f`.
 
 ## Rollback
 
 If anything goes wrong:
 1. Remove the new Caddy site block
 2. `caddy reload`
-3. Delete `/var/www/loftik`
+3. Delete `/var/www/hatchik`
 4. Remove DNS records at the registrar
 5. Existing slideAtelier / Stackr / ThreadLine / Nextcloud sites
    unaffected throughout — the new block doesn't touch them

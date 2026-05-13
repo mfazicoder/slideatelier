@@ -19,7 +19,7 @@ else gates on revenue, funding, or customer count.
 | # | Programme | URL | Action item | Effort |
 |---|---|---|---|---|
 | 1 | **Cloudflare for Startups — Bootstrapped tier** | https://www.cloudflare.com/forstartups/ | Apply with promo code `BOOTSTRAPPED` for the $5K credit tier (no funding required) | 20–30 min |
-| 2 | **Anthropic MCP / Connectors Directory** | https://claude.com/docs/connectors/building/submission | Polish the `@loftik/mcp` server (tool annotations, privacy policy), submit form. Free distribution to Claude users. | 2–4 hr including polish |
+| 2 | **Anthropic MCP / Connectors Directory** | https://claude.com/docs/connectors/building/submission | Polish the `@hatchik/mcp` server (tool annotations, privacy policy), submit form. Free distribution to Claude users. | 2–4 hr including polish |
 | 3 | **Smithery.ai + Cursor MCP marketplace + mcp.so + official registry** | https://smithery.ai/ , https://cursor.com/marketplace , https://registry.modelcontextprotocol.io/ | Publish once via `smithery mcp publish`, submit GitHub issue to mcp.so, register with official MCP registry. All four are free directory listings. | 1–2 hr total |
 | 4 | **Sentry for Startups** | https://sentry.io/for/startups/apply/ | Apply for the $5K credit + 6-months-free Teams plan. Eligible: under 2 years old, <$5M raised. 2–3 day response. | 15 min |
 | 5 | **AWS Activate — Founders tier** | https://aws.amazon.com/startups/credits/ | $1,000 credit + $350 dev-support credit, no investor needed. Worth grabbing as a fallback / future-AGI-data-warehouse buffer. | 15 min |

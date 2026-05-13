@@ -42,7 +42,7 @@ Before opening any account, decide:
 |---|---|
 | `hatchik.com` | First choice |
 | `hatchik.com` | Tech-friendly, ~£32/yr |
-| `loftik.co` | ~£25/yr, harder to remember |
+| `hatchik.co` | ~£25/yr, harder to remember |
 | `gethatchik.com` | Last resort — adds friction |
 
 ### Steps
@@ -85,9 +85,9 @@ The marketing page is a single static HTML file plus a Tailwind CDN. Pick **one*
 
 1. Create new project in Cloudflare Pages → "Direct upload" or "Connect to
    Git".
-2. If using Git: push `proposals/loftik/index.html` to a public or private repo
-   (e.g. `loftik-marketing`).
-3. Build settings: none (static HTML). Root directory: `proposals/loftik/`.
+2. If using Git: push `proposals/hatchik/index.html` to a public or private repo
+   (e.g. `hatchik-marketing`).
+3. Build settings: none (static HTML). Root directory: `proposals/hatchik/`.
 4. Deploy.
 5. Add custom domain `hatchik.com` → Cloudflare auto-configures DNS.
 6. Verify TLS padlock loads.
@@ -124,7 +124,7 @@ You have three paths. Pick **one**. Don't over-engineer.
 
 ### Path A — Quickest: Google Sheet via Tally or Sheety (~30 min)
 
-- Create a Google Sheet `loftik-waitlist` with columns `email`, `source`,
+- Create a Google Sheet `hatchik-waitlist` with columns `email`, `source`,
   `created_at`.
 - Sign up at <https://tally.so> (free) — create a form with one email field,
   Tally embeds nicely or POSTs to a webhook.

@@ -144,7 +144,7 @@ If customer indicated they want help self-hosting, the agent provides:
   2. Update Cloudflare DNS to remove Hatchik's records (we leave a stub
      for backwards compatibility)
   3. Set up your own backup destination (Backblaze B2 / S3)
-  4. Disable Hatchik's `LOFTIK_*` env vars (or leave them — they fail
+  4. Disable Hatchik's `HATCHIK_*` env vars (or leave them — they fail
      silently once we deprovision)
   5. Optional: switch transactional email from Resend to your own
   6. Optional: switch monitoring to your own Sentry / Uptime Kuma
