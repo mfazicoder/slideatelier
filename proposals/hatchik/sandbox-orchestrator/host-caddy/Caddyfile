@@ -100,3 +100,37 @@ status.hatchik.com {
         Cache-Control "no-store"
     }
 }
+
+# ─── Docs (docs.hatchik.com) — static documentation site ────────────────
+# Pure static HTML pages live at /var/www/hatchik-docs/ (separate from
+# the marketing site at /var/www/hatchik/ to keep deploys independent —
+# docs gets updated more often than the marketing pages). Source files
+# live in proposals/hatchik/docs/ in the repo and are rsynced over.
+# Wildcard cert above already covers this subdomain via Cloudflare DNS-01.
+# No API needed — pages are entirely static.
+docs.hatchik.com {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    encode gzip zstd
+
+    # Static files. try_files handles both /foo and /foo.html so links
+    # written as href="/getting-started" resolve to getting-started.html
+    # without a trailing slash. / falls through to index.html.
+    handle {
+        root * /var/www/hatchik-docs
+        try_files {path} {path}.html /index.html
+        file_server
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Cache static docs for an hour at the edge — they're frequently
+        # updated but not minute-by-minute. Long Cache-Control would
+        # require a deploy invalidation step we don't have yet.
+        Cache-Control "public, max-age=3600"
+    }
+}
