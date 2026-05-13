@@ -213,7 +213,7 @@ async def _resend_send(payload: dict[str, Any]) -> None:
 async def send_founder_notification(
     req: SignupRequest, signup_id: int, ip: str = "unknown"
 ) -> None:
-    """Email the founder so they can start the manual provisioning."""
+    """Email the founder with signup details (provisioning runs automatically for Sandbox)."""
     if not RESEND_API_KEY:
         log.warning("RESEND_API_KEY not set — skipping founder notification")
         return
@@ -232,8 +232,8 @@ New Hatchik signup #{signup_id}
   Description:
   {req.description or '(none)'}
 
-Next step: see FIRST_CUSTOMER_RUNBOOK.md
-Reply directly to {req.email} to begin the white-glove onboarding.
+Sandbox tier: provisioning runs automatically — watch /var/log/hatchik/provision-{signup_id}.log
+Launch tier: see FIRST_CUSTOMER_RUNBOOK.md for the manual flow.
 """
 
     try:
@@ -250,28 +250,20 @@ Reply directly to {req.email} to begin the white-glove onboarding.
 
 
 def _customer_email_bodies(req: SignupRequest) -> tuple[str, str]:
-    """Render plaintext + HTML versions of the customer acknowledgement.
-
-    Tone & structure mirror WELCOME_EMAILS.md §1 (sandbox) / §2 (launch):
-    British voice, founder-signed, white-glove framing.
-    """
+    """Render plaintext + HTML versions of the customer acknowledgement."""
     if req.tier == "launch":
-        intro = (
-            f"Just got your signup for {req.product_name} on the Launch tier — "
-            "thank you. I'm provisioning your Hatchik right now."
-        )
+        intro = f"Thanks for signing up for {req.product_name} on the Launch tier."
         next_step = (
-            "You'll get the full handover email within 24 hours — earlier if "
-            "nothing breaks. If anything needs your input (domain choice, "
-            "Google OAuth preferences, etc.) I'll ask in a separate email."
+            "Your Hatchik is being provisioned now. You'll get another email "
+            "shortly with the link to log in and start building — usually "
+            "within a few hours, sometimes faster if nothing needs your input."
         )
     else:
-        intro = (
-            f"Got your signup — really like the sound of {req.product_name}."
-        )
+        intro = f"Thanks for signing up — and welcome to {req.product_name}."
         next_step = (
-            "I'm setting your Hatchik sandbox up now. You'll get another email "
-            "from me within 24 hours with the link to log in and start building."
+            "Your Hatchik sandbox is being provisioned now. You'll get "
+            "another email in a few minutes with the link to log in and "
+            "start building."
         )
 
     text = f"""\
@@ -281,17 +273,9 @@ Hi,
 
 {next_step}
 
-A heads-up: Hatchik's brand new, which means for now I (the founder)
-hand-provision each signup. The flow you see in the demo is what's
-shipping over the next few weeks. Until then, you're getting the
-white-glove version — feel free to ask me anything by replying to
-this email.
-
-Talk soon,
-Hatchik
+— Hatchik
 """
 
-    # HTML version — same copy, simple inline styles, mobile-friendly.
     intro_html = _html_escape(intro)
     next_html = _html_escape(next_step)
 
@@ -313,14 +297,7 @@ Hatchik
               <p style="margin:0 0 16px 0;">Hi,</p>
               <p style="margin:0 0 16px 0;">{intro_html}</p>
               <p style="margin:0 0 16px 0;">{next_html}</p>
-              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">
-                A heads-up: Hatchik&rsquo;s brand new, which means for now I
-                (the founder) hand-provision each signup. The flow you see
-                in the demo is what&rsquo;s shipping over the next few weeks.
-                Until then, you&rsquo;re getting the white-glove version &mdash;
-                feel free to ask me anything by replying to this email.
-              </p>
-              <p style="margin:24px 0 0 0;">Talk soon,<br>Hatchik</p>
+              <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
             </td>
           </tr>
         </table>
@@ -585,7 +562,7 @@ async def create_signup(req: SignupRequest, request: Request) -> SignupResponse:
 
     return SignupResponse(
         ok=True,
-        message="Thanks. We're setting your Hatchik up — check your email within the hour.",
+        message="Thanks. We're setting your Hatchik up — check your email in a few minutes.",
     )
 
 

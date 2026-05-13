@@ -347,7 +347,7 @@ What to do next:
 
 Anything not working as you'd expect, just reply to this email.
 
-— the Hatchik founder
+— Hatchik
 """,
     }
     try:
