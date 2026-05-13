@@ -171,8 +171,8 @@
     </div>
 
     <div class="feature-block">
-      <h3>Payments (test mode)</h3>
-      <p>Stripe SDK wired up on both the front end and back end, in test mode. You can call Checkout, run subscription flows, and see test charges in your Stripe dashboard, all without leaving the Sandbox tier. To switch to live payments you upgrade to Launch and plug in your live Stripe keys.</p>
+      <h3>Payments (test mode by default)</h3>
+      <p>Stripe SDK wired up on both the front end and back end, in test mode by default. You can call Checkout, run subscription flows, and see test charges in your Stripe dashboard. To go live on Sandbox, swap your live <code>STRIPE_SECRET_KEY</code> / <code>STRIPE_PUBLISHABLE_KEY</code> into <code>.env</code> — self-serve, no upgrade required. Paddle as Merchant of Record is a Launch-tier addition (handles global VAT / GST / sales tax for you).</p>
     </div>
 
     <div class="feature-block">
@@ -187,7 +187,7 @@
 
     <div class="feature-block">
       <h3>AI provider integrations</h3>
-      <p>The codebase reads AI provider keys from <code>.env</code> — drop your Anthropic, OpenAI or OpenRouter key in and the app's runtime AI calls work. By default you bring your own key (you pay the provider directly). The Launch tier adds an optional Hatchik passthrough with included token allowance and unified billing, but it's not required.</p>
+      <p>The codebase reads AI provider keys from <code>.env</code> — drop your Anthropic, OpenAI or OpenRouter key in and the app's runtime AI calls work. By default you bring your own key (you pay the provider directly). Hatchik also offers an optional passthrough with unified billing — included token allowance is £0.50/mo on Sandbox, £3/mo on Launch, £10/mo on Growth. It's never required.</p>
     </div>
 
     <h2 id="sandbox-vs-launch">Sandbox vs Launch — what's different</h2>
