@@ -197,6 +197,24 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_rate_limit_ip ON rate_limit(ip)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_payments_customer ON payments(paddle_customer_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_payments_email ON payments(customer_email)")
+        # Cohort-funnel metrics (see cohort_metrics.py + AGENT_METRICS_REPORT.md).
+        # Initial signup writes (signup_id, NULL, tier, created_at, NULL, 'initial signup');
+        # decommission writes a 'cancelled' row; lifecycle archive writes 'archived';
+        # Paddle upgrade webhook (TODO) writes 'launch'/'growth' rows.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tier_transitions (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                signup_id       INTEGER NOT NULL,
+                from_tier       TEXT,
+                to_tier         TEXT NOT NULL CHECK(to_tier IN ('sandbox','launch','growth','cancelled','archived')),
+                occurred_at     TEXT NOT NULL,
+                paddle_event_id TEXT,
+                notes           TEXT
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tier_transitions_signup ON tier_transitions(signup_id)")
         conn.commit()
 
 
@@ -644,6 +662,11 @@ async def create_signup(req: SignupRequest, request: Request) -> SignupResponse:
             ),
         )
         signup_id = cur.lastrowid or 0
+        conn.execute(
+            "INSERT INTO tier_transitions (signup_id, from_tier, to_tier, occurred_at, paddle_event_id, notes) "
+            "VALUES (?, NULL, ?, ?, NULL, 'initial signup')",
+            (signup_id, req.tier, created_at),
+        )
         conn.commit()
 
     log.info("New signup #%s: %s tier=%s", signup_id, req.email, req.tier)
@@ -729,6 +752,34 @@ def _run_decommission(slug: str, hard: bool) -> dict[str, Any]:
         return {"slug": slug, "raw": r.stdout.strip()}
 
 
+def _record_cancellation_transition(slug: str, note: str = "decommissioned") -> None:
+    """Append a tier_transitions row marking this slug's signup as cancelled.
+
+    Best-effort and idempotent in spirit: we look up the signup via the
+    registry, read its current tier, and write the transition. Failures
+    are logged but never raised — metrics must never break decommission.
+    """
+    try:
+        reg = _load_registry()
+        tenant = reg.get("tenants", {}).get(slug) or {}
+        signup_id = tenant.get("signup_id")
+        if not signup_id:
+            return
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT tier FROM signups WHERE id = ?", (signup_id,)
+            ).fetchone()
+            current_tier = row[0] if row else None
+            conn.execute(
+                "INSERT INTO tier_transitions (signup_id, from_tier, to_tier, occurred_at, paddle_event_id, notes) "
+                "VALUES (?, ?, 'cancelled', ?, NULL, ?)",
+                (signup_id, current_tier, datetime.now(timezone.utc).isoformat(), note),
+            )
+            conn.commit()
+    except Exception as e:  # noqa: BLE001 — metrics never break teardown
+        log.warning("failed to record cancellation transition for slug=%s: %s", slug, e)
+
+
 @app.delete("/api/admin/account/{slug}")
 async def admin_delete_account(
     slug: str,
@@ -738,6 +789,7 @@ async def admin_delete_account(
     """Admin: tear down a sandbox by slug."""
     _require_admin(x_admin_token)
     log.info("admin decommission requested: slug=%s hard=%s", slug, hard)
+    _record_cancellation_transition(slug, note="admin decommission")
     return _run_decommission(slug, hard=hard)
 
 
@@ -924,6 +976,7 @@ async def confirm_deletion(token: str) -> str:
         conn.commit()
 
     log.info("self-serve deletion confirmed: slug=%s email=%s", row["slug"], row["email"])
+    _record_cancellation_transition(row["slug"], note="self-serve deletion")
     summary = _run_decommission(row["slug"], hard=True)
     return (
         f"Your '{row['slug']}' sandbox has been deleted.\n\n"
@@ -1288,6 +1341,10 @@ async def paddle_webhook(request: Request) -> dict[str, Any]:
             data_object.get("customer_id"),
             data_object.get("status"),
         )
+        # TODO(metrics): when Paddle launches, resolve customer_email → signup_id
+        # and insert (signup_id, 'sandbox', 'launch', now, event_id, 'paddle webhook')
+        # into tier_transitions. Similarly emit ('launch','growth') for
+        # growth-price subscription items. See AGENT_METRICS_REPORT.md.
 
     elif event_type == "subscription.updated":
         log.info(
@@ -1325,3 +1382,60 @@ async def paddle_webhook(request: Request) -> dict[str, Any]:
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# ─── Cohort metrics (admin) ──────────────────────────────────────────────
+# Added by the metrics-dashboard agent. Kept here so the existing
+# admin-route helpers (_require_admin, _load_registry) are in scope.
+# Heavy SQL is in cohort_metrics.py. Try relative import first (when
+# loaded as a package by tests) and fall back to top-level (uvicorn).
+try:
+    from . import cohort_metrics as _metrics  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover — direct uvicorn launch
+    import cohort_metrics as _metrics  # type: ignore[no-redef]
+
+
+def _open_metrics_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+@app.get("/api/admin/metrics/cohorts")
+async def admin_metrics_cohorts(
+    granularity: Literal["week", "month"] = "week",
+    since: str | None = None,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Admin: per-cohort funnel breakdown for the dashboard.
+
+    ``granularity`` toggles week (default, ISO-week labels) vs. month.
+    ``since`` (YYYY-MM-DD) filters to recent cohorts only.
+    """
+    _require_admin(x_admin_token)
+    with _open_metrics_conn() as conn:
+        cohorts = _metrics.compute_cohorts(conn, granularity=granularity, since=since)
+    return {"granularity": granularity, "since": since, "cohorts": cohorts}
+
+
+@app.get("/api/admin/metrics/funnel")
+async def admin_metrics_funnel(
+    since: str | None = None,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Admin: all-time funnel rollup across every cohort."""
+    _require_admin(x_admin_token)
+    with _open_metrics_conn() as conn:
+        return _metrics.compute_funnel_rollup(conn, since=since)
+
+
+@app.get("/api/admin/metrics/distribution")
+async def admin_metrics_distribution(
+    since: str | None = None,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Admin: current tier distribution across live tenants."""
+    _require_admin(x_admin_token)
+    registry = _load_registry()
+    with _open_metrics_conn() as conn:
+        return _metrics.compute_tier_distribution_today(conn, registry, since=since)

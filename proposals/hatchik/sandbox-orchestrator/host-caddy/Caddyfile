@@ -44,6 +44,16 @@ hatchik.com, www.hatchik.com {
         reverse_proxy localhost:8090
     }
 
+    # Admin metrics dashboard → static page (single file at repo root,
+    # deployed as /var/www/hatchik/admin-dashboard.html). Token-gated
+    # in the client — the page only renders once a valid X-Admin-Token
+    # is pasted and the API endpoints accept it.
+    handle /admin/dashboard {
+        root * /var/www/hatchik
+        rewrite * /admin-dashboard.html
+        file_server
+    }
+
     # Everything else → static marketing files
     handle {
         root * /var/www/hatchik

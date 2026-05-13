@@ -207,6 +207,13 @@ lives in `/etc/hatchik-signup.env` on the sandbox host).
   (url, status, port).
 - `DELETE /api/admin/account/{slug}` — soft decommission (keeps
   registry + signup row for audit). Append `?hard=true` to fully purge.
+- `GET /api/admin/metrics/cohorts?granularity=week|month&since=YYYY-MM-DD`
+  — per-cohort funnel breakdown (signups, currently live, conversion to
+  Launch, mean days-to-upgrade, churn rates).
+- `GET /api/admin/metrics/funnel` — all-time funnel rollup
+  (sandbox→launch %, launch→growth %, overall churn %).
+- `GET /api/admin/metrics/distribution` — current tier distribution
+  across live tenants.
 
 ### 3. Admin CLI (`decommission.py`)
 
@@ -219,6 +226,34 @@ python3 /opt/hatchik-orchestrator/decommission.py <slug>          # soft
 python3 /opt/hatchik-orchestrator/decommission.py <slug> --hard   # purge
 python3 /opt/hatchik-orchestrator/decommission.py --signup <id>   # lookup-by-id
 ```
+
+### Metrics dashboard
+
+Cohort-funnel dashboard at `https://hatchik.com/admin/dashboard`
+(static page, served by Caddy from the marketing site). Paste your
+`HATCHIK_ADMIN_TOKEN` into the header input once — it's stored in
+localStorage so subsequent visits skip the prompt. Click Refresh to
+pull fresh numbers; auto-refresh is intentionally disabled.
+
+What the dashboard surfaces:
+
+- **Top-line tiles** — total signups, currently live tenants, all-time
+  Sandbox→Launch conversion %, all-time churn %.
+- **Cohort table** — one row per weekly (or monthly, via toggle)
+  cohort. Click a column header to sort.
+- **Cohort funnel chart** — bar chart of each cohort's Sandbox → Launch
+  → Growth progression (Chart.js, served from jsDelivr CDN).
+- **Tier distribution donut** — how live tenants split across Sandbox /
+  Launch / Growth today.
+
+Backed by three admin API endpoints (see §2 above). All three accept
+an optional `?since=YYYY-MM-DD` filter. The dashboard hits each
+endpoint in parallel on every Refresh — fail-gracefully on empty DB
+("no cohort data yet — come back after signup #1").
+
+These numbers are what we use to **retire the assumed conversion /
+churn figures from `MARKETING_PLAN.md` §7** by the time we hit signup
+#50.
 
 ### Resetting the SQLite signup sequence
 
