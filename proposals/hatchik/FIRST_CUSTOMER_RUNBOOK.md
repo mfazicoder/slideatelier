@@ -64,7 +64,7 @@ Use the template at `WELCOME_EMAILS.md §1` as your skeleton. Aim for
 3–4 sentences. Set expectation: "I'll have your Hatchik live within
 24h. I'll email you again when it's ready."
 
-If Launch tier: the £79 charge is in Stripe. Confirm payment landed,
+If Launch tier: the £89 charge is in Stripe. Confirm payment landed,
 note the amount and customer ID in your tracking sheet.
 
 ## Provisioning — Sandbox tier (free, automated)

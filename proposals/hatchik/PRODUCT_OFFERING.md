@@ -42,13 +42,13 @@ costs nothing and never expires while the customer is active. The 3-user
 cap prevents serious commercial use while letting the customer (plus a
 co-founder and a friend) properly test the experience.
 
-### 2.2 Launch — £79 one-time + £9/month (starting month 2)
+### 2.2 Launch — £89 one-time + £14/month (starting month 2)
 
 | | |
 |---|---|
-| **Setup fee** | £79 once (covers everything for the first month) |
-| **Monthly** | £9/month **from month 2 onwards** |
-| **Domain** | **Customer's choice**: bring your own existing domain (we configure it), OR get a new domain registered (first year included in the £79) |
+| **Setup fee** | £89 once (covers everything for the first month) |
+| **Monthly** | £14/month **from month 2 onwards** |
+| **Domain** | **Customer's choice**: bring your own existing domain (we configure it), OR get a new domain registered (first year included in the £89) |
 | **Server** | Dedicated VPS in customer's chosen region |
 | **Database** | Unlimited size, unlimited users |
 | **Payments** | Stripe **or** Paddle, live mode (customer's choice — see §4.3) |
@@ -64,7 +64,7 @@ co-founder and a friend) properly test the experience.
 
 This is where most customers start.
 
-**The £79 covers:**
+**The £89 covers:**
 - Domain registration (year 1) OR existing-domain configuration
 - VPS provisioning in customer's chosen region
 - Caddy + TLS + Cloudflare wiring
@@ -75,17 +75,17 @@ This is where most customers start.
 - Linear board with 20 seed tasks
 - First month of hosting + backups + monitoring (included)
 
-**The £9/month (from month 2) covers:** ongoing VPS, backups, monitoring,
+**The £14/month (from month 2) covers:** ongoing VPS, backups, monitoring,
 mail, edge network, included AI token allowance, substrate update PRs.
 
-### 2.3 Growth — £24/month
+### 2.3 Growth — £39/month
 
 Automatic graduation from Launch after the customer's 15th sign-up to
 their app.
 
 | | |
 |---|---|
-| **Monthly** | £24/month (replaces £9/month from Launch) |
+| **Monthly** | £39/month (replaces £14/month from Launch) |
 | **Setup fee** | n/a (already paid at Launch) |
 | **Everything in Launch** | ✓ |
 | **Server** | Same VPS, more headroom included (CPU bursting allowance, +RAM if needed) |
@@ -152,7 +152,7 @@ the substrate from day one.
    §4.3 for the trade-offs.
 4. **A real website address** — Customer's choice: bring an existing
    domain (we configure DNS + TLS) OR register a new one (year 1 included
-   in £79)
+   in £89)
 5. **Mailboxes on your domain** — 5 inboxes via Infomaniak Mail, plus
    SPF/DKIM/DMARC for transactional email
 6. **Your server, in your region** — Dedicated Hetzner Cloud VPS in the
@@ -288,8 +288,8 @@ that they're responsible for their own legal compliance.
 
 ### 5.5 Concierge launch / agency services
 
-No "let us handle everything" premium tier. The £79 + £7/mo and
-graduation to £24/mo are the only paid options.
+No "let us handle everything" premium tier. The £89 + £14/mo and
+graduation to £39/mo are the only paid options.
 
 ### 5.6 White-label / agency reseller program
 
@@ -348,10 +348,10 @@ most recent month, no questions.
 
 ## 8. Pricing details
 
-- **Setup fee (£79)** — non-refundable after 14 days. Within 14 days,
+- **Setup fee (£89)** — non-refundable after 14 days. Within 14 days,
   full refund if customer cancels before substrate is fully provisioned;
   prorated refund minus domain registration cost (£12-15, if a new domain
-  was registered) if provisioned. The £79 covers month 1 ops entirely.
+  was registered) if provisioned. The £89 covers month 1 ops entirely.
 - **Monthly fees** — billed in advance starting month 2 for Launch tier.
   Cancellable any time. Pro-rata refund for unused portion on cancellation.
 - **Currency** — GBP primary list price. Customer sees their local currency

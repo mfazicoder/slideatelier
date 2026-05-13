@@ -97,7 +97,7 @@ The agent classifies each inbound to route correctly:
 |---|---|---|---|
 | **How-do-I** | "How do I add a new page?" | Link to docs/adding-a-page.md + summarised steps | No |
 | **Why-isn't-X-working** | "My deploy failed" | Pull logs, diagnose, propose fix | If unknown |
-| **Billing question** | "When does my £24 tier kick in?" | Explain from customer's data + product rules | If dispute |
+| **Billing question** | "When does my £39 tier kick in?" | Explain from customer's data + product rules | If dispute |
 | **Refund / dispute** | "I want my money back" | Acknowledge, gather context | **Yes** |
 | **Account changes** | "Change my email", "Cancel my subscription" | Route to relevant journey (exit, settings) | No |
 | **Bug report** | "Backups page is broken" | Confirm, file internal issue, ack to customer | If severity high |

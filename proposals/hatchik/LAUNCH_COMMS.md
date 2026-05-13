@@ -98,7 +98,7 @@ the link is below the fold.
 > ---
 >
 > **4/**
-> Hatchik is a wired-up SaaS substrate. £79 one-time, £7/month while you
+> Hatchik is a wired-up SaaS substrate. £89 one-time, £14/month while you
 > launch. Your domain, your server, your code, your customers.
 >
 > You bring the product idea + an AI coder. We bring everything else —
@@ -161,8 +161,8 @@ hide the meat.
 > error-tracking. All standing up in minutes, all owned by you, no vendor
 > lock-in.
 >
-> Pricing is simple: £79 once to set everything up (covers month 1), then
-> £9/month while you launch, graduating to £24/month after your 15th
+> Pricing is simple: £89 once to set everything up (covers month 1), then
+> £14/month while you launch, graduating to £39/month after your 15th
 > sign-up. You only pay more when we've helped you make more.
 >
 > We're a few weeks from opening the doors. The waitlist is live now at
@@ -206,8 +206,8 @@ The IH audience rewards honesty about the build and dislikes marketing fluff.
 > stack you genuinely own. If you cancel tomorrow, you keep the GitHub repo,
 > the domain in your name, the server keys, the customer data. No lock-in.
 >
-> Pricing: £79 one-time to set everything up (covers month 1 too), then
-> £9/month while you launch. Graduates to £24/month after your 15th customer
+> Pricing: £89 one-time to set everything up (covers month 1 too), then
+> £14/month while you launch. Graduates to £39/month after your 15th customer
 > signs up — because by then you've got proof there's an audience. The whole
 > ladder is tied to your traction, not to feature gates.
 >
@@ -219,7 +219,7 @@ The IH audience rewards honesty about the build and dislikes marketing fluff.
 > 1. Does the offer make sense to you? Where do you stall on the page?
 > 2. If you've tried building a SaaS as a non-engineer before — what
 >    blocked you? I'm collecting these patterns.
-> 3. Pricing — too low? Too high? Right? The £79 felt like a "skin in the
+> 3. Pricing — too low? Too high? Right? The £89 felt like a "skin in the
 >    game" number that filters tyre-kickers without being scary.
 >
 > Reply here or DM me, would love to chat with anyone building in this

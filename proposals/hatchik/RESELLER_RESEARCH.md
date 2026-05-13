@@ -397,7 +397,7 @@ this doc is to compound those small percentages.
 
 ## Strategic note
 
-Our customer-facing pricing (£79 / £7 / £19) does NOT change with these
+Our customer-facing pricing (£89 / £14 / £39) does NOT change with these
 savings. The margin gain is ours to invest — into product, into CAC
 reduction (we can be more generous with referrals, free trials, ambassador
 discounts), or to extend runway.

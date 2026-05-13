@@ -154,20 +154,28 @@ For every 100 Sandbox signups:
 These need revalidation against actual signups; in a hype window
 conversion can be 2-3× higher than baseline SaaS.
 
-### Pricing recommendation: bump up
+### Pricing recommendation: confirmed
 
 The original £9/mo Launch / £24/mo Growth was founder-empathy
-underpricing for this window. **Recommended pricing**: Launch
-**£19/mo**, Growth **£39/mo**, setup fee stays £79. Comparable
-hype-window products (Cursor Pro $25/mo, Lovable $25-100/mo, Replit
-Core $25/mo) sit in the £20-30/mo entry band. Audience is conditioned
-to this price.
+underpricing for this window. **Final pricing**: Launch **£89 setup
++ £14/mo**, Growth **£39/mo**. Comparable hype-window products
+(Cursor Pro $25/mo, Lovable $25-100/mo, Replit Core $25/mo) sit in
+the £20-30/mo entry band. We deliberately sit just under that band
+on Launch to keep the "first SaaS" affordability story while still
+clearing a real margin once the setup fee is folded in.
 
-Margin impact of the bump:
-- Launch ongoing margin: was ~£0.50/mo → becomes ~£10/mo (20× lift)
-- Growth ongoing margin: was ~£15.50/mo → becomes ~£30/mo
-- Blended LTV at new pricing: ~£500-800 per customer
-- CAC ceiling at 3:1: ~£170-265 — much more room for paid acquisition
+Margin impact at the new pricing (cost-to-serve £8.50/mo, Paddle
+fees ~5%+£0.40/txn):
+- Launch ongoing margin: was ~£0.50/mo at £9 → now ~£4.40/mo at £14
+- Growth ongoing margin: was ~£15.50/mo at £24 → now ~£28.50/mo at £39
+- Year-1 Launch revenue: £89 + 11 × £14 = £243 (vs £108 at old pricing)
+- Year-1 Launch gross: £243 − Paddle fees (~£14) − cost-to-serve
+  (£5 setup + £8.50 × 11) = ~£121 net, i.e. ~£108/customer
+- Year-1 Growth gross: £468 − Paddle (~£28) − cost-to-serve
+  (£8.50 × 12) = ~£338/customer
+- Blended LTV at 80/20 Launch/Growth mix and 24-month average tenure:
+  0.8 × (£243 + £168) + 0.2 × (£468 + £468) ≈ £515 per customer
+- CAC ceiling at 3:1 LTV:CAC: ~£170 — usable room for paid acquisition
 
 ---
 
@@ -178,7 +186,8 @@ These will move estimates by 2-5×:
 1. **Actual Sandbox→Launch conversion rate.** Industry says 3-10% for
    free-to-paid; hype-window can be higher. The business case lives or
    dies on this.
-2. **Churn at Launch tier.** £19/mo is more committed pricing; expect
+2. **Churn at Launch tier.** £14/mo is more committed pricing than the
+   original £9/mo; expect
    churn similar to or lower than Cursor's ~5-10% monthly at peak.
 3. **Average tier upgrade time.** If Launch→Growth happens at month 4
    not month 12, blended ARPU jumps 60% and SOM moves with it.
@@ -208,8 +217,8 @@ lock-in, no demos."**
 
 > You're already using Claude/Cursor/Windsurf to code. We give that AI a
 > real SaaS to build on — auth, payments, mailboxes, mobile, all wired
-> up — under your own GitHub repo on your own server. Free to try, £79
-> to launch, £9/month to run. Leave any time, your code comes with you.
+> up — under your own GitHub repo on your own server. Free to try, £89
+> to launch, £14/month to run. Leave any time, your code comes with you.
 
 ---
 
@@ -225,7 +234,7 @@ Build at hatchik.com/vs.
 | Take your stack elsewhere | ✓ | ~ | ~ | ✗ | ✗ | ✓ |
 | Provisioned for you | ✓ | ✗ | ✓ | ✓ | n/a | ✗ |
 | Mobile builds included | ✓ | ✗ | ✗ | ✗ | ~ | ~ |
-| Price (£/mo at launch tier) | £9 | $20+ | $25+ | $25+ | $39+ | one-off |
+| Price (£/mo at launch tier) | £14 | $20+ | $25+ | $25+ | $39+ | one-off |
 
 ---
 
@@ -339,7 +348,7 @@ curation and drafting; humans hit "publish."
 
 - Polished product live (signup → sandbox → push-to-deploy → mobile builds)
 - 50-100 friendly-beta users, founder-driven onboarding
-- Pricing tested at £19/£39 (not £9/£24)
+- Pricing tested at £89 setup + £14/£39 (not £9/£24)
 - Show HN draft + Product Hunt assets ready
 - /vs page + content arsenal already drafted
 
@@ -432,8 +441,9 @@ Either:
 
 ## 15. Open questions to revisit
 
-- **Pricing**: confirmed at £19/£39 in this revision. A/B test against
-  £29/£59 in month 4 to see if conversion holds.
+- **Pricing**: confirmed at £89 setup + £14 Launch / £39 Growth in this
+  revision. A/B test against £29/£59 ongoing in month 4 to see if conversion
+  holds.
 - **Mobile builds**: cloud-build pipeline shipped (commit `6edf9f1`).
   Marketing claim is now real.
 - **Custom domains on Sandbox tier**: today everyone gets `<slug>.hatchik.com`.

@@ -130,7 +130,7 @@ For anything terms-related: `hello@hatchik.com`.
 - Replace `{{LEGAL_ENTITY_NAME}}`, `{{COMPANIES_HOUSE_NO}}`,
   `{{REGISTERED_ADDRESS}}`, `{{LAUNCH_DATE}}`
 - Add detailed paying-customer terms:
-  - Subscription, billing, refunds (echo the £79 / £7 / £19 model)
+  - Subscription, billing, refunds (echo the £89 / £14 / £39 model)
   - Service-level commitments (the ones in PRODUCT_OFFERING.md §7)
   - Customer's data ownership and ours
   - Acceptable use policy (no illegal apps, no spam apps, etc.)

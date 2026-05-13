@@ -193,7 +193,7 @@ wildcard. Numbers below in parentheses after each day.
 **Time:** 09:00 BST
 **Post:**
 
-> Quick maths on Hatchik unit costs at the £9/mo Launch tier:
+> Quick maths on Hatchik unit costs at the £14/mo Launch tier:
 > · Hetzner CPX11 ~£4/mo
 > · Backups (Backblaze B2) ~£0.50
 > · Resend on free tier
@@ -641,7 +641,7 @@ helpfully in target subs for at least 2 weeks before the first post.
 >
 > What I'd actually love feedback on, in priority order:
 >
-> 1. Is the £79 setup + £9/mo + £24/mo-after-15-signups pricing
+> 1. Is the £89 setup + £14/mo + £39/mo-after-15-signups pricing
 >    legible? Most feedback so far is "the second graduation
 >    threshold is confusing".
 > 2. The /vs page (hatchik.com/vs) compares against the genre. Am
@@ -821,7 +821,7 @@ helpfully in target subs for at least 2 weeks before the first post.
 >
 > **Stripe Atlas:** an option, but it means incorporating a US C-Corp
 > on top of an entity I already pay for. Double tax filings, two
-> jurisdictions, a meaningful annual cost. Heavy for a £9/mo
+> jurisdictions, a meaningful annual cost. Heavy for a £14/mo
 > product.
 >
 > **Paddle:** Merchant of Record. They become the legal seller;
@@ -873,14 +873,14 @@ helpfully in target subs for at least 2 weeks before the first post.
 **Body (~300 words):**
 
 > Working through purchasing-power parity pricing for a product
-> that's £9/mo at the UK list price. The two extremes:
+> that's £14/mo at the UK list price. The two extremes:
 >
-> 1. Same price everywhere: simple, but a £9/mo product is
->    £9/mo regardless of whether the customer earns £40k or £4k.
+> 1. Same price everywhere: simple, but a £14/mo product is
+>    £14/mo regardless of whether the customer earns £40k or £4k.
 >    Effectively cuts you out of huge chunks of the world.
 > 2. PPP-adjusted, automatic: customer in India pays the INR
->    equivalent of ~£2.50; customer in the US pays the USD
->    equivalent of ~£12. More fair, but invites VPN arbitrage and
+>    equivalent of ~£4.50; customer in the US pays the USD
+>    equivalent of ~£18. More fair, but invites VPN arbitrage and
 >    confused refund conversations.
 >
 > I'm leaning toward option 2 with two guardrails:
@@ -1116,7 +1116,7 @@ torches the thread.
 >
 > - Free Sandbox tier: signup → live tenant on a `*.hatchik.com`
 >   subdomain in ~3 minutes. Auto-provisioned.
-> - Paid Launch tier (£79 setup + £9/mo): your own domain, your
+> - Paid Launch tier (£89 setup + £14/mo): your own domain, your
 >   own VPS in your name, GitHub repo under your account. Right
 >   now I onboard these by hand while I finish the cross-region
 >   provisioner; takes ~45 minutes per customer.
@@ -1146,7 +1146,7 @@ torches the thread.
 > tier. Per-tenant CPX11s for paid customers.
 >
 > Honestly, the part I'm least sure about is the pricing
-> structure — £79 setup + £9/mo + £24/mo once a tenant hits 15
+> structure — £89 setup + £14/mo + £39/mo once a tenant hits 15
 > signups. Is the second-tier graduation legible, or is it too
 > clever? Genuine question, not a humble brag.
 >
@@ -1184,7 +1184,7 @@ well** — Show HN provides social proof; PH amplifies it.
 
 > Hatchik wires the infra — auth, payments, mail, mobile, domain,
 > server — so your AI tool (Claude Code, Cursor, Windsurf) can
-> build the actual product. Free Sandbox. £79 to launch. Your
+> build the actual product. Free Sandbox. £89 to launch. Your
 > code, your repo, your VPS. Leave any time.
 
 (Exactly 259 chars.)
@@ -1202,9 +1202,9 @@ well** — Show HN provides social proof; PH amplifies it.
 > substrate to work on — Postgres + Supabase Auth + Stripe or
 > Paddle + Resend mail + Capacitor mobile shells + a VPS in your
 > name. Sandbox tier is free forever on a `*.hatchik.com`
-> subdomain; Launch tier is £79 one-off + £9/month for your own
+> subdomain; Launch tier is £89 one-off + £14/month for your own
 > domain, your own VPS, your own GitHub repo. After 15 signups
-> the monthly graduates to £24 — that's it on the pricing model,
+> the monthly graduates to £39 — that's it on the pricing model,
 > no hidden seats, no overages.
 >
 > The thing I most want feedback on: every other "AI app builder"
@@ -1315,7 +1315,7 @@ pitches and bin them.
 >
 > - Built on self-hosted Supabase + Postgres + Caddy.
 > - Free Sandbox tier auto-provisions in ~3 minutes.
-> - Paid Launch tier: £79 setup + £9/mo. Own domain, own VPS,
+> - Paid Launch tier: £89 setup + £14/mo. Own domain, own VPS,
 >   own GitHub repo.
 > - Multi-region (UK, EU, US East, US West, Singapore).
 > - Paddle as Merchant of Record — global VAT handled.
@@ -1342,7 +1342,7 @@ pitches and bin them.
 > Hatchik is a substrate for AI-built apps — Claude Code or
 > Cursor handles the features, we wire the boring infra (auth,
 > payments, mail, mobile, domain, VPS) so non-engineers can ship.
-> Free Sandbox tier, £79 + £9/mo for the full Launch.
+> Free Sandbox tier, £89 + £14/mo for the full Launch.
 >
 > Two angles I think work for The Rundown's format:
 >

@@ -219,7 +219,7 @@ _SANDBOX_AVAILABLE_ON_UPGRADE: list[dict[str, Any]] = [
     {
         "name": "Custom domain",
         "tier": "launch",
-        "blurb": "Bring your own domain or register a new one. Year-one registration in the £79.",
+        "blurb": "Bring your own domain or register a new one. Year-one registration in the £89.",
     },
     {
         "name": "Mailboxes (hello@, support@…)",

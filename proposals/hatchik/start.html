@@ -107,9 +107,9 @@
             data-plan="launch"
             data-active="false"
           >
-            <span class="inline-block text-[10px] font-bold tracking-wide text-indigo-700 bg-indigo-50 ring-1 ring-indigo-200 px-1.5 py-0.5 rounded">£79</span>
+            <span class="inline-block text-[10px] font-bold tracking-wide text-indigo-700 bg-indigo-50 ring-1 ring-indigo-200 px-1.5 py-0.5 rounded">£89</span>
             <span class="ml-2 font-semibold">Launch</span>
-            <p class="mt-1 text-xs text-slate-600">Your own domain, mailboxes, Capacitor mobile scaffold. £9/mo from month 2.</p>
+            <p class="mt-1 text-xs text-slate-600">Your own domain, mailboxes, Capacitor mobile scaffold. £14/mo from month 2.</p>
           </button>
         </div>
       </div>
@@ -255,7 +255,7 @@
     planCards.forEach(card => card.dataset.active = String(card.dataset.plan === next));
     submitLabel.innerHTML = next === 'sandbox'
       ? 'Start free Sandbox &rarr;'
-      : 'Continue to checkout (£79) &rarr;';
+      : 'Continue to checkout (£89) &rarr;';
   }
   planCards.forEach(card => {
     card.addEventListener('click', () => selectPlan(card.dataset.plan));
@@ -332,7 +332,7 @@
           turnstileToken = '';
         }
         submitBtn.disabled = false;
-        submitLabel.innerHTML = plan === 'sandbox' ? 'Start free Sandbox &rarr;' : 'Continue to checkout (£79) &rarr;';
+        submitLabel.innerHTML = plan === 'sandbox' ? 'Start free Sandbox &rarr;' : 'Continue to checkout (£89) &rarr;';
         return showError(serverMsg);
       }
       if (!res.ok && res.status !== 201) {
@@ -352,7 +352,7 @@
     submitBtn.disabled = false;
     submitLabel.innerHTML = plan === 'sandbox'
       ? 'Start free Sandbox &rarr;'
-      : 'Continue to checkout (£79) &rarr;';
+      : 'Continue to checkout (£89) &rarr;';
     if (opts.linkSandboxDelete) {
       // The 409-sandbox-exists case gets its own red banner — the message
       // is multi-sentence and needs an actionable link to /delete-sandbox.

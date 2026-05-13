@@ -47,12 +47,12 @@ The script will:
 
 1. Create the **Hatchik Launch** product (or reuse if it already exists,
    identified by `custom_data.lookup_key`)
-2. Create a **£79 one-time** price (lookup_key: `loftik_launch_setup`)
-3. Create a **£9/month** price with a 30-day trial (lookup_key:
-   `loftik_launch_monthly`) — the trial means the first £9 charges 30
-   days after signup, so the £79 setup naturally covers month 1
+2. Create a **£89 one-time** price (lookup_key: `loftik_launch_setup`)
+3. Create a **£14/month** price with a 30-day trial (lookup_key:
+   `loftik_launch_monthly`) — the trial means the first £14 charges 30
+   days after signup, so the £89 setup naturally covers month 1
 4. Create the **Hatchik Growth** product
-5. Create a **£24/month** price (lookup_key: `loftik_growth_monthly`)
+5. Create a **£39/month** price (lookup_key: `loftik_growth_monthly`)
 6. Create a hosted **Payment Link** (Paddle transaction) bundling setup
    + monthly. The response includes `checkout.url` — that's the link
    you paste into `index.html`.
@@ -71,10 +71,10 @@ Pass `--enable-ppp` to attach Paddle `unit_price_overrides` for:
 
 | Country | Launch setup | Launch monthly | Growth monthly |
 |---|---|---|---|
-| US | $99 | $9 | $24 |
-| DE / FR / ES / IT / NL | €89 | €8 | €22 |
-| IN | ₹3499 (~£35) | ₹299 (~£3) | ₹799 (~£8) |
-| BR | R$249 (~£45) | R$22 (~£4) | R$59 (~£11) |
+| US | $115 | $18 | $49 |
+| DE / FR / ES / IT / NL | €99 | €16 | €45 |
+| IN | ₹3999 (~£40) | ₹449 (~£4.50) | ₹1299 (~£13) |
+| BR | R$299 (~£54) | R$35 (~£6) | R$95 (~£17) |
 
 Everywhere else falls back to the GBP base price, converted at Paddle's
 mid-market FX rate at checkout time.
@@ -106,7 +106,7 @@ any CVC, any postal code):
 
 Walk through the Checkout flow yourself. Verify:
 
-- £79 setup + £9/month line items appear correctly
+- £89 setup + £14/month line items appear correctly
 - 30-day trial notice on the monthly line
 - Local-currency display if you set browser/IP to a PPP country
   (and you ran with `--enable-ppp`)
@@ -164,10 +164,10 @@ You'll get a different (live) Payment Link URL. Swap it into
 
 | When | Amount (GBP base) | Why |
 |---|---|---|
-| At Checkout | £79 | One-time setup fee |
-| 30 days later | £9 | First monthly charge (trial ends) |
-| Every month after | £9 | Until graduation |
-| After 15th sign-up | £24/month | Graduation (manual switch via Paddle dashboard or subscription update API — see below) |
+| At Checkout | £89 | One-time setup fee |
+| 30 days later | £14 | First monthly charge (trial ends) |
+| Every month after | £14 | Until graduation |
+| After 15th sign-up | £39/month | Graduation (manual switch via Paddle dashboard or subscription update API — see below) |
 
 Local-currency amounts shown at checkout depend on the customer's
 country + your `--enable-ppp` flag.

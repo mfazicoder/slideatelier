@@ -189,10 +189,10 @@ Provisioning worker:
 
 | Scenario | Handling |
 |---|---|
-| Customer cancels within 14 days of signup | Full refund of £79 setup, pro-rated refund of any monthly. Same 7-day grace period applies. |
+| Customer cancels within 14 days of signup | Full refund of £89 setup, pro-rated refund of any monthly. Same 7-day grace period applies. |
 | Customer has outstanding AI passthrough invoice | Settled before exit. Agent confirms balance and processes. |
 | Customer wants to keep using Hatchik for some things (e.g. mail) but not others | Not supported in v1. They keep everything or nothing. Suggest they self-host then BYO Hatchik's mail config to their new setup. |
-| Customer is mid-graduation (about to hit 15 sign-ups) | Cancellation precedes graduation. They stay on £9/mo for the grace period, then offboard. |
+| Customer is mid-graduation (about to hit 15 sign-ups) | Cancellation precedes graduation. They stay on £14/mo for the grace period, then offboard. |
 | Customer hasn't backed up customer-data in years | Agent generates a full archive: SQL dump + Storage + audit log. Emailed as B2 presigned URL. |
 | Customer wants their domain transferred but doesn't know how | Agent provides registrar-specific instructions (Namecheap, GoDaddy, Cloudflare Registrar, etc.) |
 | Customer leaves and the VPS provider charges them directly afterwards | Expected. Agent reminds them: "Hatchik stopped billing you; the VPS provider (Hetzner / Infomaniak) starts billing you directly. Their account is in your name; their charge appears on your card." |

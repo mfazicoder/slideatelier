@@ -39,9 +39,9 @@ import requests
 # ─── EDIT ME — Localized pricing overrides ────────────────────────────────
 # Amounts are in the *minor unit* of the currency (cents/pence/paise/centavos).
 # GBP base prices:
-#   hatchik_launch_setup   = 7900  (£79.00 one-time)
-#   hatchik_launch_monthly = 900   (£9.00/month, 30-day trial)
-#   hatchik_growth_monthly = 2400  (£24.00/month)
+#   hatchik_launch_setup   = 8900  (£89.00 one-time)
+#   hatchik_launch_monthly = 1400  (£14.00/month, 30-day trial)
+#   hatchik_growth_monthly = 3900  (£39.00/month)
 #
 # When --enable-ppp is passed, these overrides are attached to each price.
 # Keys: ISO-3166 alpha-2 country code (Paddle applies per-country, not per-
@@ -54,34 +54,34 @@ import requests
 # Each entry: { country_code, unit_price: { amount, currency_code } }
 PRICE_OVERRIDES: dict[str, list[dict[str, Any]]] = {
     "hatchik_launch_setup": [
-        {"country_code": "US", "unit_price": {"amount": "9900",  "currency_code": "USD"}},
-        {"country_code": "DE", "unit_price": {"amount": "8900",  "currency_code": "EUR"}},
-        {"country_code": "FR", "unit_price": {"amount": "8900",  "currency_code": "EUR"}},
-        {"country_code": "ES", "unit_price": {"amount": "8900",  "currency_code": "EUR"}},
-        {"country_code": "IT", "unit_price": {"amount": "8900",  "currency_code": "EUR"}},
-        {"country_code": "NL", "unit_price": {"amount": "8900",  "currency_code": "EUR"}},
-        {"country_code": "IN", "unit_price": {"amount": "349900", "currency_code": "INR"}},  # ~£35 PPP
-        {"country_code": "BR", "unit_price": {"amount": "24900", "currency_code": "BRL"}},   # ~£45 PPP
+        {"country_code": "US", "unit_price": {"amount": "11500", "currency_code": "USD"}},
+        {"country_code": "DE", "unit_price": {"amount": "9900",  "currency_code": "EUR"}},
+        {"country_code": "FR", "unit_price": {"amount": "9900",  "currency_code": "EUR"}},
+        {"country_code": "ES", "unit_price": {"amount": "9900",  "currency_code": "EUR"}},
+        {"country_code": "IT", "unit_price": {"amount": "9900",  "currency_code": "EUR"}},
+        {"country_code": "NL", "unit_price": {"amount": "9900",  "currency_code": "EUR"}},
+        {"country_code": "IN", "unit_price": {"amount": "399900", "currency_code": "INR"}}, # ~£40 PPP
+        {"country_code": "BR", "unit_price": {"amount": "29900", "currency_code": "BRL"}},  # ~£54 PPP
     ],
     "hatchik_launch_monthly": [
-        {"country_code": "US", "unit_price": {"amount": "1100",  "currency_code": "USD"}},
-        {"country_code": "DE", "unit_price": {"amount": "1000",  "currency_code": "EUR"}},
-        {"country_code": "FR", "unit_price": {"amount": "1000",  "currency_code": "EUR"}},
-        {"country_code": "ES", "unit_price": {"amount": "1000",  "currency_code": "EUR"}},
-        {"country_code": "IT", "unit_price": {"amount": "1000",  "currency_code": "EUR"}},
-        {"country_code": "NL", "unit_price": {"amount": "1000",  "currency_code": "EUR"}},
-        {"country_code": "IN", "unit_price": {"amount": "39900", "currency_code": "INR"}},   # ~£4 PPP
-        {"country_code": "BR", "unit_price": {"amount": "2800",  "currency_code": "BRL"}},   # ~£5 PPP
+        {"country_code": "US", "unit_price": {"amount": "1800",  "currency_code": "USD"}},
+        {"country_code": "DE", "unit_price": {"amount": "1600",  "currency_code": "EUR"}},
+        {"country_code": "FR", "unit_price": {"amount": "1600",  "currency_code": "EUR"}},
+        {"country_code": "ES", "unit_price": {"amount": "1600",  "currency_code": "EUR"}},
+        {"country_code": "IT", "unit_price": {"amount": "1600",  "currency_code": "EUR"}},
+        {"country_code": "NL", "unit_price": {"amount": "1600",  "currency_code": "EUR"}},
+        {"country_code": "IN", "unit_price": {"amount": "44900", "currency_code": "INR"}},  # ~£4.50 PPP
+        {"country_code": "BR", "unit_price": {"amount": "3500",  "currency_code": "BRL"}},  # ~£6 PPP
     ],
     "hatchik_growth_monthly": [
-        {"country_code": "US", "unit_price": {"amount": "3000",  "currency_code": "USD"}},
-        {"country_code": "DE", "unit_price": {"amount": "2700",  "currency_code": "EUR"}},
-        {"country_code": "FR", "unit_price": {"amount": "2700",  "currency_code": "EUR"}},
-        {"country_code": "ES", "unit_price": {"amount": "2700",  "currency_code": "EUR"}},
-        {"country_code": "IT", "unit_price": {"amount": "2700",  "currency_code": "EUR"}},
-        {"country_code": "NL", "unit_price": {"amount": "2700",  "currency_code": "EUR"}},
-        {"country_code": "IN", "unit_price": {"amount": "99900", "currency_code": "INR"}},   # ~£10 PPP
-        {"country_code": "BR", "unit_price": {"amount": "7500",  "currency_code": "BRL"}},   # ~£14 PPP
+        {"country_code": "US", "unit_price": {"amount": "4900",  "currency_code": "USD"}},
+        {"country_code": "DE", "unit_price": {"amount": "4500",  "currency_code": "EUR"}},
+        {"country_code": "FR", "unit_price": {"amount": "4500",  "currency_code": "EUR"}},
+        {"country_code": "ES", "unit_price": {"amount": "4500",  "currency_code": "EUR"}},
+        {"country_code": "IT", "unit_price": {"amount": "4500",  "currency_code": "EUR"}},
+        {"country_code": "NL", "unit_price": {"amount": "4500",  "currency_code": "EUR"}},
+        {"country_code": "IN", "unit_price": {"amount": "129900", "currency_code": "INR"}}, # ~£13 PPP
+        {"country_code": "BR", "unit_price": {"amount": "9500",  "currency_code": "BRL"}},  # ~£17 PPP
     ],
 }
 
@@ -322,32 +322,32 @@ def main() -> int:
         name="Hatchik Launch",
         description=(
             "Your domain, your server, your mailboxes, payments live — set up "
-            "properly. £79 covers month 1. £7/month from month 2."
+            "properly. £89 covers month 1. £14/month from month 2."
         ),
         tier="launch",
     )
 
-    # 2. £79 one-time setup price
-    print("→ £79 setup price")
+    # 2. £89 one-time setup price
+    print("→ £89 setup price")
     setup_price_id = ensure_price(
         paddle,
         product_id=launch_product_id,
         lookup_key=LOOKUP["launch_setup"],
         description="Hatchik Launch — setup fee",
-        amount_minor="7900",
+        amount_minor="8900",
         currency="GBP",
         recurring=False,
         enable_ppp=args.enable_ppp,
     )
 
-    # 3. £9/month recurring price with 30-day trial
-    print("→ £9/month subscription price (30-day trial)")
+    # 3. £14/month recurring price with 30-day trial
+    print("→ £14/month subscription price (30-day trial)")
     monthly_price_id = ensure_price(
         paddle,
         product_id=launch_product_id,
         lookup_key=LOOKUP["launch_monthly"],
-        description="Hatchik Launch — £9/month from month 2",
-        amount_minor="900",
+        description="Hatchik Launch — £14/month from month 2",
+        amount_minor="1400",
         currency="GBP",
         recurring=True,
         interval="month",
@@ -370,14 +370,14 @@ def main() -> int:
         tier="growth",
     )
 
-    # 5. £24/month Growth price
-    print("→ £24/month Growth price")
+    # 5. £39/month Growth price
+    print("→ £39/month Growth price")
     growth_price_id = ensure_price(
         paddle,
         product_id=growth_product_id,
         lookup_key=LOOKUP["growth_monthly"],
-        description="Hatchik Growth — £24/month",
-        amount_minor="2400",
+        description="Hatchik Growth — £39/month",
+        amount_minor="3900",
         currency="GBP",
         recurring=True,
         interval="month",

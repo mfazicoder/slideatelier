@@ -1132,7 +1132,7 @@ async def notify_founder_payment_failure(transaction: dict[str, Any]) -> None:
     totals = details.get("totals") or {}
     amount = totals.get("grand_total") or totals.get("total")
     currency = (transaction.get("currency_code") or transaction.get("currency") or "").upper()
-    # Paddle returns amounts as minor-unit strings (e.g. "7900" = 79.00 GBP).
+    # Paddle returns amounts as minor-unit strings (e.g. "8900" = 89.00 GBP).
     try:
         amount_str = f"{int(amount) / 100:.2f} {currency}" if amount else "(unknown amount)"
     except (TypeError, ValueError):

@@ -12,7 +12,7 @@ contractor support as needed.
 - Product offering spec (`PRODUCT_OFFERING.md`)
 - Technical stack definition (`STACK.md`)
 - Brand name (Hatchik) + positioning
-- Pricing model (£0 / £79+£7 / £19, 15-sign-up graduation)
+- Pricing model (£0 / £89+£14 / £39, 15-sign-up graduation)
 - Architecture specs:
   - `linear-provisioning.md` (Linear integration)
   - `backlog-prompt.md` (LLM prompt for starter backlog)

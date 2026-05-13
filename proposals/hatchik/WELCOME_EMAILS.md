@@ -35,12 +35,12 @@ Founder, Hatchik
 
 ## §2 — Launch tier signup acknowledgement (within 1 hour)
 
-**Subject:** Thanks for the £79 — getting your Hatchik built now
+**Subject:** Thanks for the £89 — getting your Hatchik built now
 
 ```
 Hi {{first_name}},
 
-Just confirmed the £79 — thank you. {{their_product_idea_one_sentence_reflection}}.
+Just confirmed the £89 — thank you. {{their_product_idea_one_sentence_reflection}}.
 
 I'm provisioning your Hatchik right now. The pieces in flight:
 
@@ -97,7 +97,7 @@ A few things to know:
 
   • You're on the Sandbox tier — capped at 3 users and 100MB. Plenty
     for testing and prototyping. When you're ready for real customers,
-    upgrade in the dashboard to Launch for £79.
+    upgrade in the dashboard to Launch for £89.
   • There's a "Built with Hatchik" footer on your sandbox app. That
     disappears when you upgrade to Launch.
   • Your sandbox stays free forever as long as you're active. Idle 30
@@ -153,8 +153,8 @@ A few things worth knowing:
     change, it queues for your approval in your Hatchik dashboard.
   • One-click backup restore from your dashboard — if you ever vibe
     yourself into a corner, yesterday is 30 seconds away.
-  • £9/month billing starts on {{date}} (one month from today). After
-    your 15th sign-up you graduate to £24/month — I'll email a month
+  • £14/month billing starts on {{date}} (one month from today). After
+    your 15th sign-up you graduate to £39/month — I'll email a month
     before that change.
 
 On your statement and receipts:
