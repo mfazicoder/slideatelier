@@ -170,7 +170,7 @@ def unique_slug(base: str, reg: dict[str, Any]) -> str:
 # (routes/index.tsx) bakes it into the hero tagline.
 TEMPLATE_VARS = [
     "PRODUCT_NAME", "PRODUCT_IDEA", "DOMAIN", "REGION", "PROJECT_SLUG",
-    "PROJECT_DIR", "SERVER_IP", "REPO_URL", "LINEAR_PROJECT_URL",
+    "PROJECT_DIR", "SERVER_IP", "REPO_URL",
     "PRODUCT_DESCRIPTION", "ADMIN_EMAIL", "GITHUB_USERNAME", "REGISTRAR_URL",
     "HOSTING_PROVIDER",
 ]
@@ -210,7 +210,6 @@ def render_substrate(
         "PROJECT_DIR": str(target),
         "SERVER_IP": os.environ.get("HATCHIK_HOST_IP", "178.105.139.144"),
         "REPO_URL": f"https://github.com/{GITHUB_ORG}/{slug}",
-        "LINEAR_PROJECT_URL": "https://linear.app/hatchik",
         "PRODUCT_DESCRIPTION": idea[:200] if idea else "",
         "ADMIN_EMAIL": email,
         "GITHUB_USERNAME": "hatchik",
