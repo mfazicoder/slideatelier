@@ -6,6 +6,11 @@
 <title>Hatchik — Your app idea, launched.</title>
 <meta name="description" content="Vibe-code your app idea into a real business. We handle every boring bit (hosting, payments, mail, mobile) so you can focus on the actual product. Built for the busy professional with an idea worth launching." />
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- NOTE: deploy script overwrites this value with the real Cloudflare
+     Turnstile sitekey before publishing. Until then the widget renders
+     a "site key invalid" warning, which is the expected dev behaviour. -->
+<script>window.HATCHIK_TURNSTILE_SITEKEY = "<TURNSTILE_SITEKEY_HERE>";</script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1549,6 +1554,9 @@
               class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none"
             ></textarea>
           </div>
+          <!-- Cloudflare Turnstile widget — managed mode. Renders only
+               when window.HATCHIK_TURNSTILE_SITEKEY is set to a real key. -->
+          <div id="signupTurnstile" class="flex justify-center"></div>
           <button type="submit" class="btn-primary w-full justify-center">
             Start my Sandbox
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
@@ -1753,6 +1761,27 @@
   const ideaInput = document.getElementById('signupIdea');
   const submitBtn = form.querySelector('button[type="submit"]');
 
+  let turnstileWidgetId = null;
+  let turnstileToken = '';
+
+  function renderTurnstile() {
+    const sitekey = window.HATCHIK_TURNSTILE_SITEKEY || '';
+    if (!sitekey || sitekey.indexOf('TURNSTILE_SITEKEY_HERE') !== -1) {
+      return;
+    }
+    if (!window.turnstile) {
+      setTimeout(renderTurnstile, 200);
+      return;
+    }
+    turnstileWidgetId = window.turnstile.render('#signupTurnstile', {
+      sitekey: sitekey,
+      callback: (token) => { turnstileToken = token; },
+      'error-callback': () => { turnstileToken = ''; },
+      'expired-callback': () => { turnstileToken = ''; },
+    });
+  }
+  renderTurnstile();
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorEl.classList.add('hidden');
@@ -1777,7 +1806,7 @@
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name: firstName, email, idea, product_name: productName, plan: 'sandbox', source: 'marketing-page' })
+        body: JSON.stringify({ first_name: firstName, email, idea, product_name: productName, plan: 'sandbox', turnstile_token: turnstileToken, source: 'marketing-page' })
       });
       // 409 = the customer already has an active Sandbox. The API returns
       // {ok:false, error:'sandbox_exists', message:'...'} — render the
@@ -1801,6 +1830,23 @@
         linkRow.appendChild(a);
         sandboxExistsEl.appendChild(linkRow);
         sandboxExistsEl.classList.remove('hidden');
+        return;
+      }
+      if (res.status === 422) {
+        // Structured abuse-protection rejection — surface inline so the
+        // visitor can correct their email or retry the captcha rather
+        // than seeing optimistic success.
+        let serverMsg = 'Please check the form and try again.';
+        try {
+          const body = await res.json();
+          serverMsg = (body && body.detail && body.detail.message) || serverMsg;
+        } catch (_) { /* fall through */ }
+        if (turnstileWidgetId !== null && window.turnstile) {
+          window.turnstile.reset(turnstileWidgetId);
+          turnstileToken = '';
+        }
+        errorEl.textContent = serverMsg;
+        errorEl.classList.remove('hidden');
         return;
       }
       // Accept any 2xx as success; treat network/other errors gently.

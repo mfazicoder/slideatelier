@@ -645,6 +645,38 @@ is signed in.
   customer is unhappy — first 100 customers are evangelists or they're
   detractors; choose evangelist.
 
+## Host capacity per sandbox
+
+Each Sandbox-tier tenant runs the full substrate stack inside its own
+compose project, with per-service `mem_limit` + `cpus` set in
+`substrate-template/docker-compose.yml`. Per-tenant totals (default
+caps, applied via `${SANDBOX_MEM_*}` / `${SANDBOX_CPUS_*}` with
+embedded defaults):
+
+| Service            | RAM     | CPU shares |
+|--------------------|---------|------------|
+| postgres           | 512 MB  | 0.5        |
+| supabase-auth      | 128 MB  | 0.2        |
+| supabase-rest      | 128 MB  | 0.2        |
+| supabase-storage   | 128 MB  | 0.2        |
+| supabase-meta      | 128 MB  | 0.2        |
+| supabase-studio    | 256 MB  | 0.2        |
+| api                | 256 MB  | 0.3        |
+| web (Vite dev)     | 512 MB  | 0.3        |
+| caddy              |  64 MB  | 0.1        |
+| **Per-tenant cap** | **~1.3 GB** | **~2.2 cores** |
+
+On the CAX21 sandbox host (8 GB / 4 cores), that's **4–5 concurrent
+active sandboxes** before swap pressure kicks in. The signup service
+enforces this directly via `HATCHIK_MAX_CONCURRENT_PROVISIONS=3` (one
+slot reserved for host overhead + idle tenants). Excess signups land
+in the SQLite queue (`signups.status = 'queued'`) and the background
+worker picks them up every 5 seconds as slots free.
+
+Launch-tier tenants run on dedicated VPSes and override each
+`SANDBOX_MEM_*` / `SANDBOX_CPUS_*` in their own `.env` to lift the
+limits — see substrate-template README for the exact var names.
+
 ## Cap on concierge scale
 
 Realistically, you can hand-provision **5–15 customers per week**

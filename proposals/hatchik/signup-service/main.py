@@ -15,6 +15,7 @@ takes over and this service is retired.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -90,8 +91,345 @@ PADDLE_WEBHOOK_SECRET = os.environ.get("PADDLE_WEBHOOK_SECRET", "")
 # block replay attacks. Tolerance matches Stripe's default of 5 minutes.
 PADDLE_SIGNATURE_TOLERANCE_SECONDS = 300
 
+# ─── Abuse-protection config ────────────────────────────────────────────
+# Concurrency cap on provision.py subprocesses — each sandbox uses ~1.3 GB
+# RAM during boot, so the CAX21 (8 GB) host can safely run 3-4 in parallel.
+# Anything over the cap is queued in SQLite and picked up by the background
+# worker every QUEUE_POLL_SECONDS.
+MAX_CONCURRENT_PROVISIONS = int(os.environ.get("HATCHIK_MAX_CONCURRENT_PROVISIONS", "3"))
+QUEUE_POLL_SECONDS = 5
+
+# Cloudflare Turnstile secret — when set, /api/signup and /api/account/login
+# require a valid Turnstile token. Empty value disables verification (dev).
+TURNSTILE_SECRET = os.environ.get("HATCHIK_TURNSTILE_SECRET", "")
+TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+TURNSTILE_TIMEOUT_SECONDS = 5.0
+
+# Geo-IP lookup — free tier of ipapi.co (no key needed for low volume).
+# Disabled if HATCHIK_GEO_IP_DISABLED=1, so the service still works in dev
+# or in CI where outbound HTTP is blocked.
+GEO_IP_URL_TEMPLATE = os.environ.get("HATCHIK_GEO_IP_URL", "https://ipapi.co/{ip}/json/")
+GEO_IP_TIMEOUT_SECONDS = 3.0
+GEO_IP_DISABLED = os.environ.get("HATCHIK_GEO_IP_DISABLED", "") in {"1", "true", "yes"}
+# Comma-separated ISO country codes that should be soft-blocked at signup.
+# Empty = no countries blocked. Stored upper-cased for fast membership tests.
+BLOCKED_COUNTRIES = {
+    c.strip().upper()
+    for c in os.environ.get("HATCHIK_BLOCKED_COUNTRIES", "").split(",")
+    if c.strip()
+}
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("loftik-signup")
+
+# ─── Disposable-email block-list ────────────────────────────────────────
+# Curated subset (~180 entries) of the most-trafficked throwaway-email
+# providers. Static set so it ships with the binary and works offline; the
+# longer canonical lists (e.g. disposable-email-domains/disposable-email-domains
+# on GitHub) contain ~10k entries, almost all of which are dead. This list
+# is biased toward the providers that still resolve and still relay mail.
+DISPOSABLE_EMAIL_DOMAINS: frozenset[str] = frozenset({
+    "0-mail.com", "0815.ru", "10minutemail.com", "10minutemail.net", "10minutemail.de",
+    "10minutemail.co.uk", "10minutemail.co.za", "10minutemailbox.com", "10minutesmail.com",
+    "1secmail.com", "1secmail.net", "1secmail.org", "20minutemail.com", "20minutemail.it",
+    "2prong.com", "30minutemail.com", "33mail.com", "3d-painting.com", "4warding.com",
+    "5ymail.com", "60minutemail.com", "75hosting.com", "9ox.net",
+    "anonbox.net", "anonmails.de", "armyspy.com", "azmeil.tk",
+    "binkmail.com", "bobmail.info", "bopao.com", "bouncr.com", "brefmail.com", "broadbandninja.com",
+    "bsnow.net", "bspamfree.org", "bugmenot.com", "bund.us", "burnermail.io", "byom.de",
+    "cek.pm", "chacuo.net", "chammy.info", "clickmail.info", "cool.fr.nf", "cosmorph.com",
+    "courriel.fr.nf", "courrieltemporaire.com", "cuvox.de",
+    "dacoolest.com", "dayrep.com", "deadaddress.com", "deadspam.com", "deagot.com",
+    "despam.it", "despam-it.com", "dingbone.com", "discard.email", "discardmail.com",
+    "discardmail.de", "dispomail.eu", "disposable.com", "disposable-email.com",
+    "disposable-mail.com", "disposablemail.com", "disposableinbox.com", "dodgeit.com",
+    "dodgit.com", "dontreg.com", "dontsendmespam.de", "dropmail.me", "duck2.club",
+    "dudmail.com", "dump-email.info", "dumpyemail.com", "duskmail.com",
+    "e4ward.com", "easytrashmail.com", "edv.to", "einrot.com", "emailfake.com", "emailias.com",
+    "emailisvalid.com", "emailmiser.com", "emailondeck.com", "emailsensei.com",
+    "emailtemporanea.com", "emailtemporanea.net", "emailtemporario.com.br", "emaltemp.com",
+    "emz.net", "ephemail.net", "etranquil.com", "etranquil.net", "explodemail.com",
+    "fakeinbox.com", "fakemail.fr", "fakemailgenerator.com", "fakemailz.com",
+    "fastacura.com", "fastchevy.com", "fastchrysler.com", "fastkawasaki.com", "fastmazda.com",
+    "fastmitsubishi.com", "fastnissan.com", "fastsubaru.com", "fastsuzuki.com", "fasttoyota.com",
+    "fastyamaha.com", "filzmail.com", "fleckens.hu", "forgotmail.com", "freundin.ru",
+    "front14.org", "fux0ringduh.com", "garliclife.com", "get1mail.com", "get2mail.fr",
+    "getairmail.com", "getmails.eu", "getnada.com", "ghosttexter.de", "girlsundertheinfluence.com",
+    "gishpuppy.com", "goemailgo.com", "gotmail.net", "gowikibooks.com", "great-host.in",
+    "grr.la", "gsrv.co.uk", "guerillamail.biz", "guerillamail.com", "guerillamail.net",
+    "guerillamail.org", "guerrillamail.biz", "guerrillamail.com", "guerrillamail.de",
+    "guerrillamail.info", "guerrillamail.net", "guerrillamail.org", "guerrillamailblock.com",
+    "haltospam.com", "hidemail.de", "hidemail.us", "hochsitze.com", "hotpop.com",
+    "imails.info", "inbax.tk", "inbox.si", "inboxbear.com", "inboxclean.com", "inboxclean.org",
+    "incognitomail.com", "incognitomail.net", "incognitomail.org",
+    "jetable.com", "jetable.fr.nf", "jetable.net", "jetable.org", "jourrapide.com",
+    "kasmail.com", "kcrw.de", "killmail.com", "killmail.net", "kimsdisk.com",
+    "klassmaster.com", "klzlk.com", "kook.ml", "kurzepost.de",
+    "lackmail.net", "lifebyfood.com", "link2mail.net", "litedrop.com", "lookugly.com",
+    "lopl.co.cc", "lortemail.dk", "lr78.com", "lroid.com", "lyft.live",
+    "mailbidon.com", "mailcatch.com", "maildrop.cc", "maileater.com", "mailexpire.com",
+    "mailfa.tk", "mailforspam.com", "mailfreeonline.com", "mailfs.com", "mailguard.me",
+    "mailimate.com", "mailin8r.com", "mailinator.com", "mailinator.net", "mailinator.org",
+    "mailinator2.com", "mailincubator.com", "mailismagic.com", "mailmetrash.com",
+    "mailmoat.com", "mailms.com", "mailnator.com", "mailnesia.com", "mailnull.com",
+    "mailshell.com", "mailsiphon.com", "mailslapping.com", "mailtemp.info", "mailtothis.com",
+    "mailtrash.net", "mailtv.net", "mailtv.tv", "mailzilla.com", "mailzilla.org",
+    "makemetheking.com", "manybrain.com", "mbx.cc", "mega.zik.dj", "mintemail.com",
+    "moakt.com", "mohmal.com", "moncourrier.fr.nf", "monemail.fr.nf", "monmail.fr.nf",
+    "mt2009.com", "mt2014.com", "mt2015.com", "mvrht.com", "mycleaninbox.net",
+    "mymail-in.net", "mypartyclip.de", "myphantomemail.com", "mysamp.de",
+    "neverbox.com", "nfimail.com", "nice-4u.com", "no-spam.ws", "noclickemail.com",
+    "nomail.pw", "nomail.xl.cx", "nomail2me.com", "nomorespamemails.com", "nospam.ze.tc",
+    "nospam4.us", "nospamfor.us", "nospammail.net", "notmailinator.com", "nowmymail.com",
+    "objectmail.com", "obobbo.com", "odaymail.com", "one-time.email", "oneoffemail.com",
+    "onewaymail.com", "onlatedotcom.info", "online.ms", "opayq.com", "opentrash.com", "ordinaryamerican.net",
+    "otherinbox.com", "ourklips.com", "outlawspam.com", "ovpn.to", "owlpic.com",
+    "pancakemail.com", "pekarstvi.eu", "petsfa.com", "pflegekind.eu", "pisls.com",
+    "pleasenoads.com", "poczta.onet.pl", "politikerclub.de", "poofy.org", "pookmail.com",
+    "privatdemail.net", "privymail.de", "proxymail.eu", "punkass.com", "putthisinyourspamdatabase.com",
+    "quickinbox.com", "rcpt.at", "receiveee.com", "recode.me", "recursor.net",
+    "regbypass.com", "rmqkr.net", "rppkn.com", "rtrtr.com",
+    "safe-mail.net", "sandelf.de", "saynotospams.com", "selfdestructingmail.com", "send-email.org",
+    "senseless-entertainment.com", "services391.com", "sharklasers.com", "shieldedmail.com",
+    "shieldemail.com", "shiftmail.com", "shitmail.me", "shitmail.org", "shitware.nl",
+    "shortmail.net", "sibmail.com", "sify.com", "skeefmail.com", "slapsfromlastnight.com",
+    "slaskpost.se", "slipry.net", "slopsbox.com", "smashmail.de", "smellfear.com",
+    "snakemail.com", "sneakemail.com", "sneakyfrog.com", "snkmail.com", "sofimail.com",
+    "sofort-mail.de", "softpls.asia", "sogetthis.com", "soodonims.com", "spam.la",
+    "spam.su", "spam4.me", "spamavert.com", "spambob.com", "spambob.net", "spambob.org",
+    "spambog.com", "spambog.de", "spambog.net", "spambog.ru", "spambox.us", "spamcero.com",
+    "spamcon.org", "spamcorptastic.com", "spamcowboy.com", "spamcowboy.net", "spamcowboy.org",
+    "spamday.com", "spamex.com", "spamfree24.com", "spamfree24.de", "spamfree24.eu",
+    "spamfree24.info", "spamfree24.net", "spamfree24.org", "spamgoes.com", "spamgourmet.com",
+    "spamgourmet.net", "spamgourmet.org", "spamherelots.com", "spamhereplease.com",
+    "spamhole.com", "spamify.com", "spaml.com", "spaml.de", "spammotel.com", "spamobox.com",
+    "spamoff.de", "spamslicer.com", "spamspot.com", "spamthis.co.uk", "spamtroll.net",
+    "speed.1s.fr", "supermailer.jp", "superrito.com", "suremail.info",
+    "tafmail.com", "talkinator.com", "teewars.org", "teleworm.com", "teleworm.us",
+    "temp-mail.com", "temp-mail.io", "temp-mail.org", "temp-mail.ru", "tempail.com",
+    "tempalias.com", "tempe-mail.com", "tempemail.biz", "tempemail.co.za", "tempemail.com",
+    "tempemail.net", "tempinbox.co.uk", "tempinbox.com", "tempmail.de", "tempmail.eu",
+    "tempmail.it", "tempmail.us", "tempmail2.com", "tempmaildemand.com", "tempmailer.com",
+    "tempmailer.de", "tempomail.fr", "temporarily.de", "temporarioemail.com.br",
+    "temporaryemail.net", "temporaryforwarding.com", "temporaryinbox.com", "temporarymailaddress.com",
+    "thanksnospam.info", "thankyou2010.com", "thc.st", "thelimestones.com", "thisisnotmyrealemail.com",
+    "throwam.com", "throwawayemailaddresses.com", "throwawaymail.com", "tilien.com",
+    "tmailinator.com", "tradermail.info", "trash-amil.com", "trash-mail.at", "trash-mail.com",
+    "trash-mail.de", "trash-mail.tk", "trash2009.com", "trash2010.com", "trash2011.com",
+    "trashdevil.com", "trashemail.de", "trashmail.at", "trashmail.com", "trashmail.de",
+    "trashmail.me", "trashmail.net", "trashmail.org", "trashmail.ws", "trashmailer.com",
+    "trashymail.com", "trashymail.net", "trbvm.com", "trillianpro.com", "tyldd.com",
+    "uggsrock.com", "umail.net", "uplipht.com", "uroid.com", "venompen.com",
+    "veryrealemail.com", "vidchart.com", "viditag.com", "viewcastmedia.com", "viewcastmedia.net",
+    "viewcastmedia.org", "vmailing.info", "vmpanda.com", "vomoto.com", "vpn.st", "vsimcard.com",
+    "vubby.com", "wee.my", "weg-werf-email.de", "wegwerf-email-addressen.de",
+    "wegwerf-email-adressen.de", "wegwerfadresse.de", "wegwerfemail.com", "wegwerfemail.de",
+    "wegwerfemailadresse.com", "wegwerfmail.de", "wegwerfmail.info", "wegwerfmail.net",
+    "wegwerfmail.org", "whatpaas.com", "whyspam.me", "wilemail.com", "willhackforfood.biz",
+    "willselfdestruct.com", "winemaven.info", "wronghead.com", "wuzup.net", "wuzupmail.net",
+    "www.e4ward.com", "www.gishpuppy.com", "www.mailinator.com",
+    "x.ip6.li", "xagloo.com", "xemaps.com", "xemail.com", "xents.com", "xmaily.com",
+    "xoxy.net", "yapped.net", "yeah.net", "yep.it", "yogamaven.com", "yopmail.com",
+    "yopmail.fr", "yopmail.net", "you-spam.com", "ypmail.webarnak.fr.eu.org", "yuurok.com",
+    "zehnminutenmail.de", "zetmail.com", "zippymail.info", "zoaxe.com", "zoemail.net",
+    "zoemail.org", "zoomail.tk",
+})
+
+
+def is_disposable_email(email: str) -> bool:
+    """Return True if the email's domain is a known throwaway provider."""
+    domain = email.rpartition("@")[2].strip().lower()
+    if not domain:
+        return False
+    return domain in DISPOSABLE_EMAIL_DOMAINS
+
+
+# ─── Turnstile verification ──────────────────────────────────────────────
+async def verify_turnstile(token: str | None, remote_ip: str) -> bool:
+    """Verify a Cloudflare Turnstile token. Returns True on success.
+
+    When ``HATCHIK_TURNSTILE_SECRET`` is empty (dev mode), the check is
+    skipped and the function returns True with a logged warning — never
+    silently fails-closed in production because callers gate on
+    ``TURNSTILE_SECRET`` being set.
+    """
+    if not TURNSTILE_SECRET:
+        log.warning("HATCHIK_TURNSTILE_SECRET unset — skipping Turnstile check")
+        return True
+    if not token:
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=TURNSTILE_TIMEOUT_SECONDS) as client:
+            r = await client.post(
+                TURNSTILE_VERIFY_URL,
+                data={
+                    "secret": TURNSTILE_SECRET,
+                    "response": token,
+                    "remoteip": remote_ip,
+                },
+            )
+            r.raise_for_status()
+            data = r.json()
+    except (httpx.HTTPError, ValueError) as e:
+        log.error("Turnstile verification failed (network/parse): %s", e)
+        return False
+    success = bool(data.get("success"))
+    if not success:
+        log.warning("Turnstile rejected token: %s", data.get("error-codes"))
+    return success
+
+
+# ─── Geo-IP lookup ───────────────────────────────────────────────────────
+async def lookup_geo_ip(ip: str) -> dict[str, str]:
+    """Best-effort geo-IP lookup. Returns {country_code, city, asn}.
+
+    All keys are empty strings on failure or when disabled. Caller must
+    treat this as advisory data, not load-bearing.
+    """
+    empty = {"country_code": "", "city": "", "asn": ""}
+    if GEO_IP_DISABLED or not ip or ip == "unknown" or ip.startswith(("127.", "10.", "192.168.")):
+        return empty
+    try:
+        async with httpx.AsyncClient(timeout=GEO_IP_TIMEOUT_SECONDS) as client:
+            r = await client.get(GEO_IP_URL_TEMPLATE.format(ip=ip))
+            r.raise_for_status()
+            data = r.json()
+    except (httpx.HTTPError, ValueError) as e:
+        log.warning("geo-IP lookup failed for %s: %s", ip, e)
+        return empty
+    return {
+        "country_code": str(data.get("country_code") or data.get("country") or "")[:8].upper(),
+        "city": str(data.get("city") or "")[:80],
+        "asn": str(data.get("asn") or "")[:32],
+    }
+
+
+# ─── Provisioning throttle ───────────────────────────────────────────────
+# In-flight signup ids tracked in a Python set guarded by a lock so we can
+# answer "how many provisions are running right now?" from the request
+# handler (to decide whether to show the queue-delay message in the
+# acknowledgement email). Persisting the queue itself in SQLite (via
+# signups.status) survives uvicorn restarts; this in-memory set just speeds
+# up the per-request check.
+_in_flight_signups: set[int] = set()
+_in_flight_lock = asyncio.Lock()
+_queue_worker_task: asyncio.Task[None] | None = None
+
+
+async def _mark_provision_started(signup_id: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "UPDATE signups SET status = 'provisioning', provision_started_at = ? WHERE id = ?",
+            (now, signup_id),
+        )
+        conn.commit()
+
+
+async def _mark_provision_finished(signup_id: int, status: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "UPDATE signups SET status = ?, provision_finished_at = ? WHERE id = ?",
+            (status, now, signup_id),
+        )
+        conn.commit()
+
+
+def _run_provision_subprocess(signup_id: int) -> int:
+    """Synchronous subprocess wrapper — runs in a thread via to_thread.
+
+    Returns the exit code. Logs stdout/stderr to the per-signup log file.
+    """
+    import subprocess
+    script = os.environ.get("HATCHIK_PROVISION_SCRIPT", "/opt/hatchik-orchestrator/provision.py")
+    if not Path(script).exists():
+        log.warning("provision script not found at %s — skipping (concierge MVP)", script)
+        return 0
+    log_dir = Path("/var/log/hatchik")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / f"provision-{signup_id}.log"
+    with log_file.open("ab") as f:
+        proc = subprocess.run(
+            [script, str(signup_id)],
+            stdout=f,
+            stderr=subprocess.STDOUT,
+        )
+    return proc.returncode
+
+
+async def _provision_one(signup_id: int) -> None:
+    """Mark started → run provision.py → mark finished. Releases the slot
+    via the in-flight set even on failure."""
+    try:
+        await _mark_provision_started(signup_id)
+        log.info("provision started for signup #%s (in-flight=%d)", signup_id, len(_in_flight_signups))
+        rc = await asyncio.to_thread(_run_provision_subprocess, signup_id)
+        final_status = "live" if rc == 0 else "failed"
+        await _mark_provision_finished(signup_id, final_status)
+        log.info("provision finished for signup #%s rc=%s status=%s", signup_id, rc, final_status)
+    except Exception as e:  # noqa: BLE001
+        log.error("provision crashed for signup #%s: %s", signup_id, e)
+        try:
+            await _mark_provision_finished(signup_id, "failed")
+        except Exception as inner:  # noqa: BLE001
+            log.error("failed to mark signup #%s failed: %s", signup_id, inner)
+    finally:
+        async with _in_flight_lock:
+            _in_flight_signups.discard(signup_id)
+
+
+async def _try_dispatch(signup_id: int) -> bool:
+    """If there's capacity, claim a slot and fire the provision task.
+
+    Returns True on dispatch, False if the slot would exceed the cap.
+    """
+    async with _in_flight_lock:
+        if len(_in_flight_signups) >= MAX_CONCURRENT_PROVISIONS:
+            return False
+        _in_flight_signups.add(signup_id)
+    asyncio.create_task(_provision_one(signup_id))
+    return True
+
+
+async def enqueue_or_dispatch(signup_id: int) -> Literal["dispatched", "queued"]:
+    """Run the signup immediately if capacity allows, else mark it queued."""
+    dispatched = await _try_dispatch(signup_id)
+    if dispatched:
+        return "dispatched"
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("UPDATE signups SET status = 'queued' WHERE id = ?", (signup_id,))
+        conn.commit()
+    log.info("signup #%s queued (cap=%d reached)", signup_id, MAX_CONCURRENT_PROVISIONS)
+    return "queued"
+
+
+async def _queue_worker() -> None:
+    """Background task: every QUEUE_POLL_SECONDS, pull the oldest queued
+    Sandbox signup and dispatch if there's capacity. Sleeps when idle.
+    Restarted on unhandled errors so a single crash doesn't drain the queue.
+    """
+    log.info("queue worker started — poll=%ss cap=%d", QUEUE_POLL_SECONDS, MAX_CONCURRENT_PROVISIONS)
+    while True:
+        try:
+            await asyncio.sleep(QUEUE_POLL_SECONDS)
+            async with _in_flight_lock:
+                free_slots = MAX_CONCURRENT_PROVISIONS - len(_in_flight_signups)
+            if free_slots <= 0:
+                continue
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    "SELECT id FROM signups WHERE status = 'queued' AND tier = 'sandbox' "
+                    "ORDER BY id ASC LIMIT ?",
+                    (free_slots,),
+                ).fetchall()
+            for row in rows:
+                await _try_dispatch(row["id"])
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            log.error("queue worker iteration failed: %s — continuing", e)
 
 # ─── DB ──────────────────────────────────────────────────────────────────
 def init_db() -> None:
@@ -115,15 +453,24 @@ def init_db() -> None:
             )
             """
         )
-        # Additive migration for live DBs that pre-date first_name +
-        # github_username. github_username is optional — if blank, the
-        # tenant repo lands under the Hatchik-owned org; if set, the
-        # provisioner invites the customer as owner-collaborator.
+        # Additive migration for live DBs that pre-date later columns.
+        # Each ALTER is gated by PRAGMA inspection so re-running on an
+        # already-migrated DB is a no-op.
         cols = {row[1] for row in conn.execute("PRAGMA table_info(signups)").fetchall()}
         if "first_name" not in cols:
             conn.execute("ALTER TABLE signups ADD COLUMN first_name TEXT")
         if "github_username" not in cols:
             conn.execute("ALTER TABLE signups ADD COLUMN github_username TEXT")
+        if "provision_started_at" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN provision_started_at TEXT")
+        if "provision_finished_at" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN provision_finished_at TEXT")
+        if "country_code" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN country_code TEXT")
+        if "city" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN city TEXT")
+        if "asn" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN asn TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS rate_limit (
@@ -232,7 +579,17 @@ def init_db() -> None:
 async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     init_db()
     log.info("Hatchik signup service started — DB at %s", DB_PATH)
-    yield
+    global _queue_worker_task
+    _queue_worker_task = asyncio.create_task(_queue_worker())
+    try:
+        yield
+    finally:
+        if _queue_worker_task and not _queue_worker_task.done():
+            _queue_worker_task.cancel()
+            try:
+                await _queue_worker_task
+            except asyncio.CancelledError:
+                pass
 
 
 # ─── App ─────────────────────────────────────────────────────────────────
@@ -269,6 +626,7 @@ class SignupRequest(BaseModel):
         max_length=39,
         validation_alias=AliasChoices("github_username", "githubUsername"),
     )
+    turnstile_token: str | None = Field(None, max_length=4096)
 
     @field_validator("product_name", "description")
     @classmethod
@@ -347,12 +705,21 @@ async def _resend_send(payload: dict[str, Any]) -> None:
 
 
 async def send_founder_notification(
-    req: SignupRequest, signup_id: int, ip: str = "unknown"
+    req: SignupRequest,
+    signup_id: int,
+    ip: str = "unknown",
+    geo: dict[str, str] | None = None,
 ) -> None:
     """Email the founder with signup details (provisioning runs automatically for Sandbox)."""
     if not RESEND_API_KEY:
         log.warning("RESEND_API_KEY not set — skipping founder notification")
         return
+
+    geo = geo or {"country_code": "", "city": "", "asn": ""}
+    geo_line = (
+        f"{geo['country_code'] or '?'} · {geo['city'] or '?'} · ASN {geo['asn'] or '?'}"
+        if any(geo.values()) else "(lookup unavailable)"
+    )
 
     subject = f"[Hatchik signup #{signup_id}] {req.tier.title()}: {req.product_name}"
     body = f"""\
@@ -365,6 +732,7 @@ New Hatchik signup #{signup_id}
   Region:      {req.region or 'not specified'}
   Domain:      {req.domain_choice or 'will be discussed'}
   IP:          {ip}
+  Geo:         {geo_line}
 
   Description:
   {req.description or '(none)'}
@@ -386,8 +754,13 @@ Launch tier: see FIRST_CUSTOMER_RUNBOOK.md for the manual flow.
         log.error("Failed to send founder notification for #%s: %s", signup_id, e)
 
 
-def _customer_email_bodies(req: SignupRequest) -> tuple[str, str]:
-    """Render plaintext + HTML versions of the customer acknowledgement."""
+def _customer_email_bodies(req: SignupRequest, queue_note: str = "") -> tuple[str, str]:
+    """Render plaintext + HTML versions of the customer acknowledgement.
+
+    ``queue_note`` is an optional one-liner appended to ``next_step`` when
+    the signup landed in the throttle queue — soft messaging only, no
+    panic, no precise time estimate.
+    """
     if req.tier == "launch":
         intro = f"Thanks for signing up for {req.product_name} on the Launch tier."
         next_step = (
@@ -402,6 +775,9 @@ def _customer_email_bodies(req: SignupRequest) -> tuple[str, str]:
             "another email in a few minutes with the link to log in and "
             "start building."
         )
+
+    if queue_note:
+        next_step = f"{next_step} {queue_note}"
 
     greeting = f"Hi {req.first_name}," if req.first_name else "Hi,"
     greeting_html = _html_escape(greeting)
@@ -456,13 +832,13 @@ Further information can be found at https://hatchik.com/#faq if you need it.
     return text, html
 
 
-async def send_customer_acknowledgement(req: SignupRequest) -> None:
+async def send_customer_acknowledgement(req: SignupRequest, queue_note: str = "") -> None:
     """Confirm-receipt email to the customer. Founder follows up personally."""
     if not RESEND_API_KEY:
         log.warning("RESEND_API_KEY not set — skipping customer acknowledgement")
         return
 
-    text_body, html_body = _customer_email_bodies(req)
+    text_body, html_body = _customer_email_bodies(req, queue_note=queue_note)
     if req.tier == "launch":
         subject = f"Thanks for signing up — getting {req.product_name} built now"
     else:
@@ -722,6 +1098,48 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
     if not check_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Too many requests")
 
+    # Disposable-email gate — applied before any expensive work (Turnstile,
+    # geo-IP, DB insert) so abuse traffic doesn't waste resources.
+    if is_disposable_email(str(req.email)):
+        log.info("rejected disposable email from %s: %s", ip, req.email)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "ok": False,
+                "error": "disposable_email",
+                "message": "Please use a real email address — we send important account info there.",
+            },
+        )
+
+    # Cloudflare Turnstile. ``verify_turnstile`` returns True when the
+    # secret is unset (dev mode) so this is a no-op locally; in prod we
+    # fail-closed on missing/invalid tokens.
+    if TURNSTILE_SECRET and not await verify_turnstile(req.turnstile_token, ip):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "ok": False,
+                "error": "turnstile_failed",
+                "message": "We couldn't verify you're human — please try again.",
+            },
+        )
+
+    # Geo-IP lookup. Best-effort, soft-bounded by GEO_IP_TIMEOUT_SECONDS.
+    geo = await lookup_geo_ip(ip)
+    if geo["country_code"] and geo["country_code"] in BLOCKED_COUNTRIES:
+        log.warning(
+            "blocked-country signup attempt: ip=%s country=%s email=%s",
+            ip, geo["country_code"], req.email,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "ok": False,
+                "error": "blocked_region",
+                "message": "Sign-ups from your region aren't currently supported. If this is a mistake, email hello@hatchik.com.",
+            },
+        )
+
     # One active Sandbox per email. Launch/Growth packages stay unrestricted.
     # 409 body is shaped {ok, error, message} (no `detail` wrapper) so the
     # marketing front-ends can show the message verbatim.
@@ -751,13 +1169,14 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
             INSERT INTO signups (
                 created_at, email, first_name, product_name, description, tier,
                 region, domain_choice, ip_address, user_agent, github_username,
-                status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')
+                status, country_code, city, asn
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?)
             """,
             (
                 created_at, str(req.email), req.first_name, req.product_name,
                 req.description, req.tier, req.region, req.domain_choice,
                 ip, user_agent, req.github_username or None,
+                geo["country_code"] or None, geo["city"] or None, geo["asn"] or None,
             ),
         )
         signup_id = cur.lastrowid or 0
@@ -768,49 +1187,40 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
         )
         conn.commit()
 
-    log.info("New signup #%s: %s tier=%s", signup_id, req.email, req.tier)
+    log.info(
+        "New signup #%s: %s tier=%s country=%s",
+        signup_id, req.email, req.tier, geo["country_code"] or "?",
+    )
+
+    # Decide queue-delay messaging before we kick off provisioning so we
+    # can colour the acknowledgement email accordingly.
+    queue_note = ""
+    if req.tier == "sandbox":
+        async with _in_flight_lock:
+            in_flight = len(_in_flight_signups)
+        if in_flight >= MAX_CONCURRENT_PROVISIONS:
+            queue_note = (
+                "(You're a bit further back in the queue — we'll have your "
+                "sandbox ready in a few extra minutes.)"
+            )
 
     # Fire both notification emails. Failures are logged inside each helper
     # so they cannot break the signup — the DB insert above is the source of
     # truth and the customer has already received a 201 by the time these run.
-    await send_founder_notification(req, signup_id, ip)
-    await send_customer_acknowledgement(req)
+    await send_founder_notification(req, signup_id, ip, geo=geo)
+    await send_customer_acknowledgement(req, queue_note=queue_note)
 
-    # If this is a Sandbox signup, trigger provisioning in the background.
-    # We don't await it — provision.py is slow (substrate build + compose up
-    # + healthcheck = ~60-90s) and the signup endpoint must return fast.
-    # provision.py sends its own "your sandbox is ready" email once live.
+    # Sandbox signups go through the concurrent-provision throttle: if
+    # there's a free slot we run provision.py in a background task right
+    # now, otherwise we mark the row 'queued' and the background worker
+    # picks it up once a slot opens.
     if req.tier == "sandbox":
-        trigger_sandbox_provision(signup_id)
+        await enqueue_or_dispatch(signup_id)
 
     return SignupResponse(
         ok=True,
         message="Thanks. We're setting your Hatchik up — check your email in a few minutes.",
     )
-
-
-def trigger_sandbox_provision(signup_id: int) -> None:
-    """Fire-and-forget provisioning. Logs errors but never raises."""
-    import subprocess
-    script = os.environ.get("HATCHIK_PROVISION_SCRIPT", "/opt/hatchik-orchestrator/provision.py")
-    if not Path(script).exists():
-        log.warning("provision script not found at %s — skipping (concierge MVP)", script)
-        return
-    try:
-        # Detach completely from this process — provision.py runs to completion
-        # even if uvicorn restarts. stdout/stderr go to a log file per signup.
-        log_dir = Path("/var/log/hatchik")
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / f"provision-{signup_id}.log"
-        subprocess.Popen(
-            [script, str(signup_id)],
-            stdout=log_file.open("ab"),
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
-        log.info("Provisioning kicked off for signup #%s → %s", signup_id, log_file)
-    except Exception as e:  # noqa: BLE001
-        log.error("Failed to kick off provisioning for #%s: %s", signup_id, e)
 
 
 @app.get("/api/signup/stats")
@@ -1023,6 +1433,40 @@ restore.py emails the customer automatically once the sandbox is live.
         log.error("Failed to send restore-request notification: %s", e)
 
 
+@app.get("/api/admin/signups/geo")
+async def admin_signups_geo(
+    days: int = 7,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Quick fraud dashboard: recent signups grouped by country.
+
+    Returns counts per ``country_code`` over the last ``days`` (default 7),
+    plus a flat list of the most recent ~50 signups with geo + email so
+    the founder can spot bursts from suspicious ASNs or regions.
+    """
+    _require_admin(x_admin_token)
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        by_country_rows = conn.execute(
+            "SELECT COALESCE(country_code, '?') AS country, COUNT(*) AS count "
+            "FROM signups WHERE created_at >= ? GROUP BY country "
+            "ORDER BY count DESC",
+            (cutoff,),
+        ).fetchall()
+        recent_rows = conn.execute(
+            "SELECT id, created_at, email, tier, status, ip_address, "
+            "country_code, city, asn FROM signups "
+            "WHERE created_at >= ? ORDER BY id DESC LIMIT 50",
+            (cutoff,),
+        ).fetchall()
+    return {
+        "window_days": days,
+        "by_country": [dict(r) for r in by_country_rows],
+        "recent": [dict(r) for r in recent_rows],
+    }
+
+
 @app.get("/api/admin/accounts")
 async def admin_list_accounts(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
@@ -1227,6 +1671,7 @@ from fastapi.responses import RedirectResponse
 
 class LoginRequest(BaseModel):
     email: EmailStr
+    turnstile_token: str | None = Field(None, max_length=4096)
 
 
 def _resolve_session(session_id: str | None) -> dict[str, Any] | None:
@@ -1251,12 +1696,26 @@ def _resolve_session(session_id: str | None) -> dict[str, Any] | None:
 
 
 @app.post("/api/account/login", status_code=202)
-async def request_login_link(req: LoginRequest) -> dict[str, Any]:
+async def request_login_link(req: LoginRequest, request: Request) -> dict[str, Any]:
     """Self-serve: email a one-time sign-in link.
 
     Anti-enumeration: returns 202 whether or not the email matches a
-    signup row.
+    signup row. Turnstile gate prevents bulk-probing for valid emails.
     """
+    ip = (request.headers.get("CF-Connecting-IP")
+          or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+          or (request.client.host if request.client else "unknown"))
+
+    if TURNSTILE_SECRET and not await verify_turnstile(req.turnstile_token, ip):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "ok": False,
+                "error": "turnstile_failed",
+                "message": "We couldn't verify you're human — please try again.",
+            },
+        )
+
     email = str(req.email).lower().strip()
     with sqlite3.connect(DB_PATH) as conn:
         match = conn.execute(

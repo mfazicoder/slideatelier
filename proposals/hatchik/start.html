@@ -7,6 +7,11 @@
   <meta name="description" content="Spin up your own SaaS in minutes. Pick your plan, name your idea, and we'll take care of the rest." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🪺%3C/text%3E%3C/svg%3E">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- NOTE: deploy script overwrites this value with the real Cloudflare
+       Turnstile sitekey before publishing. Until then the widget renders
+       a "site key invalid" warning, which is the expected dev behaviour. -->
+  <script>window.HATCHIK_TURNSTILE_SITEKEY = "<TURNSTILE_SITEKEY_HERE>";</script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: linear-gradient(135deg, #f6f5f1 0%, #faf5ff 100%); }
     .field-label { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
@@ -151,6 +156,11 @@
         <p class="mt-1 text-xs text-slate-500">We'll create a private repo for your sandbox and give you owner access. Skip this and we'll just email you the repo link.</p>
       </div>
 
+      <!-- Cloudflare Turnstile — managed mode (low-friction). The widget
+           runs invisibly for most visitors and only surfaces a challenge
+           if it spots automation. -->
+      <div id="turnstileWidget" class="flex justify-center"></div>
+
       <button
         id="submitBtn"
         type="submit"
@@ -208,6 +218,31 @@
   const successView = $('successView');
 
   let plan = 'sandbox';
+  let turnstileWidgetId = null;
+  let turnstileToken = '';
+
+  // Render Turnstile once the script has loaded. ``window.turnstile`` is
+  // attached by Cloudflare's api.js — we poll briefly in case the widget
+  // script is still in-flight when the page initialises.
+  function renderTurnstile() {
+    const sitekey = window.HATCHIK_TURNSTILE_SITEKEY || '';
+    if (!sitekey || sitekey.indexOf('TURNSTILE_SITEKEY_HERE') !== -1) {
+      // Dev / pre-deploy: no real key configured. Server will skip
+      // verification when its secret is also unset.
+      return;
+    }
+    if (!window.turnstile) {
+      setTimeout(renderTurnstile, 200);
+      return;
+    }
+    turnstileWidgetId = window.turnstile.render('#turnstileWidget', {
+      sitekey: sitekey,
+      callback: (token) => { turnstileToken = token; },
+      'error-callback': () => { turnstileToken = ''; },
+      'expired-callback': () => { turnstileToken = ''; },
+    });
+  }
+  renderTurnstile();
 
   // Preselect plan from ?plan=launch URL param.
   const urlPlan = new URLSearchParams(location.search).get('plan');
@@ -267,6 +302,7 @@
           product_name: productName,
           tier: plan,
           github_username: githubUsername,
+          turnstile_token: turnstileToken,
           source: 'launch-wizard',
         })
       });
@@ -281,6 +317,23 @@
           : 'You already have a Sandbox. Delete it first if you want to start fresh.';
         showError(msg, { linkSandboxDelete: true });
         return;
+      }
+      if (res.status === 422) {
+        // Structured abuse-protection rejection (disposable email,
+        // turnstile fail, blocked region). Surface the server's message
+        // inline rather than silently optimistic-completing.
+        let serverMsg = 'Please check the form and try again.';
+        try {
+          const body = await res.json();
+          serverMsg = (body && body.detail && body.detail.message) || serverMsg;
+        } catch (_) { /* fall through to default */ }
+        if (turnstileWidgetId !== null && window.turnstile) {
+          window.turnstile.reset(turnstileWidgetId);
+          turnstileToken = '';
+        }
+        submitBtn.disabled = false;
+        submitLabel.innerHTML = plan === 'sandbox' ? 'Start free Sandbox &rarr;' : 'Continue to checkout (£79) &rarr;';
+        return showError(serverMsg);
       }
       if (!res.ok && res.status !== 201) {
         throw new Error('Bad response');

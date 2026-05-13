@@ -7,6 +7,10 @@
   <title>Your Hatchik account</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🪺%3C/text%3E%3C/svg%3E">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- NOTE: deploy script overwrites this value with the real Cloudflare
+       Turnstile sitekey before publishing. -->
+  <script>window.HATCHIK_TURNSTILE_SITEKEY = "<TURNSTILE_SITEKEY_HERE>";</script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: #f6f5f1; }
     [data-tab-panel] { display: none; }
@@ -47,6 +51,8 @@
         placeholder="you@yourdomain.com"
         class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
       />
+      <!-- Cloudflare Turnstile — same managed-mode widget as signup -->
+      <div id="signInTurnstile" class="flex justify-center"></div>
       <button type="submit"
         class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition disabled:opacity-60 disabled:cursor-not-allowed">
         Email me a sign-in link
@@ -185,6 +191,21 @@
   const dashboardView = $('dashboardView');
   const signOutBtn = $('signOutBtn');
 
+  let signInTurnstileId = null;
+  let signInTurnstileToken = '';
+  function renderSignInTurnstile() {
+    const sitekey = window.HATCHIK_TURNSTILE_SITEKEY || '';
+    if (!sitekey || sitekey.indexOf('TURNSTILE_SITEKEY_HERE') !== -1) return;
+    if (!window.turnstile) { setTimeout(renderSignInTurnstile, 200); return; }
+    signInTurnstileId = window.turnstile.render('#signInTurnstile', {
+      sitekey: sitekey,
+      callback: (token) => { signInTurnstileToken = token; },
+      'error-callback': () => { signInTurnstileToken = ''; },
+      'expired-callback': () => { signInTurnstileToken = ''; },
+    });
+  }
+  renderSignInTurnstile();
+
   async function fetchJSON(url, opts = {}) {
     const res = await fetch(url, {
       ...opts,
@@ -309,11 +330,27 @@
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
     try {
-      await fetchJSON('/api/account/login', { method: 'POST', body: JSON.stringify({ email }) });
+      await fetchJSON('/api/account/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, turnstile_token: signInTurnstileToken }),
+      });
       $('signInForm').classList.add('hidden');
       $('signInSuccess').classList.remove('hidden');
     } catch (err) {
-      errorEl.textContent = 'Something went wrong. Try again in a moment.';
+      if (err && err.status === 422) {
+        let serverMsg = 'Please verify you’re human and try again.';
+        try {
+          const parsed = JSON.parse(err.message || '{}');
+          serverMsg = (parsed && parsed.detail && parsed.detail.message) || serverMsg;
+        } catch (_) { /* fall through */ }
+        if (signInTurnstileId !== null && window.turnstile) {
+          window.turnstile.reset(signInTurnstileId);
+          signInTurnstileToken = '';
+        }
+        errorEl.textContent = serverMsg;
+      } else {
+        errorEl.textContent = 'Something went wrong. Try again in a moment.';
+      }
       errorEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;
