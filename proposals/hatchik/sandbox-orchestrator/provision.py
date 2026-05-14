@@ -495,6 +495,42 @@ Anything under `apps/web/src/product/`, `apps/api/src/product/`, and
 `supabase/migrations/` is yours to edit freely. The "Don't edit" list
 below is substrate plumbing — leave it alone.
 
+## Working with BACKLOG.md (read this — important)
+
+The repo ships with `BACKLOG.md` at the root, pre-populated with about
+twenty starter tasks tailored to the customer's idea. You read and
+write it like any other Markdown file — no MCP, no API.
+
+**When the human asks "what's next?", "what should I work on?",
+"what's on the backlog?", "what's on my BACKLOG.md?", or anything
+similar:**
+1. Read `BACKLOG.md`.
+2. Surface the top 2-3 unblocked TODO and in-progress items, with
+   their task numbers and priorities. Format like:
+       → Recipes (task 23) — high priority
+       → Weekly menu generator (24)
+       → Shopping list rollup (25)
+3. Default to the highest-priority unblocked item unless the human
+   tells you otherwise.
+
+**When the human picks one** ("do task 23", "let's do recipes",
+"ship the weekly menu thing"):
+1. Build the feature in `apps/web/src/product/` and/or
+   `apps/api/src/product/`.
+2. Commit + push (`git add -A && git commit -m "BACKLOG: tick task
+   23 — recipes CRUD" && git push`).
+3. Tick the task off in `BACKLOG.md` in the same commit (replace
+   `- [ ]` with `- [x]` on that line).
+4. Confirm to the human like:
+       ✓ built the recipes page
+       ✓ pushed to your sandbox
+       ✓ ticked task 23 on BACKLOG.md
+       live at: {sandbox_url}
+
+**Mid-conversation new ideas** ("oh, and we should also let users
+duplicate a meal plan"): append them to BACKLOG.md under a `## New
+ideas (unranked)` heading. The human re-ranks when they fancy.
+
 ## Building for mobile
 
 This repo ships with a GitHub Actions workflow at
