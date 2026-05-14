@@ -1107,7 +1107,7 @@ Further information can be found at https://hatchik.com/#faq if you need it.
 
 
 async def send_customer_acknowledgement(req: SignupRequest, queue_note: str = "") -> None:
-    """Confirm-receipt email to the customer. Founder follows up personally."""
+    """Confirm-receipt email to the customer. Provisioning email follows."""
     if not RESEND_API_KEY:
         log.warning("RESEND_API_KEY not set — skipping customer acknowledgement")
         return
