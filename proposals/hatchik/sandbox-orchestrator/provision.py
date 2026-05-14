@@ -705,6 +705,10 @@ def send_sandbox_ready_email(
     wired_block_text = "\n".join(f"  {line}" for line in wired_text_lines)
     upgrade_block_text = "\n".join(f"  {line}" for line in upgrade_text_lines)
 
+    # Repo link bits — the AI tool line in "Kick the tyres" can deep-link
+    # to the customer's own repo when GitHub provisioned cleanly.
+    repo_display = repo_url or "the GitHub repo we made for you"
+
     text = f"""{greeting}
 
 Your sandbox for {product_name} is live.
@@ -727,21 +731,54 @@ What's NOT yet wired (you can add at any time)
 
 {upgrade_block_text}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Kick the tyres — what to try
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Sign in
+  Click the button at the top of this email. You're logged straight
+  into your sandbox as the owner.
+
+• Mobile app preview (iOS + Android)
+  We've already built the scaffold — to see the actual .ipa and .apk
+  files, go to https://{DOMAIN}/account → Mobile builds → Trigger.
+  The build runs on GitHub's hosted machines and takes 8–15 mins.
+  When it's done you download them from your account dashboard.
+
+• Try test payments
+  Stripe is in test mode in your sandbox. On any checkout flow use
+  card 4242 4242 4242 4242, any future expiry, any CVC. Real
+  payments are wired when you upgrade to Launch.
+
+• Mailboxes (Launch tier)
+  Your 5 mailboxes on your own domain are available when you upgrade
+  to Launch. Until then, your sandbox uses Hatchik's shared
+  transactional email (Resend) so signup and password-reset emails
+  to your test users still work end-to-end — you just can't send
+  from yourname@yourdomain yet.
+
+• Build your first feature with your AI tool
+  Open {repo_display} in Claude Code, Cursor, Windsurf, or Cline
+  and say: "read AI_CONTEXT.md and let's start." We sent a separate
+  email with more on this — short version: the AI does the work,
+  you describe what you want.
+
 What to do next:
-1. Click the link above to open your sandbox as the owner
-2. Have a play, kick the tyres
+1. Click the link above to open your sandbox as the owner.
+2. Kick the tyres (the section above).
 3. When you're ready to make it real (your own domain, live payments,
-   the mobile scaffold ready to build), upgrade to Launch from
-   hatchik.com/account.
+   mailboxes on your domain), upgrade to Launch from
+   https://{DOMAIN}/account.
 
-To manage your Hatchik subscription (delete sandbox, upgrade, edit your
-name, see the full live service list) go to https://{DOMAIN}/account.
+To manage your Hatchik subscription (delete sandbox, upgrade, edit
+your name, see the full live service list) go to
+https://{DOMAIN}/account.
 
-Further information can be found at {faq_url} if you need it.
+Reply if you're stuck — we'll help you get unstuck.
 
 — Hatchik
 
-(This is an automated message — please don't reply.)
+Further information at {faq_url} if you need it.
 """
     html = f"""\
 <!DOCTYPE html>
@@ -770,16 +807,36 @@ Further information can be found at {faq_url} if you need it.
               <p style="margin:24px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">What&rsquo;s NOT yet wired (you can add at any time)</p>
               {upgrade_html}
 
+              <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 12px 0;font-weight:600;font-size:16px;color:#0f172a;">Kick the tyres &mdash; what to try</p>
+              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Copy-and-do these. None of them need a terminal or any developer setup.</p>
+
+              <p style="margin:16px 0 4px 0;font-weight:600;">Sign in</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">Click the magic-link button at the top of this email. You&rsquo;re logged straight into your sandbox as the owner.</p>
+
+              <p style="margin:16px 0 4px 0;font-weight:600;">Mobile app preview (iOS + Android)</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">We&rsquo;ve already built the scaffold &mdash; to see the actual <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">.ipa</code> and <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">.apk</code> files, go to <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">hatchik.com/account</a> &rarr; Mobile builds &rarr; Trigger. Build takes 8&ndash;15 mins, then download from the dashboard.</p>
+
+              <p style="margin:16px 0 4px 0;font-weight:600;">Try test payments</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">Stripe is in test mode. Use card <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">4242 4242 4242 4242</code>, any future expiry, any CVC. Real payments are wired when you upgrade to Launch.</p>
+
+              <p style="margin:16px 0 4px 0;font-weight:600;">Mailboxes</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">Your 5 mailboxes live on your own domain. <strong>Available when you upgrade to Launch</strong> &mdash; until then, your sandbox uses Hatchik&rsquo;s shared transactional email (Resend) so signup / password-reset emails to your test users still work.</p>
+
+              <p style="margin:16px 0 4px 0;font-weight:600;">AI tool</p>
+              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Open the GitHub repo we made for you in Claude Code, Cursor, or Windsurf and tell it &ldquo;read <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo; (Separate email lands next with more.)</p>
+
+              <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
               <p style="margin:24px 0 8px 0;font-weight:600;">What to do next</p>
               <ol style="margin:0 0 16px 0;padding-left:20px;">
-                <li style="margin:0 0 8px 0;">Click the button above to open your sandbox</li>
-                <li style="margin:0 0 8px 0;">Have a play, kick the tyres</li>
-                <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, the mobile scaffold ready to build), upgrade to Launch from <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">your Hatchik account</a>.</li>
+                <li style="margin:0 0 8px 0;">Click the button above to open your sandbox.</li>
+                <li style="margin:0 0 8px 0;">Kick the tyres (the section above).</li>
+                <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, mailboxes on your domain), upgrade to Launch from <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">your Hatchik account</a>.</li>
               </ol>
               <p style="margin:24px 0 16px 0;color:#555;font-size:14px;">To manage your Hatchik subscription (delete sandbox, upgrade, edit your name, see the full live service list) go to <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">hatchik.com/account</a>.</p>
-              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Further information can be found <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
+              <p style="margin:24px 0 16px 0;">Reply if you&rsquo;re stuck &mdash; we&rsquo;ll help you get unstuck.</p>
               <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
-              <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
+              <p style="margin:16px 0 0 0;color:#555;font-size:14px;">Further information <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
             </td>
           </tr>
         </table>
