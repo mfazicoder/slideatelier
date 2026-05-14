@@ -720,22 +720,13 @@ def send_sandbox_ready_email(
     primary_link = signin_link or url
     primary_link_label = "Sign in to your sandbox" if signin_link else f"Open your sandbox: {url}"
 
-    # Pull the canonical "what ships" inventory and render plain-text /
-    # HTML blocks. Customers reading the email should know exactly what
-    # they have, with the same quantification as /account and the docs.
-    inventory = sandbox_inventory(
-        sandbox_url=url,
-        repo_url=repo_url,
-        tenant_dir=tenant_dir,
-    )
-    wired_text_lines, upgrade_text_lines = email_lines(inventory)
-    wired_html, upgrade_html = html_blocks(inventory)
-    wired_block_text = "\n".join(f"  {line}" for line in wired_text_lines)
-    upgrade_block_text = "\n".join(f"  {line}" for line in upgrade_text_lines)
-
     # Repo link bits — the AI tool line in "Kick the tyres" can deep-link
-    # to the customer's own repo when GitHub provisioned cleanly.
+    # to the customer's own repo when GitHub provisioned cleanly. The full
+    # service inventory lives at hatchik.com/account → Services, not in
+    # this email — non-tech founders find the technical detail (TLS,
+    # subdomains, Postgres etc.) overwhelming and skip the whole email.
     repo_display = repo_url or "the GitHub repo we made for you"
+    account_url = f"https://{DOMAIN}/account"
 
     text = f"""{greeting}
 
@@ -751,13 +742,24 @@ It's a real working version of your app stack (database, auth, payments
 in test mode, mailboxes). When your end-users sign up, they get their
 own accounts inside it — your owner account stays separate.
 
-What's set up for you (Sandbox tier)
+Here's what's already working in your sandbox:
 
-{wired_block_text}
+  • A live website you (and anyone you share the link with) can visit
+  • A login system — your test users can sign up and sign in
+  • A database that remembers everything your app stores
+  • File upload and storage (photos, documents, whatever your app needs)
+  • Email sending — sign-up and password-reset emails go out automatically
+  • Test payments — try a checkout flow without using a real card
+  • iOS and Android mobile app shells, ready to build into installable files
+  • A starter to-do list of features matched to your idea, ready for the AI
+  • £0.50 of AI credit to wire up your first AI-powered feature
 
-What's NOT yet wired (you can add at any time)
+When you're ready, upgrading to Launch adds your own domain, real
+(live) payments, mailboxes on your domain, and a dedicated server.
 
-{upgrade_block_text}
+Full breakdown of what's wired up — and how much of each you have —
+lives in your account at {DOMAIN}/account → Services. Nothing for
+you to set up; it's all already running.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Kick the tyres — what to try
@@ -829,11 +831,23 @@ Further information at {faq_url} if you need it.
               <p style="margin:0 0 16px 0;color:#555;font-size:14px;">You&rsquo;re pre-set as the owner &mdash; this link signs you straight in. No password to remember (you can set one later from Settings if you want).</p>
               <p style="margin:24px 0 16px 0;">It&rsquo;s a real working version of your app stack (database, auth, payments in test mode, mailboxes). When your end-users sign up, they get their own accounts inside it &mdash; your owner account stays separate.</p>
 
-              <p style="margin:28px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">What&rsquo;s set up for you (Sandbox tier)</p>
-              {wired_html}
+              <p style="margin:28px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">Here&rsquo;s what&rsquo;s already working in your sandbox</p>
+              <ul style="margin:0 0 16px 0;padding-left:20px;color:#333;font-size:14px;line-height:1.7;">
+                <li>A live website you (and anyone you share the link with) can visit</li>
+                <li>A login system &mdash; your test users can sign up and sign in</li>
+                <li>A database that remembers everything your app stores</li>
+                <li>File upload and storage (photos, documents, whatever your app needs)</li>
+                <li>Email sending &mdash; sign-up and password-reset emails go out automatically</li>
+                <li>Test payments &mdash; try a checkout flow without using a real card</li>
+                <li>iOS and Android mobile app shells, ready to build into installable files</li>
+                <li>A starter to-do list of features matched to your idea, ready for the AI</li>
+                <li>&pound;0.50 of AI credit to wire up your first AI-powered feature</li>
+              </ul>
 
-              <p style="margin:24px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">What&rsquo;s NOT yet wired (you can add at any time)</p>
-              {upgrade_html}
+              <p style="margin:20px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">When you&rsquo;re ready to go live</p>
+              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Upgrading to Launch adds your own domain, real (live) payments, mailboxes on your domain, and a dedicated server.</p>
+
+              <p style="margin:16px 0 16px 0;color:#555;font-size:14px;">Full breakdown of what&rsquo;s wired up &mdash; and how much of each you have &mdash; lives in your account at <a href="{account_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/account &rarr; Services</a>. Nothing for you to set up; it&rsquo;s all already running.</p>
 
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 12px 0;font-weight:600;font-size:16px;color:#0f172a;">Kick the tyres &mdash; what to try</p>
