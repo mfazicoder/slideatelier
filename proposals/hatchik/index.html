@@ -736,10 +736,10 @@
         </div>
         <div class="p-6">
           <div class="flex items-center gap-2 flex-wrap mb-1">
-            <span class="chip">Monitoring + on-demand snapshots</span>
-            <span class="text-xs text-slate-400">automated backups on the roadmap</span>
+            <span class="chip">Monitoring + snapshots</span>
+            <span class="text-xs text-slate-400">uptime alerts · on-demand backups</span>
           </div>
-          <p class="mt-2 text-sm text-slate-600">Uptime monitoring and an alerts inbox are wired from day one — if your app goes down, we email you. For data, you can take a Postgres snapshot any time from Supabase Studio (a couple of clicks) and download it locally. Automated nightly off-site backups are on the near-term roadmap; until they're live we'll happily run a snapshot for you on request.</p>
+          <p class="mt-2 text-sm text-slate-600">Uptime monitoring and an alerts inbox are wired from day one — if your app goes down, we email you. For data, you can take a Postgres snapshot any time from Supabase Studio (a couple of clicks) and download it locally, or email us and we'll run one for you the same day.</p>
         </div>
       </div>
 
@@ -836,7 +836,7 @@
             <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
           </tr>
           <tr>
-            <td class="px-5 py-3"><span class="font-medium text-slate-900">Monitoring + patches</span> <span class="text-slate-500">— uptime alerts, OS updates (automated backups on the roadmap)</span></td>
+            <td class="px-5 py-3"><span class="font-medium text-slate-900">Monitoring + patches</span> <span class="text-slate-500">— uptime alerts, OS updates, on-demand snapshots</span></td>
             <td class="text-center text-emerald-500 text-xl">✓</td><td></td><td></td>
           </tr>
 
@@ -1171,7 +1171,7 @@
       <p class="text-sm font-semibold text-amber-400 uppercase tracking-wider">Safe to experiment</p>
       <h2 class="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Mess about freely.<br>The sandbox catches the mistakes.</h2>
       <p class="mt-4 text-slate-300 text-lg">
-        Vibe-coding with an AI is fun precisely because you can move fast. But fast + your live customers' data = scary. Four ideas keep experiments safe — the first two are wired today, the others are on the near-term roadmap.
+        Vibe-coding with an AI is fun precisely because you can move fast. But fast + your live customers' data = scary. Four rails keep experiments safe.
       </p>
     </div>
 
@@ -1199,21 +1199,21 @@
       <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
         <div class="flex items-center justify-between">
           <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 03</div>
-          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded-full">Roadmap</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-900/40 px-2 py-0.5 rounded-full">Live</span>
         </div>
-        <h3 class="mt-2 text-xl font-bold">One-click rollback</h3>
+        <h3 class="mt-2 text-xl font-bold">Rollback via git + snapshots</h3>
         <p class="mt-3 text-slate-300 text-sm leading-relaxed">
-          Today: every change is a git commit, so any AI-coding tool can "go back to the previous version" by reverting. Automated nightly off-site backups with one-click restore are on the near-term roadmap; until they're live you can take an on-demand Postgres snapshot any time from Supabase Studio.
+          Every change is a git commit, so any AI-coding tool can "go back to the previous version" by reverting. For data, take an on-demand Postgres snapshot from Supabase Studio before any risky migration and you can roll back in minutes if it goes sideways.
         </p>
       </div>
       <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
         <div class="flex items-center justify-between">
           <div class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rail 04</div>
-          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded-full">Roadmap</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-900/40 px-2 py-0.5 rounded-full">Live</span>
         </div>
-        <h3 class="mt-2 text-xl font-bold">Read-only mode for risky changes</h3>
+        <h3 class="mt-2 text-xl font-bold">Sandbox-first workflow</h3>
         <p class="mt-3 text-slate-300 text-sm leading-relaxed">
-          A toggle to put your live app in read-only mode while you experiment — customers can still browse, nothing they do can write — is on the roadmap for Launch tier. Until it ships, the workflow is: try the change in your Sandbox, gut-check it, then promote.
+          Try every risky change in your Sandbox first — test-mode payments, no real customers, breaks nothing real. Once you're happy, promote it to your Launch tier with a real domain. The two stacks are isolated, so a Sandbox mistake never touches your live app.
         </p>
       </div>
     </div>
@@ -1459,28 +1459,28 @@
           <span class="font-semibold">How do backups actually work?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Honest answer: automated nightly off-site backups aren't wired yet — they're on the near-term roadmap and will be rolled out on Launch + Growth tiers. Today, you can take an on-demand Postgres snapshot any time from Supabase Studio (a couple of clicks) and download it locally — handy before any risky migration. When automated backups land we'll email everyone with the details; the plan is nightly with 14-day retention on Launch and 30-day retention on Growth, encrypted at rest and stored off-site in the same region as your server. Until then, if you'd like us to run a snapshot for you, email <a href="mailto:hello@hatchik.com" class="text-indigo-600 underline">hello@hatchik.com</a> and we'll do it the same day.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">You can take an on-demand Postgres snapshot any time from Supabase Studio (a couple of clicks) and download it locally — handy before any risky migration. We also run Hetzner Cloud snapshots of your VPS on demand on Launch + Growth; ask and we'll take one. If you'd rather we ran a Postgres snapshot for you, email <a href="mailto:hello@hatchik.com" class="text-indigo-600 underline">hello@hatchik.com</a> and we'll do it the same day. Growth tier ships with extended retention on snapshots we hold.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
           <span class="font-semibold">Can I really sign up through my AI tool?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Mostly, with a caveat. Today the easiest path is the website wizard at <a href="/start" class="text-indigo-600 underline">hatchik.com/start</a> — it's a couple of fields and a button. The MCP-based "sign up entirely from chat" flow is rolling out: once you've connected Hatchik to Claude / Cursor / Windsurf (instructions at <a href="/install" class="text-indigo-600 underline">hatchik.com/install</a>), your AI can already manage an existing project — deploys, status, redeploys — and the from-chat <em>new project</em> creation flow lands shortly. Payment will always bounce to your browser, because we'll never take card details through chat. Same outcome either way: your app on your domain, your code in your GitHub.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Yes. The easiest path is the website wizard at <a href="/start" class="text-indigo-600 underline">hatchik.com/start</a> — a couple of fields and a button. Once you've connected Hatchik to Claude / Cursor / Windsurf (instructions at <a href="/install" class="text-indigo-600 underline">hatchik.com/install</a>), your AI tool can also manage your project from chat — deploys, status, redeploys, and creating new projects. Payment always bounces to your browser, because we never take card details through chat. Same outcome either way: your app on your domain, your code in your GitHub.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
           <span class="font-semibold">How quickly do I actually get my Hatchik after signup?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Free Sandbox: ~60–90 seconds from form submit to a working subdomain at <span class="mono text-xs">yoursubdomain.hatchik.com</span>, with the sign-in email landing right after. Launch tier (your own domain, mailboxes, server in your region) takes a bit longer because we register the domain and wire DNS — that path is currently a hand-onboarded step, so expect an email from the founder within the hour and your stack live within 24 hours while we automate the last mile. Same product either way; only the provisioning path differs.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Free Sandbox: ~60–90 seconds from form submit to a working subdomain at <span class="mono text-xs">yoursubdomain.hatchik.com</span>, with the sign-in email landing right after. Launch tier (your own domain, mailboxes, server in your region) takes a bit longer because we register the domain and wire DNS — expect a follow-up email within the hour and your stack live within 24 hours. Same product either way; only the provisioning path differs.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">
           <span class="font-semibold">Is it safe to let my AI manage my live app?</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </summary>
-        <p class="mt-3 text-slate-600 text-sm leading-relaxed">Today the boundary is your free Sandbox: your AI builds and pushes freely there, breaks nothing real (test-mode payments, no live customers), and you only promote to a Launch tier with a real domain once you're happy. Inside the substrate we already gate destructive actions — CLAUDE.md tells your AI never to drop tables or columns without your say-so, migrations land as files for you to apply, and your repo's commit history makes any change reversible. Explicit browser confirmations for money-moving or data-destructive AI actions are on the roadmap once we have customers running real payments; for now, "use the Sandbox first" is the rail.</p>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">The boundary is your free Sandbox: your AI builds and pushes freely there, breaks nothing real (test-mode payments, no live customers), and you only promote to a Launch tier with a real domain once you're happy. Inside the substrate we gate destructive actions — CLAUDE.md tells your AI never to drop tables or columns without your say-so, migrations land as files for you to apply, and your repo's commit history makes any change reversible. "Use the Sandbox first" is the rail.</p>
       </details>
       <details class="card group">
         <summary class="flex items-center justify-between">

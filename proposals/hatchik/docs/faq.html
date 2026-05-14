@@ -125,7 +125,7 @@
       <h3 id="my-data">Do you have my data?</h3>
       <p>Yes, in the sense that the Postgres database and file storage run on a server we rent on your behalf. We can technically read it because we have the host's SSH keys. In practice we only do that to help you (e.g. when you email us for support). We are subject to UK data-protection rules and a strict internal policy: no support engineer touches a customer database without a written ticket reference. We don't sell anything, we don't train AI on customer data, and we keep all your data inside the region you picked.</p>
       <p>If that's not the right answer for your use case, you can <strong>request a Postgres dump at any time</strong> — email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> with subject "Data export" and we'll send you a <code>.sql.gz</code> within one working day. Free, regardless of tier.</p>
-      <p>Hosting is on Hetzner (Germany / Finland / US East / US West / Singapore). Backups go to Backblaze B2 in the same region as your server. All encrypted at rest.</p>
+      <p>Hosting is on Hetzner (Germany / Finland / US East / US West / Singapore). Snapshot backups stay within Hetzner Cloud, in the same region as your server. All encrypted at rest.</p>
     </div>
 
     <div class="qa">

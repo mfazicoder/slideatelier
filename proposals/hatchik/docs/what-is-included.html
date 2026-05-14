@@ -139,7 +139,7 @@
         <tr><td>Live payments</td><td>Self-serve: connect your own Stripe (or Paddle MoR on Launch); swap the test keys in <code>.env</code>.</td></tr>
         <tr><td>Per-tenant Resend key</td><td>Self-serve: paste your own <code>RESEND_API_KEY</code> into <code>.env</code> for production volume + sender on your domain.</td></tr>
         <tr><td>Google OAuth</td><td>Self-serve: register a Google OAuth app, paste <code>client_id</code> / <code>client_secret</code>, flip <code>GOOGLE_OAUTH_ENABLED</code> in <code>.env</code>.</td></tr>
-        <tr><td>Automated backups</td><td class="partial">Roadmap. Today: on-demand <code>pg_dump</code> from Supabase Studio. Nightly off-site backups to Backblaze B2 are next up.</td></tr>
+        <tr><td>On-demand backups</td><td class="partial">On-demand <code>pg_dump</code> from Supabase Studio, plus Hetzner Cloud VPS snapshots on Launch / Growth. Extended retention on Growth.</td></tr>
         <tr><td>App Store / Play Store submission</td><td class="no">Never included &mdash; needs your Apple Developer (~£99/yr) and Google Play Console (~£25 once) accounts.</td></tr>
       </tbody>
     </table>
@@ -242,8 +242,8 @@
         </tr>
         <tr>
           <td>Backups</td>
-          <td>Best-effort (sandbox)</td>
-          <td class="yes">Nightly, 14-day retention</td>
+          <td>On-demand pg_dump from Studio</td>
+          <td class="yes">On-demand pg_dump + Hetzner VPS snapshots</td>
         </tr>
         <tr>
           <td>Idle-archive</td>
