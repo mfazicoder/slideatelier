@@ -350,8 +350,9 @@ def write_ai_context(
 
     body = f"""# AI_CONTEXT — {product_name}
 
-This file is for Claude Code, Cursor, Windsurf, or any other AI coding
-tool you point at this repo. Read it first.
+This file is for Cursor, Windsurf, Claude Code, Cline, Codex,
+Antigravity, or any other AI coding tool you point at this repo.
+Read it first.
 
 > **Tip for the AI tool reading this**: when the human asks you to
 > "ship", "push", "deploy", or "go live", run `git push` (the easy
@@ -738,78 +739,88 @@ Your sandbox for {product_name} is live.
 You're pre-set as the owner — that link signs you straight in. No
 password to remember (you can set one later from Settings if you want).
 
-It's a real working version of your app stack (database, auth, payments
-in test mode, mailboxes). When your end-users sign up, they get their
-own accounts inside it — your owner account stays separate.
+It's a real working version of your app stack. When your end-users
+sign up, they get their own accounts inside it — your owner account
+stays separate.
 
-Here's what's already working in your sandbox:
+What's already working in your sandbox
+──────────────────────────────────────
 
-  • A live website you (and anyone you share the link with) can visit
-  • A login system — your test users can sign up and sign in
-  • A database that remembers everything your app stores
-  • File upload and storage (photos, documents, whatever your app needs)
-  • Email sending — sign-up and password-reset emails go out automatically
-  • Test payments — try a checkout flow without using a real card
-  • iOS and Android mobile app shells, ready to build into installable files
-  • A starter to-do list of features matched to your idea, ready for the AI
-  • £0.50 of AI credit to wire up your first AI-powered feature
+• Live website — anyone with the link can visit it; the button above
+  signs you in as owner.
+• Sign-up & sign-in — your test users can register and log in.
+• Database — stores everything your app needs to remember.
+• File storage — photos, documents, anything your app uploads.
+• Email sending — sign-up and password-reset emails go out automatically.
+• Test payments — Stripe in test mode. Use card 4242 4242 4242 4242,
+  any future expiry, any CVC.
+• Mobile app shells (iOS + Android) — ready to build into installable
+  files. Trigger from {DOMAIN}/account → Mobile builds (8–15 min).
+• Starter to-do list — features tailored to your idea, ready for the AI.
+• £0.50 of AI credit — enough to wire up your first AI-powered feature.
 
-When you're ready, upgrading to Launch adds your own domain, real
-(live) payments, mailboxes on your domain, and a dedicated server.
+Build your first feature with your AI tool
+──────────────────────────────────────────
+
+Open {repo_display} in Cursor, Windsurf, Claude Code, Cline, Codex, or
+Antigravity — and tell it: "read AI_CONTEXT.md and let's start."
+
+Setup instructions for each tool: {DOMAIN}/install
+
+When you're ready to go live
+────────────────────────────
+
+Upgrading to Launch adds your own domain, real (live) payments,
+5 mailboxes on your domain, and a dedicated server.
 
 Full breakdown of what's wired up — and how much of each you have —
-lives in your account at {DOMAIN}/account → Services. Nothing for
-you to set up; it's all already running.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Kick the tyres — what to try
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-• Sign in
-  Click the button at the top of this email. You're logged straight
-  into your sandbox as the owner.
-
-• Mobile app preview (iOS + Android)
-  We've already built the scaffold — to see the actual .ipa and .apk
-  files (the things you'd submit to the App Store / Play Store), go
-  to https://{DOMAIN}/account → Mobile builds → Trigger. Takes about
-  8–15 minutes. Download the files from the same page when it's done.
-
-• Try test payments
-  Stripe is in test mode in your sandbox. On any checkout flow use
-  card 4242 4242 4242 4242, any future expiry, any CVC. Real
-  payments are wired when you upgrade to Launch.
-
-• Mailboxes (Launch tier)
-  Your 5 mailboxes on your own domain are available when you upgrade
-  to Launch. Until then, your sandbox uses Hatchik's shared
-  transactional email (Resend) so signup and password-reset emails
-  to your test users still work end-to-end — you just can't send
-  from yourname@yourdomain yet.
-
-• Build your first feature with your AI tool
-  Open {repo_display} in Claude Code, Cursor, Windsurf, or Cline
-  and say: "read AI_CONTEXT.md and let's start." We sent a separate
-  email with more on this — short version: the AI does the work,
-  you describe what you want.
-
-What to do next:
-1. Click the link above to open your sandbox as the owner.
-2. Kick the tyres (the section above).
-3. When you're ready to make it real (your own domain, live payments,
-   mailboxes on your domain), upgrade to Launch from
-   https://{DOMAIN}/account.
-
-To manage your Hatchik subscription (delete sandbox, upgrade, edit
-your name, see the full live service list) go to
-https://{DOMAIN}/account.
-
-Reply if you're stuck — we'll help you get unstuck.
+lives in your account at {DOMAIN}/account → Services.
 
 — Hatchik
 
 Further information at {faq_url} if you need it.
 """
+    install_url = f"https://{DOMAIN}/install"
+    # Tile grid for "what's working". Each tile is one cell in a 2-column
+    # table; on narrow viewports the @media query in the <head> stacks
+    # them. We use emoji for icons because external image references in
+    # email get blocked by default in most clients (Gmail's "Display
+    # images" prompt), and SVG support in email is unreliable. Emoji
+    # render natively and are colour-consistent across modern clients.
+    tile = (
+        '<td class="tile" valign="top" style="width:50%;padding:8px;">'
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" '
+        'style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">'
+        '<tr><td style="padding:14px 16px;">'
+        '<div style="font-size:22px;line-height:1;margin-bottom:6px;">{icon}</div>'
+        '<div style="font-weight:600;font-size:14px;color:#0f172a;margin-bottom:4px;">{title}</div>'
+        '<div style="color:#475569;font-size:13px;line-height:1.5;">{body}</div>'
+        '</td></tr></table>'
+        '</td>'
+    )
+    tiles = [
+        ("🌐", "Live website", "A working URL anyone can visit. The button above signs you in as owner."),
+        ("🔐", "Sign-up &amp; sign-in", "Your test users can register and log in &mdash; email + magic link out of the box."),
+        ("🗄️", "Database", "Stores everything your app needs to remember, with backups built in."),
+        ("📁", "File storage", "For photos, documents, anything your app uploads."),
+        ("✉️", "Email sending", "Sign-up and password-reset emails go out automatically."),
+        ("💳", "Test payments", "Stripe in test mode. Use card <strong>4242 4242 4242 4242</strong>, any future expiry, any CVC."),
+        ("📱", "Mobile app shells", "iOS + Android, ready to build. Trigger from your account &rarr; Mobile builds (8&ndash;15 min)."),
+        ("✅", "Starter to-do list", "Features tailored to your idea, ready for the AI to start working through."),
+        ("✨", "&pound;0.50 AI credit", "Enough to wire up your first AI-powered feature without setting up a provider key."),
+    ]
+    # Build rows of 2 tiles each. If the list length is odd, the final
+    # row has one tile and one empty spacer cell so the layout doesn't
+    # collapse.
+    tile_rows_html = ""
+    for i in range(0, len(tiles), 2):
+        left = tile.format(icon=tiles[i][0], title=tiles[i][1], body=tiles[i][2])
+        if i + 1 < len(tiles):
+            right = tile.format(icon=tiles[i+1][0], title=tiles[i+1][1], body=tiles[i+1][2])
+        else:
+            right = '<td class="tile" style="width:50%;padding:8px;">&nbsp;</td>'
+        tile_rows_html += f'<tr>{left}{right}</tr>'
+
     html = f"""\
 <!DOCTYPE html>
 <html>
@@ -817,67 +828,43 @@ Further information at {faq_url} if you need it.
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Your {product_name} sandbox is ready</title>
+  <style>
+    @media only screen and (max-width:480px) {{
+      .tile {{ display:block !important; width:100% !important; padding:6px 0 !important; }}
+      .container {{ padding:20px !important; }}
+    }}
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#f6f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;">
     <tr>
       <td align="center" style="padding:32px 16px;">
-        <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border-radius:8px;padding:32px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background:#ffffff;border-radius:8px;">
           <tr>
-            <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
+            <td class="container" style="padding:32px;font-size:16px;line-height:1.6;color:#1a1a1a;">
               <p style="margin:0 0 16px 0;">{greeting}</p>
               <p style="margin:0 0 24px 0;">Your sandbox for <strong>{product_name}</strong> is live.</p>
               <p style="margin:0 0 16px 0;"><a href="{primary_link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Sign in to your sandbox &rarr;</a></p>
               <p style="margin:0 0 16px 0;color:#555;font-size:14px;">You&rsquo;re pre-set as the owner &mdash; this link signs you straight in. No password to remember (you can set one later from Settings if you want).</p>
-              <p style="margin:24px 0 16px 0;">It&rsquo;s a real working version of your app stack (database, auth, payments in test mode, mailboxes). When your end-users sign up, they get their own accounts inside it &mdash; your owner account stays separate.</p>
+              <p style="margin:24px 0 24px 0;">It&rsquo;s a real working version of your app stack. When your end-users sign up, they get their own accounts inside it &mdash; your owner account stays separate.</p>
 
-              <p style="margin:28px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">Here&rsquo;s what&rsquo;s already working in your sandbox</p>
-              <ul style="margin:0 0 16px 0;padding-left:20px;color:#333;font-size:14px;line-height:1.7;">
-                <li>A live website you (and anyone you share the link with) can visit</li>
-                <li>A login system &mdash; your test users can sign up and sign in</li>
-                <li>A database that remembers everything your app stores</li>
-                <li>File upload and storage (photos, documents, whatever your app needs)</li>
-                <li>Email sending &mdash; sign-up and password-reset emails go out automatically</li>
-                <li>Test payments &mdash; try a checkout flow without using a real card</li>
-                <li>iOS and Android mobile app shells, ready to build into installable files</li>
-                <li>A starter to-do list of features matched to your idea, ready for the AI</li>
-                <li>&pound;0.50 of AI credit to wire up your first AI-powered feature</li>
-              </ul>
-
-              <p style="margin:20px 0 8px 0;font-weight:600;font-size:15px;color:#0f172a;">When you&rsquo;re ready to go live</p>
-              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Upgrading to Launch adds your own domain, real (live) payments, mailboxes on your domain, and a dedicated server.</p>
-
-              <p style="margin:16px 0 16px 0;color:#555;font-size:14px;">Full breakdown of what&rsquo;s wired up &mdash; and how much of each you have &mdash; lives in your account at <a href="{account_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/account &rarr; Services</a>. Nothing for you to set up; it&rsquo;s all already running.</p>
+              <p style="margin:32px 0 12px 0;font-weight:700;font-size:18px;color:#0f172a;">What&rsquo;s already working in your sandbox</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                {tile_rows_html}
+              </table>
 
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 12px 0;font-weight:600;font-size:16px;color:#0f172a;">Kick the tyres &mdash; what to try</p>
-              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Copy-and-do these. None of them need a terminal or any developer setup.</p>
+              <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">Build your first feature with your AI tool</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Open the GitHub repo we made for you in <strong>Cursor, Windsurf, Claude Code, Cline, Codex, or Antigravity</strong> &mdash; and tell it:</p>
+              <p style="margin:0 0 16px 0;padding:12px 16px;background:#f9fafb;border-left:3px solid #4f46e5;border-radius:4px;font-style:italic;color:#0f172a;">&ldquo;read <code style="background:#fff;padding:1px 4px;border-radius:3px;border:1px solid #e5e7eb;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo;</p>
+              <p style="margin:0 0 16px 0;color:#475569;font-size:14px;">Setup instructions for each tool at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a>.</p>
 
-              <p style="margin:16px 0 4px 0;font-weight:600;">Sign in</p>
-              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">Click the magic-link button at the top of this email. You&rsquo;re logged straight into your sandbox as the owner.</p>
+              <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">When you&rsquo;re ready to go live</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Upgrading to Launch adds your own domain, real (live) payments, 5 mailboxes on your domain, and a dedicated server.</p>
+              <p style="margin:0 0 24px 0;color:#475569;font-size:14px;">Full breakdown of what&rsquo;s wired up &mdash; and how much of each you have &mdash; lives in your account at <a href="{account_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/account &rarr; Services</a>.</p>
 
-              <p style="margin:16px 0 4px 0;font-weight:600;">Mobile app preview (iOS + Android)</p>
-              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">We&rsquo;ve already built the scaffold &mdash; to see the actual <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">.ipa</code> and <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">.apk</code> files, go to <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">hatchik.com/account</a> &rarr; Mobile builds &rarr; Trigger. Build takes 8&ndash;15 mins, then download from the dashboard.</p>
-
-              <p style="margin:16px 0 4px 0;font-weight:600;">Try test payments</p>
-              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">Stripe is in test mode. Use card <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">4242 4242 4242 4242</code>, any future expiry, any CVC. Real payments are wired when you upgrade to Launch.</p>
-
-              <p style="margin:16px 0 4px 0;font-weight:600;">Mailboxes</p>
-              <p style="margin:0 0 12px 0;color:#333;font-size:14px;">Your 5 mailboxes live on your own domain. <strong>Available when you upgrade to Launch</strong> &mdash; until then, your sandbox uses Hatchik&rsquo;s shared transactional email (Resend) so signup / password-reset emails to your test users still work.</p>
-
-              <p style="margin:16px 0 4px 0;font-weight:600;">AI tool</p>
-              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Open the GitHub repo we made for you in Claude Code, Cursor, or Windsurf and tell it &ldquo;read <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo; (Separate email lands next with more.)</p>
-
-              <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
-              <p style="margin:24px 0 8px 0;font-weight:600;">What to do next</p>
-              <ol style="margin:0 0 16px 0;padding-left:20px;">
-                <li style="margin:0 0 8px 0;">Click the button above to open your sandbox.</li>
-                <li style="margin:0 0 8px 0;">Kick the tyres (the section above).</li>
-                <li style="margin:0 0 8px 0;">When you&rsquo;re ready to make it real (your own domain, live payments, mailboxes on your domain), upgrade to Launch from <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">your Hatchik account</a>.</li>
-              </ol>
-              <p style="margin:24px 0 16px 0;color:#555;font-size:14px;">To manage your Hatchik subscription (delete sandbox, upgrade, edit your name, see the full live service list) go to <a href="https://{DOMAIN}/account" style="color:#4f46e5;text-decoration:underline;">hatchik.com/account</a>.</p>
-              <p style="margin:24px 0 16px 0;">Reply if you&rsquo;re stuck &mdash; we&rsquo;ll help you get unstuck.</p>
-              <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
+              <p style="margin:32px 0 0 0;color:#0f172a;">&mdash; Hatchik</p>
               <p style="margin:16px 0 0 0;color:#555;font-size:14px;">Further information <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
             </td>
           </tr>
@@ -980,12 +967,13 @@ about your sandbox — what's wired up, where to put new code, how to
 deploy. You just describe the feature.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Or use a local AI tool (Cursor, Claude Code)
+Or use a local AI tool on your laptop
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-If you prefer Cursor or Claude Code on your own laptop, your AI
-tool will get the repo for you with one command — we'll guide you
-through it on first run. After that:
+If you prefer Cursor, Windsurf, Claude Code, Cline, Codex, or
+Antigravity on your own laptop, your AI tool will get the repo for
+you with one command — we'll guide you through it on first run.
+After that:
 
 • You tell the AI what you want to build.
 • Your sandbox updates within about 30 seconds. Reload and look at it.
@@ -994,9 +982,9 @@ Setup instructions for each tool are at {install_url}.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Works with any AI coding tool that supports MCP: Claude Code, Cursor,
-Windsurf, Cline. If yours isn't listed, ask it — most of them will
-just work.
+Works with any AI coding tool: Cursor, Windsurf, Claude Code, Cline,
+Codex, Antigravity, and others. If yours isn't listed, ask it — most
+of them will just work.
 
 Already built your app elsewhere? Reach out via {support_email} and
 we'll help migrate your code in.
@@ -1047,7 +1035,7 @@ More at {docs_url}.
               <p style="margin:0 0 16px 0;color:#333;font-size:14px;">That&rsquo;s it. <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> tells your AI everything it needs to know about your sandbox &mdash; what&rsquo;s wired up, where to put new code, how to deploy. You just describe the feature.</p>
 
               <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 4px 0;font-weight:600;font-size:16px;color:#0f172a;">Or use a local AI tool (Cursor, Claude Code)</p>
+              <p style="margin:0 0 4px 0;font-weight:600;font-size:16px;color:#0f172a;">Or use a local AI tool on your laptop</p>
               <p style="margin:0 0 16px 0;color:#555;font-size:14px;">If you prefer to run your AI on your own laptop:</p>
               <ul style="margin:0 0 16px 0;padding-left:20px;color:#333;font-size:14px;">
                 <li style="margin:0 0 6px 0;">Your AI tool will get the repo for you with one command &mdash; we&rsquo;ll guide you through it on first run.</li>
@@ -1057,8 +1045,8 @@ More at {docs_url}.
               <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Setup instructions for each tool are at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{install_url}</a>.</p>
 
               <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 8px 0;font-weight:600;font-size:15px;">Works with any AI tool that supports MCP</p>
-              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Claude Code, Cursor, Windsurf, Cline. If yours isn&rsquo;t listed, just ask it &mdash; most of them will work.</p>
+              <p style="margin:0 0 8px 0;font-weight:600;font-size:15px;">Works with any AI coding tool</p>
+              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Cursor, Windsurf, Claude Code, Cline, Codex, Antigravity, and others. If yours isn&rsquo;t listed, just ask it &mdash; most of them will work.</p>
 
               <p style="margin:0 0 16px 0;color:#333;font-size:14px;"><strong>Already built your app elsewhere?</strong> Reach out via <a href="mailto:{support_email}" style="color:#4f46e5;text-decoration:underline;">{support_email}</a> &mdash; we&rsquo;ll help migrate your code in.</p>
 
@@ -1236,20 +1224,16 @@ def main() -> None:
                 repo_url=repo_url,
             )
 
-        # Walkthrough email — only useful if the repo actually exists, so
-        # skip silently when GitHub was unavailable.
-        if not args.no_email and repo_url:
-            print("  9. send walkthrough email")
-            sandbox_url = f"https://{slug}.{DOMAIN}"
-            anon_key = _extract_env_value(target / ".env", "VITE_SUPABASE_ANON_KEY") or ""
-            send_walkthrough_email(
-                email,
-                slug,
-                product_name,
-                repo_url,
-                first_name,
-                first_prompt_template(product_name, idea, sandbox_url, anon_key),
-            )
+        # Walkthrough email — DROPPED in favour of folding the one-line
+        # "tell your AI to read AI_CONTEXT.md" instruction directly into
+        # send_sandbox_ready_email above. Founder feedback on the
+        # walkthrough email: "is it even needed or can the instructions
+        # be super simplified and just included in the second email?"
+        # — yes; the AI itself reads AI_CONTEXT.md and the install page
+        # has the per-tool MCP wiring. A separate email was waffle.
+        # send_walkthrough_email() is retained as a function for
+        # historical reference + the AI_CONTEXT.md template helper it
+        # carries; callers should not invoke it.
 
         reg = load_registry()
         reg["tenants"][slug]["status"] = "live"
