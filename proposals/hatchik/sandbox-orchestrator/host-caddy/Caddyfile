@@ -65,6 +65,20 @@ hatchik.com, www.hatchik.com {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Frame-Options "DENY"
         X-Content-Type-Options "nosniff"
+        # Marketing HTML must NOT be cached — every account / install
+        # / FAQ deploy ships fresh inline JS, and without an explicit
+        # Cache-Control the browser falls back to heuristic caching
+        # (last-modified-based) which serves a stale JS bundle for
+        # hours after a deploy. Smoke #13 caught this: the syntax-
+        # error fix on account.html was deployed to disk + visible
+        # via curl, but the customer's browser replayed the cached
+        # broken copy and the page kept rendering blank. Cache-busted
+        # query strings only hide the symptom; this header fixes the
+        # cause.
+        # Safe to apply globally on this handler — every file under
+        # /var/www/hatchik is an HTML page with inline CSS/JS, no
+        # hashed-asset bundles that benefit from long caching.
+        Cache-Control "no-cache, no-store, must-revalidate"
     }
 }
 
