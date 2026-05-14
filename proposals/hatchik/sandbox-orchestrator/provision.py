@@ -589,7 +589,19 @@ def reload_host_caddy() -> None:
 
 # ─── Tenant compose lifecycle ─────────────────────────────────────────────
 def compose_up(target: Path) -> None:
-    subprocess.run(["docker", "compose", "-f", str(target / "docker-compose.yml"), "up", "-d"], check=True, cwd=target)
+    # --build forces a rebuild of `web` / `api` images. Without this,
+    # if a previous tenant used the same slug, docker compose reuses
+    # the cached `<slug>-web:latest` / `<slug>-api:latest` image —
+    # baking the OLD substrate code into the new tenant. Smoke #7
+    # caught that: prepsheet was provisioned with substrate-template
+    # updates on disk, but the running container served stale code
+    # because the image was rebuilt from an older sibling tenant.
+    # Cost: ~30-60s extra per provision; correctness: load-bearing.
+    subprocess.run(
+        ["docker", "compose", "-f", str(target / "docker-compose.yml"), "up", "-d", "--build"],
+        check=True,
+        cwd=target,
+    )
 
 
 def wait_for_tenant_health(port: int, timeout: int = HEALTH_TIMEOUT_SEC) -> bool:
