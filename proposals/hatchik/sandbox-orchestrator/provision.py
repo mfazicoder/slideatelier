@@ -701,6 +701,50 @@ def provision_owner_user(slug: str, port: int, email: str, target: Path) -> str 
         return None
 
 
+# Canonical API key generation lives in signup-service/main.py; this is a
+# deliberate, audited duplication so provision.py can issue one key per
+# signup at provision time and bake the plaintext into the sandbox-ready
+# email. If you change the format or prefix, change it in both places
+# (and bump callers + tests). Trade-off: plaintext-in-email is more
+# leakable than the dashboard reveal-once flow — founder's call for the
+# non-tech persona. Customer can always revoke + reissue from
+# /account → API keys, and the auto-issued key is labelled accordingly.
+_API_KEY_PREFIX = "hk_live_"
+_API_KEY_RANDOM_BYTES = 24
+
+
+def _issue_api_key_for_signup(email: str, label: str = "") -> str | None:
+    """Generate an API key, insert into signups.db, return plaintext.
+
+    Returns None on any DB error — the caller falls back to a placeholder
+    string in the email so the sandbox-ready email always sends, even if
+    the api_keys table is unreachable. (Failed key issuance must not
+    block the customer's welcome flow; they can create one manually from
+    /account → API keys.)
+    """
+    if not email:
+        return None
+    try:
+        from datetime import datetime, timezone
+        raw = secrets.token_bytes(_API_KEY_RANDOM_BYTES)
+        body = base64.b32encode(raw).decode("ascii").lower().rstrip("=")
+        plaintext = f"{_API_KEY_PREFIX}{body}"
+        key_hash = hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        name = (label or "Auto-issued at signup").strip()[:80]
+        with sqlite3.connect(SIGNUPS_DB) as conn:
+            conn.execute(
+                "INSERT INTO api_keys (email, key_hash, name, created_at) "
+                "VALUES (?, ?, ?, ?)",
+                (email, key_hash, name, now_iso),
+            )
+            conn.commit()
+        return plaintext
+    except sqlite3.Error as e:
+        print(f"WARN: couldn't issue API key for {email}: {e}")
+        return None
+
+
 def send_sandbox_ready_email(
     to: str,
     slug: str,
@@ -709,6 +753,7 @@ def send_sandbox_ready_email(
     signin_link: str | None = None,
     tenant_dir: Path | None = None,
     repo_url: str = "",
+    api_key: str | None = None,
 ) -> bool:
     if not RESEND_API_KEY:
         print("WARN: no RESEND_API_KEY, skipping email")
@@ -728,6 +773,11 @@ def send_sandbox_ready_email(
     # subdomains, Postgres etc.) overwhelming and skip the whole email.
     repo_display = repo_url or "the GitHub repo we made for you"
     account_url = f"https://{DOMAIN}/account"
+    # API-key fallback if issuance failed at provision time. The
+    # placeholder matches what install.html prints, so a customer
+    # who got the fallback can still recover by reading /install.
+    api_key_display = api_key or "YOUR_HATCHIK_API_KEY"
+    api_key_missing = api_key is None
 
     text = f"""{greeting}
 
@@ -759,13 +809,38 @@ What's already working in your sandbox
 • Starter to-do list — features tailored to your idea, ready for the AI.
 • £0.50 of AI credit — enough to wire up your first AI-powered feature.
 
-Build your first feature with your AI tool
-──────────────────────────────────────────
+Wire up your AI tool (one-time, ~2 min)
+───────────────────────────────────────
 
-Open {repo_display} in Cursor, Windsurf, Claude Code, Cline, Codex, or
-Antigravity — and tell it: "read AI_CONTEXT.md and let's start."
+Copy the JSON below and paste it into your AI tool's MCP config file.
+Your Hatchik API key is already filled in for you.
 
-Setup instructions for each tool: {DOMAIN}/install
+{{
+  "mcpServers": {{
+    "hatchik": {{
+      "command": "npx",
+      "args": ["-y", "hatchik-mcp"],
+      "env": {{
+        "HATCHIK_API_KEY": "{api_key_display}",
+        "HATCHIK_API_URL": "https://api.{DOMAIN}"
+      }}
+    }}
+  }}
+}}
+
+Where to paste it:
+
+  • Cursor       →  ~/.cursor/mcp.json
+  • Windsurf     →  ~/.codeium/windsurf/mcp_config.json
+  • Claude Code  →  ~/.claude/mcp.json
+  • Cline        →  VS Code → Cline icon → MCP settings panel
+  • Codex        →  ~/.codex/mcp.json
+  • Antigravity  →  Settings → MCP Servers
+
+Then restart your AI tool and tell it:
+  "read AI_CONTEXT.md and let's start."
+
+Full guide with per-tool screenshots: {DOMAIN}/install
 
 When you're ready to go live
 ────────────────────────────
@@ -854,10 +929,34 @@ Further information at {faq_url} if you need it.
               </table>
 
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">Build your first feature with your AI tool</p>
-              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Open the GitHub repo we made for you in <strong>Cursor, Windsurf, Claude Code, Cline, Codex, or Antigravity</strong> &mdash; and tell it:</p>
-              <p style="margin:0 0 16px 0;padding:12px 16px;background:#f9fafb;border-left:3px solid #4f46e5;border-radius:4px;font-style:italic;color:#0f172a;">&ldquo;read <code style="background:#fff;padding:1px 4px;border-radius:3px;border:1px solid #e5e7eb;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo;</p>
-              <p style="margin:0 0 16px 0;color:#475569;font-size:14px;">Setup instructions for each tool at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a>.</p>
+              <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">Wire up your AI tool</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">One-time, takes about 2 minutes. Copy the config below and paste it into your AI tool&rsquo;s MCP file. <strong>Your API key is already filled in.</strong></p>
+              <div style="background:#0b1020;border-radius:8px;padding:16px;margin:0 0 16px 0;overflow-x:auto;">
+                <pre style="margin:0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#e2e8f0;white-space:pre;">{{
+  <span style="color:#a5b4fc;">"mcpServers"</span>: {{
+    <span style="color:#a5b4fc;">"hatchik"</span>: {{
+      <span style="color:#a5b4fc;">"command"</span>: <span style="color:#fcd34d;">"npx"</span>,
+      <span style="color:#a5b4fc;">"args"</span>: [<span style="color:#fcd34d;">"-y"</span>, <span style="color:#fcd34d;">"hatchik-mcp"</span>],
+      <span style="color:#a5b4fc;">"env"</span>: {{
+        <span style="color:#a5b4fc;">"HATCHIK_API_KEY"</span>: <span style="color:#fcd34d;">"{api_key_display}"</span>,
+        <span style="color:#a5b4fc;">"HATCHIK_API_URL"</span>: <span style="color:#fcd34d;">"https://api.{DOMAIN}"</span>
+      }}
+    }}
+  }}
+}}</pre>
+              </div>
+              <p style="margin:0 0 8px 0;font-weight:600;font-size:14px;color:#0f172a;">Where to paste it</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 16px 0;font-size:14px;color:#333;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;width:35%;color:#0f172a;font-weight:600;">Cursor</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.cursor/mcp.json</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Windsurf</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.codeium/windsurf/mcp_config.json</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Claude Code</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.claude/mcp.json</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Cline</td><td style="padding:6px 0;color:#475569;font-size:13px;">VS Code &rarr; Cline icon &rarr; MCP settings panel</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Codex</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.codex/mcp.json</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Antigravity</td><td style="padding:6px 0;color:#475569;font-size:13px;">Settings &rarr; MCP Servers</td></tr>
+              </table>
+              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Restart your AI tool, then tell it:</p>
+              <p style="margin:0 0 12px 0;padding:12px 16px;background:#f9fafb;border-left:3px solid #4f46e5;border-radius:4px;font-style:italic;color:#0f172a;">&ldquo;read <code style="background:#fff;padding:1px 4px;border-radius:3px;border:1px solid #e5e7eb;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo;</p>
+              <p style="margin:0 0 16px 0;color:#475569;font-size:13px;">Full guide with per-tool screenshots at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a>.</p>
 
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">When you&rsquo;re ready to go live</p>
@@ -1213,7 +1312,19 @@ def main() -> None:
             print(f"     (skipped: {gh_result.get('skipped_reason')})")
 
         if not args.no_email:
-            print("  8. send sandbox-ready email")
+            # Issue an API key for the customer before the email goes
+            # out, so the MCP snippet in the email arrives pre-filled.
+            # Failure here is non-fatal — the email function falls back
+            # to "YOUR_HATCHIK_API_KEY" placeholder and the customer can
+            # create one manually from /account → API keys.
+            print("  8a. issue API key for the customer")
+            api_key = _issue_api_key_for_signup(email, label="Auto-issued at signup")
+            if api_key:
+                print(f"     ✓ key issued ({api_key[:14]}…)")
+            else:
+                print("     (issuance failed — email will carry placeholder)")
+
+            print("  8b. send sandbox-ready email")
             send_sandbox_ready_email(
                 email,
                 slug,
@@ -1222,6 +1333,7 @@ def main() -> None:
                 signin_link,
                 tenant_dir=target,
                 repo_url=repo_url,
+                api_key=api_key,
             )
 
         # Walkthrough email — DROPPED in favour of folding the one-line

@@ -149,203 +149,57 @@
   <div class="max-w-4xl mx-auto px-6 pt-16 pb-10 text-center">
     <span class="chip mb-5">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-      One snippet · talks to your stack
+      One snippet · same JSON for every tool
     </span>
     <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight">
       Plug your AI into <span class="gradient-text">your Hatchik</span>.
     </h1>
     <p class="mt-5 text-lg text-slate-600 max-w-2xl mx-auto">
-      Paste one block of config into the AI tool you already use. From then on, your AI can ship code,
-      check deploys, run migrations and roll things back — straight from chat. No CLI to learn.
+      Paste one config block into the AI tool you already use. From then on, your AI can ship code,
+      check deploys, and roll things back &mdash; straight from chat. Same JSON for Cursor, Windsurf,
+      Claude Code, Cline, Codex, Antigravity. Only the file path differs.
     </p>
-    <p class="mt-4 text-sm text-slate-500">
-      Takes ~2 minutes. You'll need a Hatchik API key &mdash; <a href="/account#api-keys" class="text-indigo-600 underline">create one at hatchik.com/account &rarr; API keys</a> (the plaintext key is shown once, copy it then).
-    </p>
+    <p class="mt-4 text-sm text-slate-500">Takes ~2 minutes.</p>
   </div>
 </section>
 
-<!-- TOOL PICKER -->
-<section class="max-w-5xl mx-auto px-6 -mt-2 pb-8">
-  <div class="text-center mb-6">
-    <h2 class="text-xl font-bold">Which AI tool are you using?</h2>
-    <p class="text-sm text-slate-500 mt-1">Pick one. The steps are slightly different for each.</p>
-  </div>
-
-  <div class="grid md:grid-cols-3 gap-4" id="toolPicker">
-    <button class="tile is-active" data-tool="claude" type="button">
-      <div class="flex items-center gap-3">
-        <span class="tile-logo claude">C</span>
-        <div>
-          <div class="font-bold">Claude</div>
-          <div class="text-xs text-slate-500">Desktop or Code</div>
-        </div>
-      </div>
-      <p class="text-sm text-slate-600 mt-1">If you chat with Claude on your Mac/PC, or use Claude Code in your terminal.</p>
-    </button>
-
-    <button class="tile" data-tool="cursor" type="button">
-      <div class="flex items-center gap-3">
-        <span class="tile-logo cursor">Cu</span>
-        <div>
-          <div class="font-bold">Cursor</div>
-          <div class="text-xs text-slate-500">The AI code editor</div>
-        </div>
-      </div>
-      <p class="text-sm text-slate-600 mt-1">If you write code (or have your AI write code) inside Cursor.</p>
-    </button>
-
-    <button class="tile" data-tool="windsurf" type="button">
-      <div class="flex items-center gap-3">
-        <span class="tile-logo windsurf">W</span>
-        <div>
-          <div class="font-bold">Windsurf</div>
-          <div class="text-xs text-slate-500">Codeium's editor</div>
-        </div>
-      </div>
-      <p class="text-sm text-slate-600 mt-1">If you've moved to Windsurf for its Cascade agent mode.</p>
-    </button>
-  </div>
-</section>
-
-<!-- PANELS -->
+<!-- STEPS -->
 <section class="max-w-4xl mx-auto px-6 pb-16">
 
-  <!-- CLAUDE PANEL -->
-  <div class="panel is-active" data-panel="claude">
-    <div class="card">
-      <div class="flex items-center gap-3 mb-6">
-        <span class="tile-logo claude">C</span>
-        <div>
-          <h3 class="text-xl font-bold">Connect Claude to Hatchik</h3>
-          <p class="text-sm text-slate-500">Works with Claude Desktop on macOS and Windows, and with Claude Code.</p>
-        </div>
-      </div>
-
-      <!-- Step 1 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">1</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Open the config file</h4>
-          <p class="text-sm text-slate-600 mb-3">If it doesn't exist yet, create it. The folder might be hidden — in Finder, press <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Shift+.</span> to show hidden files.</p>
-          <div class="space-y-2">
-            <div>
-              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">macOS</span>
-              <div class="mt-1"><span class="file-pill">~/Library/Application Support/Claude/claude_desktop_config.json</span></div>
-            </div>
-            <div>
-              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Windows</span>
-              <div class="mt-1"><span class="file-pill">%APPDATA%\Claude\claude_desktop_config.json</span></div>
-            </div>
-            <div>
-              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Claude Code (any OS)</span>
-              <div class="mt-1"><span class="file-pill">~/.claude/mcp.json</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">2</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Paste this in</h4>
-          <p class="text-sm text-slate-600 mb-3">Replace <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_HATCHIK_API_KEY</span> with your Hatchik API key (create one at <a href="/account#api-keys" class="text-indigo-600 underline">hatchik.com/account &rarr; API keys</a>). If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry inside it.</p>
-          <div class="code-window">
-            <div class="mb-3">
-              <span class="dot" style="background:#ef4444"></span>
-              <span class="dot" style="background:#eab308"></span>
-              <span class="dot" style="background:#22c55e"></span>
-              <span class="ml-2 text-xs text-slate-400">claude_desktop_config.json</span>
-            </div>
-            <button class="copy-btn" data-copy="claude-snippet" type="button">Copy</button>
-<pre id="claude-snippet">{
-  <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
-    <span class="tok-key">"hatchik"</span><span class="tok-pun">:</span> {
-      <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
-      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"hatchik-mcp"</span><span class="tok-pun">],</span>
-      <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
-        <span class="tok-key">"HATCHIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_HATCHIK_API_KEY"</span><span class="tok-pun">,</span>
-        <span class="tok-key">"HATCHIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
-      }
-    }
-  }
-}</pre>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">3</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Restart Claude</h4>
-          <p class="text-sm text-slate-600">Quit it completely (<span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Q</span> on Mac) and reopen. Claude reads MCP servers on launch.</p>
-        </div>
-      </div>
-
-      <!-- Step 4 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">4</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Test it</h4>
-          <p class="text-sm text-slate-600 mb-2">Start a new chat and type:</p>
-          <div class="code-window">
-<pre><span class="tok-com">// You:</span>
-Are you connected to Hatchik? What project am I on?</pre>
-          </div>
-          <p class="text-sm text-slate-600 mt-3">Claude should reply with your project name, the domain you launched, and which region the server is in. If it says it doesn't know about Hatchik, the config didn't load — double-check the file path and that you fully quit and reopened the app.</p>
-        </div>
-      </div>
-
-      <!-- What this does -->
-      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
-        <strong class="text-indigo-900">What this does, in plain English:</strong>
-        you're telling Claude that there's a service called "hatchik" it's allowed to talk to.
-        When you ask Claude to ship a feature, check why the site is slow, or roll back yesterday's
-        change, it can now do that directly — Claude calls our MCP server, our server checks your API
-        key, and the action runs against your Hatchik project. Anything that costs money or could
-        break things (payments, deletes, rollbacks) still bounces through your browser for a click-to-confirm.
+  <!-- Step 1: get the key -->
+  <div class="card mb-6">
+    <div class="flex gap-4">
+      <span class="step-num">1</span>
+      <div class="flex-1">
+        <h3 class="font-bold text-lg mb-1">Grab your Hatchik API key</h3>
+        <p class="text-sm text-slate-600 leading-relaxed">
+          Easiest: it&rsquo;s already in your sandbox-ready email &mdash; the one we send the moment you sign up. The full MCP snippet is there with the key pre-filled. Skip to step 4 if so.
+        </p>
+        <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+          Or create a fresh one at <a href="/account#api-keys" class="text-indigo-600 underline font-medium">hatchik.com/account &rarr; API keys</a>. The plaintext is shown once, copy it then.
+        </p>
       </div>
     </div>
   </div>
 
-  <!-- CURSOR PANEL -->
-  <div class="panel" data-panel="cursor">
-    <div class="card">
-      <div class="flex items-center gap-3 mb-6">
-        <span class="tile-logo cursor">Cu</span>
-        <div>
-          <h3 class="text-xl font-bold">Connect Cursor to Hatchik</h3>
-          <p class="text-sm text-slate-500">Tested with Cursor 0.45 and later.</p>
-        </div>
-      </div>
-
-      <!-- Step 1 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">1</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Open MCP settings</h4>
-          <p class="text-sm text-slate-600 mb-3">In Cursor: <strong>Cursor</strong> menu &rarr; <strong>Settings</strong> &rarr; <strong>Cursor Settings</strong> &rarr; <strong>MCP</strong>. Or open the command palette (<span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Shift+P</span>) and search "MCP".</p>
-          <p class="text-sm text-slate-600">You can either click "Add new MCP server" in the UI, or edit the config file directly:</p>
-          <div class="mt-2"><span class="file-pill">~/.cursor/mcp.json</span></div>
-        </div>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">2</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Paste this in</h4>
-          <p class="text-sm text-slate-600 mb-3">Same shape as Claude — Cursor uses the same MCP standard. Replace the placeholder with your real key.</p>
-          <div class="code-window">
-            <div class="mb-3">
-              <span class="dot" style="background:#ef4444"></span>
-              <span class="dot" style="background:#eab308"></span>
-              <span class="dot" style="background:#22c55e"></span>
-              <span class="ml-2 text-xs text-slate-400">~/.cursor/mcp.json</span>
-            </div>
-            <button class="copy-btn" data-copy="cursor-snippet" type="button">Copy</button>
-<pre id="cursor-snippet">{
+  <!-- Step 2: paste this -->
+  <div class="card mb-6">
+    <div class="flex gap-4">
+      <span class="step-num">2</span>
+      <div class="flex-1 min-w-0">
+        <h3 class="font-bold text-lg mb-1">Copy this config</h3>
+        <p class="text-sm text-slate-600 mb-3">
+          Replace <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_HATCHIK_API_KEY</span> with the key from step&nbsp;1. This same JSON works for every AI tool we support &mdash; only the file you paste it into changes (step&nbsp;3).
+        </p>
+        <div class="code-window">
+          <div class="mb-3">
+            <span class="dot" style="background:#ef4444"></span>
+            <span class="dot" style="background:#eab308"></span>
+            <span class="dot" style="background:#22c55e"></span>
+            <span class="ml-2 text-xs text-slate-400">mcp config &mdash; same for all tools</span>
+          </div>
+          <button class="copy-btn" data-copy="mcp-snippet" type="button">Copy</button>
+<pre id="mcp-snippet">{
   <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
     <span class="tok-key">"hatchik"</span><span class="tok-pun">:</span> {
       <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
@@ -357,183 +211,107 @@ Are you connected to Hatchik? What project am I on?</pre>
     }
   }
 }</pre>
-          </div>
-          <p class="text-sm text-slate-600 mt-3">Tip: you can also drop this in a <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">.cursor/mcp.json</span> file at the root of a project to scope the connection to that project only.</p>
         </div>
       </div>
+    </div>
+  </div>
 
-      <!-- Step 3 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">3</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Reload</h4>
-          <p class="text-sm text-slate-600">Back in the MCP settings panel, you should see "hatchik" appear with a green dot. If it's red, click the refresh icon. If it's still red, check the API key for typos.</p>
+  <!-- Step 3: where to paste -->
+  <div class="card mb-6">
+    <div class="flex gap-4">
+      <span class="step-num">3</span>
+      <div class="flex-1 min-w-0">
+        <h3 class="font-bold text-lg mb-1">Paste it into your tool&rsquo;s MCP file</h3>
+        <p class="text-sm text-slate-600 mb-4">
+          If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry inside it. If the file doesn&rsquo;t exist yet, create it &mdash; the folder might be hidden (in Finder press <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Shift+.</span>).
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left">
+                <th class="py-2 pr-4 font-semibold text-slate-700 whitespace-nowrap">Tool</th>
+                <th class="py-2 pr-4 font-semibold text-slate-700">Where it goes</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-700">
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Cursor</td>
+                <td class="py-3 pr-4"><span class="file-pill">~/.cursor/mcp.json</span> &mdash; or scope to one project with <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">.cursor/mcp.json</span> at the repo root</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Windsurf</td>
+                <td class="py-3 pr-4"><span class="file-pill">~/.codeium/windsurf/mcp_config.json</span> &mdash; or open Cascade &rarr; tools &rarr; Configure</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Claude Code</td>
+                <td class="py-3 pr-4"><span class="file-pill">~/.claude/mcp.json</span></td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Claude Desktop</td>
+                <td class="py-3 pr-4">
+                  <span class="file-pill">~/Library/Application Support/Claude/claude_desktop_config.json</span>
+                  <span class="block text-xs text-slate-500 mt-1">Windows: <span class="mono">%APPDATA%\Claude\claude_desktop_config.json</span></span>
+                </td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Cline</td>
+                <td class="py-3 pr-4">VS Code &rarr; Cline icon &rarr; MCP settings panel</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Codex</td>
+                <td class="py-3 pr-4"><span class="file-pill">~/.codex/mcp.json</span></td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Antigravity</td>
+                <td class="py-3 pr-4">Settings &rarr; MCP Servers</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Continue</td>
+                <td class="py-3 pr-4"><span class="file-pill">~/.continue/config.json</span></td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Aider</td>
+                <td class="py-3 pr-4"><span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">aider.mcp.servers</span> in your aider config</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Copilot (agent)</td>
+                <td class="py-3 pr-4"><span class="file-pill">.vscode/mcp.json</span> at your repo root</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+        <p class="mt-4 text-xs text-slate-500">
+          Using something else MCP-capable that isn&rsquo;t listed? Try it &mdash; if it speaks the Model Context Protocol, the same JSON works. Email us where you put it and we&rsquo;ll add a row.
+        </p>
       </div>
+    </div>
+  </div>
 
-      <!-- Step 4 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">4</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Test it</h4>
-          <p class="text-sm text-slate-600 mb-2">Open the chat panel (<span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+L</span>) and ask:</p>
-          <div class="code-window">
+  <!-- Step 4: restart + test -->
+  <div class="card mb-6">
+    <div class="flex gap-4">
+      <span class="step-num">4</span>
+      <div class="flex-1 min-w-0">
+        <h3 class="font-bold text-lg mb-1">Restart your AI tool, then ask</h3>
+        <p class="text-sm text-slate-600 mb-3">Quit and reopen so it picks up the new MCP config. Then in chat:</p>
+        <div class="code-window">
 <pre><span class="tok-com">// You:</span>
 Are you connected to Hatchik? Show me my recent deploys.</pre>
-          </div>
-          <p class="text-sm text-slate-600 mt-3">Cursor's agent should call the Hatchik MCP and come back with a list of your last few deploys, plus their status. If it instead apologises or hallucinates, the MCP isn't connected — recheck the settings panel.</p>
         </div>
-      </div>
-
-      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
-        <strong class="text-indigo-900">What this does, in plain English:</strong>
-        Cursor's AI now knows about your live Hatchik project. When it writes code on your laptop, it can also
-        push that code, watch the deploy land, and tell you if it broke anything — without you ever opening a
-        dashboard. The money/data-risky actions still pop a confirm page in your browser before running.
+        <p class="mt-3 text-sm text-slate-600">
+          Your AI should answer with the project name, the sandbox URL, the region, and your last few deploys. If it says it has no Hatchik tools &mdash; the config didn&rsquo;t load. Re-check the file path, double-check the API key for typos, and that you fully quit the app before reopening.
+        </p>
       </div>
     </div>
   </div>
 
-  <!-- WINDSURF PANEL -->
-  <div class="panel" data-panel="windsurf">
-    <div class="card">
-      <div class="flex items-center gap-3 mb-6">
-        <span class="tile-logo windsurf">W</span>
-        <div>
-          <h3 class="text-xl font-bold">Connect Windsurf to Hatchik</h3>
-          <p class="text-sm text-slate-500">Works with Windsurf's Cascade agent.</p>
-        </div>
-      </div>
-
-      <!-- Step 1 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">1</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Open the MCP config</h4>
-          <p class="text-sm text-slate-600 mb-3">In Windsurf: click the <strong>Cascade</strong> icon in the side panel, then the hammer/tools icon at the top of the Cascade pane, then <strong>Configure</strong>. Or edit the file directly:</p>
-          <div><span class="file-pill">~/.codeium/windsurf/mcp_config.json</span></div>
-        </div>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">2</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Paste this in</h4>
-          <p class="text-sm text-slate-600 mb-3">Replace the placeholder with your Hatchik API key (create one at <a href="/account#api-keys" class="text-indigo-600 underline">hatchik.com/account &rarr; API keys</a>).</p>
-          <div class="code-window">
-            <div class="mb-3">
-              <span class="dot" style="background:#ef4444"></span>
-              <span class="dot" style="background:#eab308"></span>
-              <span class="dot" style="background:#22c55e"></span>
-              <span class="ml-2 text-xs text-slate-400">mcp_config.json</span>
-            </div>
-            <button class="copy-btn" data-copy="windsurf-snippet" type="button">Copy</button>
-<pre id="windsurf-snippet">{
-  <span class="tok-key">"mcpServers"</span><span class="tok-pun">:</span> {
-    <span class="tok-key">"hatchik"</span><span class="tok-pun">:</span> {
-      <span class="tok-key">"command"</span><span class="tok-pun">:</span> <span class="tok-str">"npx"</span><span class="tok-pun">,</span>
-      <span class="tok-key">"args"</span><span class="tok-pun">:</span> <span class="tok-pun">[</span><span class="tok-str">"-y"</span><span class="tok-pun">,</span> <span class="tok-str">"hatchik-mcp"</span><span class="tok-pun">],</span>
-      <span class="tok-key">"env"</span><span class="tok-pun">:</span> {
-        <span class="tok-key">"HATCHIK_API_KEY"</span><span class="tok-pun">:</span> <span class="tok-str">"YOUR_HATCHIK_API_KEY"</span><span class="tok-pun">,</span>
-        <span class="tok-key">"HATCHIK_API_URL"</span><span class="tok-pun">:</span> <span class="tok-str">"https://api.hatchik.com"</span>
-      }
-    }
-  }
-}</pre>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">3</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Refresh Cascade</h4>
-          <p class="text-sm text-slate-600">Back in the Cascade pane, click <strong>Refresh</strong> on the tools panel. Hatchik should appear in the available servers list with a green status.</p>
-        </div>
-      </div>
-
-      <!-- Step 4 -->
-      <div class="flex gap-4 mb-6">
-        <span class="step-num">4</span>
-        <div class="flex-1">
-          <h4 class="font-bold mb-1">Test it</h4>
-          <p class="text-sm text-slate-600 mb-2">Open Cascade and ask:</p>
-          <div class="code-window">
-<pre><span class="tok-com">// You:</span>
-Are you connected to Hatchik? What's the URL of my preview deploy?</pre>
-          </div>
-          <p class="text-sm text-slate-600 mt-3">Cascade should hit the Hatchik MCP and reply with your preview URL. If it says it has no Hatchik tools, the config didn't load — check the file path and reload Windsurf.</p>
-        </div>
-      </div>
-
-      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
-        <strong class="text-indigo-900">What this does, in plain English:</strong>
-        Cascade can now reach into your Hatchik project. Ask it to "ship the branch I just pushed" or
-        "tell me why production is throwing 500s" and it does the work — same MCP standard as Claude
-        and Cursor, just exposed through Cascade's interface.
-      </div>
-    </div>
-  </div>
-
-</section>
-
-<!-- OTHER TOOLS -->
-<section class="max-w-4xl mx-auto px-6 pb-16">
-  <div class="card" style="background: #fafafa;">
-    <h3 class="font-bold text-lg mb-2">Using something else?</h3>
-    <p class="text-sm text-slate-600 mb-4">
-      Hatchik speaks the standard Model Context Protocol. Any MCP-capable client works the same way — find that client's MCP config
-      file, paste the same <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">hatchik</span> server block, restart.
-    </p>
-    <div class="grid sm:grid-cols-3 gap-3 text-sm">
-      <div class="flex items-start gap-2">
-        <span class="tick">&#10003;</span>
-        <div>
-          <div class="font-semibold">Cline</div>
-          <div class="text-xs text-slate-500">VS Code extension &mdash; MCP settings panel</div>
-        </div>
-      </div>
-      <div class="flex items-start gap-2">
-        <span class="tick">&#10003;</span>
-        <div>
-          <div class="font-semibold">Codex</div>
-          <div class="text-xs text-slate-500">OpenAI CLI &mdash; edit <span class="mono">~/.codex/mcp.json</span></div>
-        </div>
-      </div>
-      <div class="flex items-start gap-2">
-        <span class="tick">&#10003;</span>
-        <div>
-          <div class="font-semibold">Antigravity</div>
-          <div class="text-xs text-slate-500">Google IDE &mdash; Settings &rarr; MCP Servers</div>
-        </div>
-      </div>
-      <div class="flex items-start gap-2">
-        <span class="tick">&#10003;</span>
-        <div>
-          <div class="font-semibold">Continue</div>
-          <div class="text-xs text-slate-500">edit <span class="mono">~/.continue/config.json</span></div>
-        </div>
-      </div>
-      <div class="flex items-start gap-2">
-        <span class="tick">&#10003;</span>
-        <div>
-          <div class="font-semibold">Aider</div>
-          <div class="text-xs text-slate-500">via <span class="mono">aider.mcp.servers</span></div>
-        </div>
-      </div>
-      <div class="flex items-start gap-2">
-        <span class="tick">&#10003;</span>
-        <div>
-          <div class="font-semibold">Copilot (agent mode)</div>
-          <div class="text-xs text-slate-500">VS Code &mdash; <span class="mono">.vscode/mcp.json</span></div>
-        </div>
-      </div>
-    </div>
-    <p class="text-xs text-slate-500 mt-4">Tested-and-supported list grows weekly. If your tool isn't listed, try it anyway &mdash; if it speaks MCP, it works.</p>
+  <!-- What this does -->
+  <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 text-sm text-slate-700 leading-relaxed">
+    <strong class="text-indigo-900">What this does, in plain English:</strong>
+    you&rsquo;re telling your AI tool there&rsquo;s a service called &ldquo;hatchik&rdquo; it&rsquo;s allowed to talk to. When you ask it to ship a feature, check why the site is slow, or roll back yesterday&rsquo;s change, it can do that directly &mdash; the AI calls our MCP server, our server checks your API key, and the action runs against your Hatchik project. Anything that costs money or could break things (payments, deletes, rollbacks) still bounces through your browser for a click-to-confirm.
   </div>
 </section>
+
 
 <!-- HELP -->
 <section class="max-w-4xl mx-auto px-6 pb-20">
@@ -575,30 +353,10 @@ Are you connected to Hatchik? What's the URL of my preview deploy?</pre>
 
 <script>
 (function() {
-  // Tile picker
-  const tiles = document.querySelectorAll('#toolPicker .tile');
-  const panels = document.querySelectorAll('.panel');
-
-  function select(tool) {
-    tiles.forEach(t => t.classList.toggle('is-active', t.dataset.tool === tool));
-    panels.forEach(p => p.classList.toggle('is-active', p.dataset.panel === tool));
-    // Update URL hash without scroll jump
-    if (history.replaceState) {
-      history.replaceState(null, '', '#' + tool);
-    }
-  }
-
-  tiles.forEach(tile => {
-    tile.addEventListener('click', () => select(tile.dataset.tool));
-  });
-
-  // Honour hash on load
-  const hash = (window.location.hash || '').replace('#', '');
-  if (['claude', 'cursor', 'windsurf'].includes(hash)) {
-    select(hash);
-  }
-
-  // Copy buttons
+  // Copy buttons (the only interactive element left on the simplified
+  // page — the old tile-picker + per-tool-panel switcher came out with
+  // the rewrite, since the JSON is identical across tools and only
+  // the file path differs).
   document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const target = document.getElementById(btn.dataset.copy);
