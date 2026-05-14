@@ -2,16 +2,16 @@
 """
 lifecycle.py — daily idle-archive reconciler for Hatchik sandboxes.
 
-Customer-facing copy on hatchik.com promises "archived if idle 30 days".
+Customer-facing copy on hatchik.com promises "archived if idle 7 days".
 This script enforces that. Runs once a day from a systemd timer
 (``hatchik-lifecycle.timer``). For each live tenant in registry.json:
 
-    - day 23: send a polite warning email (sign in to keep it)
-    - day 29: send a firmer reminder (last chance, magic-link inside)
-    - day 30: archive — stop containers, snapshot volumes to
+    - day 5: send a polite warning email (sign in to keep it)
+    - day 6: send a firmer reminder (last chance, magic-link inside)
+    - day 7: archive — stop containers, snapshot volumes to
               /var/hatchik-archive/<slug>/, drop the Caddy route, mark
               registry status='archived', send archival notice
-    - day 37: hard-delete — remove the volume snapshots + tenant dir
+    - day 14: hard-delete — remove the volume snapshots + tenant dir
               entirely, mark registry status='purged' and the signup
               row status='archived_purged', send final-purge notice
 
@@ -21,7 +21,9 @@ back to max(created_at) if no one ever signed in.
 
 Idempotent — safe to run multiple times per day. Sent-email markers
 live in the tenant's registry entry (archive_warning_23_at,
-archive_warning_29_at, archived_at, purged_at) so we never double-send.
+archive_warning_29_at, archived_at, purged_at — names kept stable for
+registry compatibility, but they fire at the new warn1/warn2 day
+boundaries) so we never double-send.
 
 Defensive — if the per-tenant Postgres query fails, log and skip that
 tenant. One sick container should not block the reconciler.
@@ -37,12 +39,12 @@ Usage:
 Env overrides (for testing):
     HATCHIK_LIFECYCLE_FAKE_NOW=2026-06-12T02:00:00Z
         Pretend "now" is this ISO instant. Lets you walk a tenant
-        forward through the 23/29/30/37 day boundaries without waiting.
-    HATCHIK_LIFECYCLE_WARN1_DAY=23
-    HATCHIK_LIFECYCLE_WARN2_DAY=29
-    HATCHIK_LIFECYCLE_ARCHIVE_DAY=30
+        forward through the 5/6/7/14 day boundaries without waiting.
+    HATCHIK_LIFECYCLE_WARN1_DAY=5
+    HATCHIK_LIFECYCLE_WARN2_DAY=6
+    HATCHIK_LIFECYCLE_ARCHIVE_DAY=7
     HATCHIK_LIFECYCLE_PURGE_DAYS_AFTER_ARCHIVE=7
-        Override the day boundaries (handy when collapsing the 30-day
+        Override the day boundaries (handy when collapsing the 7-day
         cycle to 30-second intervals for end-to-end tests).
 """
 
@@ -86,9 +88,9 @@ HOST_CADDY_CONTAINER = os.environ.get("HATCHIK_HOST_CADDY_CONTAINER", "hatchik-h
 DOMAIN = "hatchik.com"
 
 # Day boundaries — overridable for testing.
-WARN1_DAY = int(os.environ.get("HATCHIK_LIFECYCLE_WARN1_DAY", "23"))
-WARN2_DAY = int(os.environ.get("HATCHIK_LIFECYCLE_WARN2_DAY", "29"))
-ARCHIVE_DAY = int(os.environ.get("HATCHIK_LIFECYCLE_ARCHIVE_DAY", "30"))
+WARN1_DAY = int(os.environ.get("HATCHIK_LIFECYCLE_WARN1_DAY", "5"))
+WARN2_DAY = int(os.environ.get("HATCHIK_LIFECYCLE_WARN2_DAY", "6"))
+ARCHIVE_DAY = int(os.environ.get("HATCHIK_LIFECYCLE_ARCHIVE_DAY", "7"))
 PURGE_DAYS_AFTER_ARCHIVE = int(os.environ.get("HATCHIK_LIFECYCLE_PURGE_DAYS_AFTER_ARCHIVE", "7"))
 
 # Resend

@@ -34,8 +34,9 @@ from typing import Any, Iterable
 SANDBOX_POSTGRES_RAM_MB = 512
 # Per-tenant filesystem on the shared CAX21 host. Practical ceiling before
 # host-level cleanup is needed — not a hard quota, deliberately published
-# so customers don't store backup blobs in their tenant.
-SANDBOX_DISK_GB_PRACTICAL = 10
+# so customers don't store backup blobs in their tenant. 1 GB keeps the
+# free tier from being abused as cheap object storage.
+SANDBOX_DISK_GB_PRACTICAL = 1
 # Storage RAM cap on supabase-storage (RAM working set, not on-disk
 # capacity — on-disk piggybacks the disk budget above).
 SANDBOX_STORAGE_RAM_MB = 128
@@ -102,7 +103,7 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
         "name": "Authentication",
         "detail": (
             "Supabase Auth — magic-link + email/password out of the box. "
-            "Unlimited test users; Google OAuth: not configured (add when ready)."
+            "Up to 3 test users on Sandbox; Google OAuth: not configured (add when ready)."
         ),
         "status": "live",
         "configure_url": "{sandbox_url}/studio",
@@ -164,8 +165,8 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
     {
         "name": "Mobile builds",
         "detail": (
-            f"iOS IPA + Android APK via GitHub Actions, capped at "
-            f"{MOBILE_BUILDS_PER_HOUR} builds/hour per tenant. GitHub free "
+            f"iOS IPA + Android APK via GitHub Actions — up to "
+            f"{MOBILE_BUILDS_PER_HOUR} builds per hour per tenant. GitHub free "
             f"tier: {GITHUB_ACTIONS_MACOS_MIN_MONTHLY} macOS min/mo, "
             f"{GITHUB_ACTIONS_LINUX_MIN_MONTHLY} Linux min/mo. Binaries "
             "are unsigned — store submission is yours."
@@ -323,7 +324,7 @@ def _detect_dynamic_status(tenant_dir: Path | None) -> dict[str, dict[str, str]]
     if google_enabled == "true" and google_id:
         overrides["Authentication"] = {
             "status": "live",
-            "detail": "Supabase Auth — magic-link + email/password + Google OAuth (all wired). Unlimited test users.",
+            "detail": "Supabase Auth — magic-link + email/password + Google OAuth (all wired). Up to 3 test users on Sandbox.",
         }
 
     # Resend — has the customer brought their own key?

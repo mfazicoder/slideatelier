@@ -109,15 +109,15 @@
       </thead>
       <tbody>
         <tr><td>Subdomain</td><td><span class="mono">&lt;your-slug&gt;.hatchik.com</span> with wildcard TLS</td><td>1 subdomain. Custom domain is Launch tier only.</td></tr>
-        <tr><td>Postgres database</td><td>Supabase-managed Postgres 15, isolated per sandbox</td><td>512 MB RAM cap. Disk shares the host budget &mdash; ~10 GB practical before we'd ask you to upgrade.</td></tr>
-        <tr><td>Authentication</td><td>Supabase Auth &mdash; magic-link + email/password</td><td>Unlimited test users. Google OAuth: not configured (you can add when ready).</td></tr>
+        <tr><td>Postgres database</td><td>Supabase-managed Postgres 15, isolated per sandbox</td><td>512 MB RAM cap. Disk shares the host budget &mdash; ~1 GB practical before we'd ask you to upgrade.</td></tr>
+        <tr><td>Authentication</td><td>Supabase Auth &mdash; magic-link + email/password</td><td>Up to 3 test users on Sandbox. Google OAuth: not configured (you can add when ready).</td></tr>
         <tr><td>File storage</td><td>Supabase Storage (S3-compatible)</td><td>128 MB working RAM; bucket size shares the tenant disk budget.</td></tr>
         <tr><td>Realtime</td><td>Supabase Realtime row-change subscriptions</td><td>Included; same Supabase auth flow.</td></tr>
         <tr><td>API backend</td><td>FastAPI under <code>apps/api/</code></td><td>You add the routes; redeploys on push.</td></tr>
         <tr><td>Web frontend</td><td>React + Vite under <code>apps/web/</code></td><td>Hot-reloaded; redeploys on push.</td></tr>
         <tr><td>Transactional email</td><td>Resend SMTP from <span class="mono">noreply@hatchik.com</span> (shared, test mode)</td><td><strong>~100 emails/day soft cap on Sandbox</strong> (Resend free tier 3K/mo across all sandboxes). Bring your own <code>RESEND_API_KEY</code> for production sends &mdash; no cap, your sender domain.</td></tr>
         <tr><td>Payments</td><td>Stripe SDK wired in test mode</td><td>Live Stripe is customer self-serve: swap the keys in <code>.env</code>.</td></tr>
-        <tr><td>Mobile builds</td><td>Unsigned iOS IPA + Android APK via GitHub Actions</td><td><strong>3 builds/hour</strong> per tenant. GitHub free tier: 500 macOS min/mo, 2000 Linux min/mo. Binaries are unsigned &mdash; signing + store submission require your own developer accounts.</td></tr>
+        <tr><td>Mobile builds</td><td>Unsigned iOS IPA + Android APK via GitHub Actions</td><td><strong>Up to 3 builds per hour</strong> per tenant. GitHub free tier: 500 macOS min/mo, 2000 Linux min/mo. Binaries are unsigned &mdash; signing + store submission require your own developer accounts.</td></tr>
         <tr><td>GitHub repo</td><td>Private repo under <span class="mono">hatchik-sandboxes/&lt;slug&gt;</span></td><td>1 per active sandbox.</td></tr>
         <tr><td>Push-to-deploy</td><td>Redeploy webhook fires on every <code>git push</code></td><td>~30 seconds end-to-end. Rate-limited to 6 redeploys per 5 minutes.</td></tr>
         <tr><td><code>BACKLOG.md</code></td><td>~20 starter tasks tailored to your idea</td><td>Seeded once at provision; read+write by any AI tool.</td></tr>
@@ -145,7 +145,7 @@
     </table>
 
     <div class="note note-info">
-      <p style="margin:0;"><strong>Where the numbers come from.</strong> RAM caps are <code>mem_limit</code> values in <code>substrate-template/docker-compose.yml</code>. Rate limits are <code>HATCHIK_*_RATE_LIMIT_*</code> constants in the signup service. The 100/day email cap and ~10 GB disk are policy defaults we publish so you know where the boundaries are &mdash; not enforced in code today (we'll tighten them when the first abuse case lands).</p>
+      <p style="margin:0;"><strong>Where the numbers come from.</strong> RAM caps are <code>mem_limit</code> values in <code>substrate-template/docker-compose.yml</code>. Rate limits are <code>HATCHIK_*_RATE_LIMIT_*</code> constants in the signup service. The 100/day email cap and ~1 GB disk are policy defaults we publish so you know where the boundaries are &mdash; soft caps enforced socially today.</p>
     </div>
 
     <h2 id="substrate">In the substrate (every tier)</h2>
@@ -177,7 +177,7 @@
 
     <div class="feature-block">
       <h3>Mobile shell</h3>
-      <p>A Capacitor app shell that wraps the same code as your web app. Same scaffold ships on every tier from Sandbox onward. Cloud builds run on GitHub Actions — trigger one from <span class="mono">/account</span> and download the resulting <code>.ipa</code> / <code>.apk</code> when the run finishes (usually 8–15 minutes); 3 builds/hour per tenant. The shell <strong>is not submitted to the App Store or Google Play by Hatchik</strong> on any tier — see below.</p>
+      <p>A Capacitor app shell that wraps the same code as your web app. Same scaffold ships on every tier from Sandbox onward. Cloud builds run on GitHub Actions — trigger one from <span class="mono">/account</span> and download the resulting <code>.ipa</code> / <code>.apk</code> when the run finishes (usually 8–15 minutes); up to 3 builds per hour per tenant. The shell <strong>is not submitted to the App Store or Google Play by Hatchik</strong> on any tier — see below.</p>
     </div>
 
     <div class="feature-block">
@@ -232,7 +232,7 @@
         </tr>
         <tr>
           <td>Mobile shells (iOS + Android)</td>
-          <td class="yes">Included — 3 cloud builds/hour</td>
+          <td class="yes">Included — up to 3 builds per hour</td>
           <td class="yes">Included — same</td>
         </tr>
         <tr>
@@ -247,7 +247,7 @@
         </tr>
         <tr>
           <td>Idle-archive</td>
-          <td>After 30 days idle</td>
+          <td>After 7 days idle</td>
           <td class="yes">Never auto-archived</td>
         </tr>
         <tr>

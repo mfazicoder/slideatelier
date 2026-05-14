@@ -30,11 +30,11 @@ gated features. **Every tier ships the same substrate.**
 | **Mailboxes** | Single shared sender (`noreply@hatchik.com`) |
 | **Repo** | Private repo in **hatchik-sandboxes** org, customer added as collaborator with write access |
 | **Backups** | 24h retention |
-| **Mobile shells** | iOS + Android, store-submittable (customer handles submission — see §5.3). Cloud builds via GitHub Actions, **rate-limited to 3 builds/hour per tenant** |
+| **Mobile shells** | iOS + Android, store-submittable (customer handles submission — see §5.3). Cloud builds via GitHub Actions, **up to 3 builds per hour per tenant** |
 | **AI tool integration** | Full MCP setup |
 | **AI token allowance** | **One-off £0.50** of Claude Haiku (~50k tokens) — a taster, deliberately enough to wire up one AI-powered feature and see it run. Not a monthly subscription; spent once, gone once. Customer can BYO key any time or upgrade to a tier with a monthly allowance. |
 | **Branding** | "Built with Hatchik" footer (non-removable) |
-| **Idle policy** | Archived after 30 consecutive days idle; restorable on request |
+| **Idle policy** | Archived after 7 consecutive days idle; restorable on request |
 | **Support** | Community forum |
 
 Purpose: derisk the purchase decision. Sandbox is the "try it" path that
@@ -55,7 +55,7 @@ co-founder and a friend) properly test the experience.
 | **Mailboxes** | 5 inboxes on customer's domain |
 | **Repo** | Same private repo from Sandbox carries over (in **hatchik-sandboxes** org, customer keeps collaborator write access) |
 | **Backups** | Tiered by environment — see §6 |
-| **Mobile shells** | Same scaffold as Sandbox; same 3 cloud builds/hour per tenant — Launch differs in support/SLA, not mobile capability |
+| **Mobile shells** | Same scaffold as Sandbox; same up to 3 cloud builds per hour per tenant — Launch differs in support/SLA, not mobile capability |
 | **AI tool integration** | Full MCP setup, both signup and ongoing ops |
 | **AI token allowance** | **~£3/month included** (~150k tokens at avg model rates) for runtime AI in customer's app; passthrough for overage at provider cost (no Hatchik margin shown on invoice); or bring your own key for direct provider billing |
 | **Branding** | Customer's own |
