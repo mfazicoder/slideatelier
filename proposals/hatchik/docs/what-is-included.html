@@ -140,7 +140,7 @@
         <tr><td>Per-tenant Resend key</td><td>Self-serve: paste your own <code>RESEND_API_KEY</code> into <code>.env</code> for production volume + sender on your domain.</td></tr>
         <tr><td>Google OAuth</td><td>Self-serve: register a Google OAuth app, paste <code>client_id</code> / <code>client_secret</code>, flip <code>GOOGLE_OAUTH_ENABLED</code> in <code>.env</code>.</td></tr>
         <tr><td>On-demand backups</td><td class="partial">On-demand <code>pg_dump</code> from Supabase Studio, plus Hetzner Cloud VPS snapshots on Launch / Growth. Extended retention on Growth.</td></tr>
-        <tr><td>App Store / Play Store submission</td><td class="no">Never included &mdash; needs your Apple Developer (~£99/yr) and Google Play Console (~£25 once) accounts.</td></tr>
+        <tr><td>App Store / Play Store submission</td><td class="no">You submit your app yourself &mdash; needs your Apple Developer (~£99/yr) and Google Play Console (~£25 once) accounts. Hatchik builds the .ipa / .apk; the legal identity for the submission is yours.</td></tr>
       </tbody>
     </table>
 
@@ -177,7 +177,7 @@
 
     <div class="feature-block">
       <h3>Mobile shell</h3>
-      <p>A Capacitor app shell that wraps the same code as your web app. Same scaffold ships on every tier from Sandbox onward. Cloud builds run on GitHub Actions — trigger one from <span class="mono">/account</span> and download the resulting <code>.ipa</code> / <code>.apk</code> when the run finishes (usually 8–15 minutes); up to 3 builds per hour per tenant. The shell <strong>is not submitted to the App Store or Google Play by Hatchik</strong> on any tier — see below.</p>
+      <p>A Capacitor app shell that wraps the same code as your web app. Same scaffold ships on every tier from Sandbox onward. Cloud builds run on GitHub Actions — trigger one from <span class="mono">/account</span> and download the resulting <code>.ipa</code> / <code>.apk</code> when the run finishes (usually 8–15 minutes); up to 3 builds per hour per tenant. <strong>You submit your app to the App Store and Google Play yourself</strong>, on any tier — see below.</p>
     </div>
 
     <div class="feature-block">

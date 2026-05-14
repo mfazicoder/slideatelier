@@ -85,7 +85,7 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
         "name": "Subdomain",
         "detail": "1 subdomain at <slug>.hatchik.com with wildcard TLS.",
         "status": "live",
-        "configure_url": "{sandbox_url}",
+        "configure_url": None,  # No-op — clicking opens the sandbox itself
         "category": "compute",
     },
     {
@@ -95,7 +95,11 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
             f"with {SANDBOX_DISK_GB_PRACTICAL} GB space on a shared server."
         ),
         "status": "live",
-        "configure_url": "{sandbox_url}/studio",
+        # Supabase Studio at {sandbox_url}/studio is the configuration UI
+        # for the DB. The container ships unhealthy on small RAM caps —
+        # if the link 404s, fall back to telling the customer to ask
+        # their AI tool to inspect the schema via the MCP.
+        "configure_url": None,
         "category": "compute",
     },
     {
@@ -105,24 +109,24 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
             "Up to 3 test users on Sandbox; Google OAuth: not configured (add when ready)."
         ),
         "status": "live",
-        "configure_url": "{sandbox_url}/studio",
+        "configure_url": None,  # see Postgres note re: /studio
         "category": "auth",
     },
     {
         "name": "File storage",
         "detail": (
-            f"Supabase Storage, {SANDBOX_STORAGE_RAM_MB} MB working RAM. "
-            "Bucket size shares the tenant disk budget."
+            "Supabase Storage for photos, documents, and anything your app "
+            f"uploads. Shares the {SANDBOX_DISK_GB_PRACTICAL} GB tenant disk budget."
         ),
         "status": "live",
-        "configure_url": "{sandbox_url}/studio",
+        "configure_url": None,  # No customer-facing configuration on Sandbox tier
         "category": "storage",
     },
     {
         "name": "Realtime",
         "detail": "Supabase Realtime — subscribe to row changes from the web client.",
         "status": "live",
-        "configure_url": "{sandbox_url}/studio",
+        "configure_url": None,  # No customer-facing configuration on Sandbox tier
         "category": "compute",
     },
     {
@@ -143,9 +147,7 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
         "name": "Transactional email",
         "detail": (
             f"Resend SMTP shared from noreply@hatchik.com. Soft cap "
-            f"~{SANDBOX_EMAIL_DAILY_SOFT_CAP} emails/day on Sandbox tier "
-            "(Resend free tier is 3K/mo across all sandboxes; bring your "
-            "own RESEND_API_KEY for production sends)."
+            f"~{SANDBOX_EMAIL_DAILY_SOFT_CAP} emails/day on Sandbox tier."
         ),
         "status": "policy",
         "configure_url": None,
@@ -171,12 +173,12 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
             "are unsigned — store submission is yours."
         ),
         "status": "live",
-        "configure_url": "https://hatchik.com/account",
+        "configure_url": "https://hatchik.com/account#mobile",
         "category": "mobile",
     },
     {
         "name": "Private GitHub repo",
-        "detail": "One private repo under the hatchik-sandboxes org per active sandbox.",
+        "detail": "One private repo under the hatchik-sandboxes org.",
         "status": "live",
         "configure_url": "{repo_url}",
         "category": "code",
@@ -198,7 +200,7 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
             "One-time £0.50 of Claude Haiku tokens (~50k) — enough to wire up "
             "your first AI-powered feature and see runtime AI working before "
             "you decide whether to bring your own key or upgrade to a "
-            "monthly Launch / Growth allowance. Spent once, gone once."
+            "monthly Launch / Growth allowance."
         ),
         "status": "live",
         "configure_url": None,
@@ -218,8 +220,9 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
         "name": "AI_CONTEXT.md",
         "detail": (
             "Substrate map + deploy token + first-prompt template. Drop into "
-            "Cursor, Windsurf, Claude Code, Cline, Codex, or Antigravity "
-            "and start building."
+            "Cursor, Windsurf, Claude Code, Cline, Codex, Antigravity — or "
+            "paste into a browser AI like ChatGPT, Gemini, Grok — and start "
+            "building."
         ),
         "status": "live",
         "configure_url": "{repo_url}",
@@ -232,12 +235,24 @@ _SANDBOX_AVAILABLE_ON_UPGRADE: list[dict[str, Any]] = [
     {
         "name": "Custom domain",
         "tier": "launch",
-        "blurb": "Bring your own domain or register a new one. Year-one registration in the £89.",
+        "blurb": (
+            "Bring your own domain or register a new one. "
+            "Year-one registration included in the £89*. "
+            "* Popular TLDs included free (.com .co .net .org .uk .co.uk "
+            ".app .dev .tech .online). Premium TLDs (.ai .io .tv .gg .so "
+            ".me .xyz) we'll still register on request — you cover the "
+            "balance above £14/yr."
+        ),
     },
     {
-        "name": "Mailboxes (hello@, support@…)",
+        "name": "Mailboxes",
         "tier": "launch",
-        "blurb": "Up to 5 real mailboxes on your domain via Infomaniak Mail, SPF/DKIM/DMARC wired.",
+        "blurb": (
+            "Up to 5 real mailboxes on your domain via Infomaniak Mail, "
+            "SPF/DKIM/DMARC wired. You pick the names — common starters "
+            "are hello@yourdomain and support@yourdomain; the remaining "
+            "3 are yours to allocate (team@, billing@, etc.)."
+        ),
     },
     {
         "name": "Live payments",
@@ -255,19 +270,21 @@ _SANDBOX_AVAILABLE_ON_UPGRADE: list[dict[str, Any]] = [
         "blurb": "Register a Google OAuth app, paste client_id/secret into .env, flip GOOGLE_OAUTH_ENABLED.",
     },
     {
-        "name": "Automated backups",
-        "tier": "roadmap",
+        "name": "Backups",
+        "tier": "launch",
         "blurb": (
-            "Nightly off-site Postgres backups on Backblaze B2 are on the roadmap. "
-            "Today: on-demand pg_dump from Supabase Studio."
+            "Launch: on-demand pg_dump from Supabase Studio. "
+            "Growth: nightly off-site Postgres backups on Backblaze B2."
         ),
     },
     {
         "name": "App Store / Play Store submission",
         "tier": "customer",
         "blurb": (
-            "Hatchik never submits on your behalf — needs your Apple Developer "
-            "Program (~£99/yr) and Google Play Console (~£25 once)."
+            "You submit your app to the Apple App Store and Google Play yourself — "
+            "submission needs your Apple Developer Program account (~£99/yr) and "
+            "Google Play Console (~£25 once). Hatchik builds the .ipa and .apk; "
+            "the legal identity for the submission is yours."
         ),
     },
 ]
