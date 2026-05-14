@@ -642,7 +642,31 @@ def provision_owner_user(slug: str, port: int, email: str, target: Path) -> str 
             print(f"WARN: failed to generate owner magic link: {r.status_code} {r.text[:200]}")
             return None
         data = r.json()
-        return data.get("action_link") or data.get("properties", {}).get("action_link")
+        action_link = (
+            data.get("action_link")
+            or data.get("properties", {}).get("action_link")
+        )
+        # GoTrue templates the magic-link URL using whatever base address
+        # we used to call its admin API. We address it via
+        # `http://127.0.0.1:{port}/auth/v1` for network reachability
+        # (the auth container is bound to localhost on the host), so
+        # the action_link comes back pointed at that same internal
+        # base — useless to a customer clicking from their browser.
+        # Rewrite the host portion to the public sandbox URL.
+        #
+        # Defence-in-depth: substrate-template should also set
+        # GOTRUE_API_EXTERNAL_URL so GoTrue templates correctly at
+        # source. This rewrite keeps logins working for any tenant
+        # that hasn't picked up that substrate change yet.
+        if action_link:
+            internal_base = f"http://127.0.0.1:{port}"
+            public_base = f"https://{slug}.{DOMAIN}/auth/v1"
+            if action_link.startswith(internal_base + "/"):
+                # action_link is "http://127.0.0.1:18000/verify?token=..."
+                # we want "https://slug.hatchik.com/auth/v1/verify?token=..."
+                tail = action_link[len(internal_base):]  # "/verify?..."
+                action_link = public_base + tail
+        return action_link
     except httpx.HTTPError as e:
         print(f"WARN: GoTrue admin API call failed: {e}")
         return None
