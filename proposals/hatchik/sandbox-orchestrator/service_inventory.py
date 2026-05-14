@@ -91,9 +91,8 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
     {
         "name": "Postgres database",
         "detail": (
-            f"Supabase-managed Postgres, {SANDBOX_POSTGRES_RAM_MB} MB RAM cap. "
-            f"Disk shares the host budget — ~{SANDBOX_DISK_GB_PRACTICAL} GB "
-            "practical before we'd ask you to upgrade."
+            f"Supabase-managed Postgres, {SANDBOX_POSTGRES_RAM_MB} MB RAM cap "
+            f"with {SANDBOX_DISK_GB_PRACTICAL} GB space on a shared server."
         ),
         "status": "live",
         "configure_url": "{sandbox_url}/studio",
