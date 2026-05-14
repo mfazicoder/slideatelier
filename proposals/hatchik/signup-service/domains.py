@@ -1,25 +1,30 @@
 """
-TLD allowlist for Launch-tier domain registration.
+TLD policy for Launch-tier domain registration.
 
-Launch tier promises "year 1 of domain registration included in the £89
-setup fee". Our operational ceiling for year-1 retail cost is **£14/yr** —
-anything pricier eats Launch margin or has to be passed on. This module
-is the phase-1 input guard: a coarse server-side check that rejects
-customer-provided ``domain_choice`` values whose TLD we don't (yet)
-register for free.
+Launch tier promises "year 1 of registration included* in the £89 setup
+fee, for the popular TLDs". Two tiers of acceptance:
+
+  * **Included** (``ALLOWED_TLDS``) — registered free, fits the £14/yr
+    operational ceiling.
+  * **Passthrough** (``PASSTHROUGH_TLDS``) — we still register on the
+    customer's behalf, but they pay the difference above £14/yr at
+    Launch checkout. Common premium TLDs (.ai .io .tv etc.) live here.
+  * **Unknown** — rejected with a friendly "supported list" message
+    and a BYO escape hatch.
 
 Phases (see ``proposals/hatchik/DOMAIN_REGISTRATION_SCOPE.md``):
-  * Phase 1 (this module): input-side allowlist.
+  * Phase 1 (this module): input-side allow/passthrough classification.
   * Phase 2: registrar API integration in ``launch-orchestrator/promote.py``
-    (Porkbun, with a live ≤£14 cost-cap circuit-breaker).
+    (Porkbun, with a live cost-cap circuit-breaker for ALLOWED, and a
+    Stripe upcharge for PASSTHROUGH).
   * Phase 3: live availability check at signup time (typeahead-ish).
 
 This module does NOT call a registrar. It does NOT check availability.
-Its only job is to reject values that we know in advance would breach
-the £14 ceiling, so the customer gets a clear message at signup rather
-than a stalled provision (or a surprise upcharge) after payment.
+``validate_domain`` returns ``(ok, message)``; for passthrough TLDs the
+message is empty (accepted) but ``passthrough_info`` reports the extra
+cost so the Launch checkout can add a line item.
 
-Prices in ``BLOCKED_TLDS`` strings are 2026 ballpark retail and must be
+Prices in ``PASSTHROUGH_TLDS`` are 2026 ballpark retail and must be
 re-verified before phase 2 ships.
 """
 
@@ -49,18 +54,61 @@ ALLOWED_TLDS: dict[str, str] = {
 }
 
 
-# Blocked TLDs — common requests we DON'T register inside the £89 fee.
-# Reasons are surfaced verbatim to the customer so they can decide whether
-# to pick something else or bring their own (BYO escape hatch).
-BLOCKED_TLDS: dict[str, str] = {
-    ".ai": "premium TLD, ~£90/yr — over the £14/yr included in Launch",
-    ".io": "premium TLD, ~£30/yr — over the £14/yr included in Launch",
-    ".tv": "premium TLD, ~£30/yr — over the £14/yr included in Launch",
-    ".gg": "premium TLD, ~£70/yr — over the £14/yr included in Launch",
-    ".so": "premium TLD, ~£25/yr — over the £14/yr included in Launch",
-    ".me": "just over the £14/yr ceiling included in Launch",
-    ".xyz": "premium pricing tiers exist within .xyz — we can't guarantee ≤ £14/yr",
+# Passthrough TLDs — accepted at signup, but the customer pays the
+# difference above the £14/yr Launch-included ceiling. The Launch
+# checkout adds a line item for the extra cost; phase 2's registrar
+# integration enforces it.
+#
+# Each entry is ``(approx_retail_per_year_gbp, friendly_label)``. The
+# extra-cost figure we charge the customer is ``approx_retail - 14``,
+# floored at 0 in case the registrar comes in cheaper than estimated.
+#
+# 2026 ballpark retail — re-verify against Porkbun pricing before phase 2.
+PASSTHROUGH_TLDS: dict[str, tuple[int, str]] = {
+    ".ai":  (90, "premium TLD, ~£90/yr"),
+    ".io":  (30, "premium TLD, ~£30/yr"),
+    ".tv":  (30, "premium TLD, ~£30/yr"),
+    ".gg":  (70, "premium TLD, ~£70/yr"),
+    ".so":  (25, "premium TLD, ~£25/yr"),
+    ".me":  (15, "just over the £14/yr ceiling"),
+    ".xyz": (20, "premium pricing tiers vary — assume ~£20/yr"),
 }
+
+# Backward-compat alias for any caller that still imports BLOCKED_TLDS.
+# Maps TLD → human reason (the same string the old BLOCKED_TLDS used).
+# New code should branch on PASSTHROUGH_TLDS instead.
+BLOCKED_TLDS: dict[str, str] = {}
+
+
+def passthrough_extra_gbp(tld: str) -> int:
+    """Customer-paid balance above the £14 included allowance, in GBP.
+
+    Returns 0 for allowlisted TLDs (no extra cost) and for unknown TLDs.
+    Returns max(0, approx_retail - 14) for passthrough TLDs.
+    """
+    if tld not in PASSTHROUGH_TLDS:
+        return 0
+    approx, _ = PASSTHROUGH_TLDS[tld]
+    return max(0, approx - 14)
+
+
+def passthrough_info(domain: str | None) -> tuple[str, int, str] | None:
+    """If ``domain``'s TLD is on the passthrough list, return a tuple of
+    ``(tld, extra_gbp, friendly_label)``. Otherwise ``None``.
+
+    Caller (signup endpoint / Launch checkout UI) uses this to add a
+    line item: ``+£{extra_gbp} for {tld} ({friendly_label})``.
+    """
+    if not domain:
+        return None
+    normalised = _normalise(domain)
+    if not normalised:
+        return None
+    tld = _extract_tld(normalised)
+    if tld is None or tld not in PASSTHROUGH_TLDS:
+        return None
+    approx, label = PASSTHROUGH_TLDS[tld]
+    return (tld, max(0, approx - 14), label)
 
 
 # Friendly, copy-paste-ready supported-TLD line for error messages and
@@ -100,12 +148,12 @@ def _normalise(domain: str) -> str:
 
 
 def _extract_tld(domain: str) -> str | None:
-    """Return the longest matching TLD suffix from ALLOWED ∪ BLOCKED, or
-    ``None`` if neither set matches. Longest-first ensures ``.co.uk``
+    """Return the longest matching TLD suffix from ALLOWED ∪ PASSTHROUGH,
+    or ``None`` if neither set matches. Longest-first ensures ``.co.uk``
     wins over ``.uk``.
     """
     known = sorted(
-        list(ALLOWED_TLDS.keys()) + list(BLOCKED_TLDS.keys()),
+        list(ALLOWED_TLDS.keys()) + list(PASSTHROUGH_TLDS.keys()),
         key=len,
         reverse=True,
     )
@@ -161,24 +209,16 @@ def validate_domain(domain: str | None) -> tuple[bool, str]:
     if tld is None:
         return (
             False,
-            f"We can't register '{normalised}' inside the £89 Launch fee "
-            f"— we only register common TLDs that cost ≤ £14/yr. "
-            f"Supported: {SUPPORTED_TLDS_DISPLAY}. "
+            f"We don't currently support '{normalised}'. "
+            f"Included free: {SUPPORTED_TLDS_DISPLAY}. "
+            f"Premium TLDs we'll register for you with a top-up "
+            f"({', '.join(sorted(PASSTHROUGH_TLDS.keys()))}). "
             f"If you already own this domain, email hello@hatchik.com "
             f"and we'll wire it up as a bring-your-own.",
         )
 
-    if tld in BLOCKED_TLDS:
-        reason = BLOCKED_TLDS[tld]
-        return (
-            False,
-            f"We can't register a {tld} domain inside the £89 Launch fee "
-            f"({reason}). We can register a "
-            f"{', '.join(list(ALLOWED_TLDS.keys())[:5])} or similar for "
-            f"you instead — or you can register the {tld} yourself and "
-            f"email hello@hatchik.com so we wire it up as a "
-            f"bring-your-own.",
-        )
-
-    # Allowlisted TLD, syntactically clean — accept.
+    # Both allowlisted and passthrough TLDs are accepted. Passthrough
+    # TLDs trigger an extra-cost line item at Launch checkout — the
+    # signup endpoint surfaces that via ``passthrough_info``, this
+    # function just says yes.
     return (True, "")

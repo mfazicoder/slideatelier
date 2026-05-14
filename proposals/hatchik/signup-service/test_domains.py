@@ -8,13 +8,16 @@ Run from this directory:
 
 Exercises:
     * ``validate_domain`` accept-path: ``.com``, ``.co.uk``, ``.app``.
-    * ``validate_domain`` reject-path: blocked TLDs (``.ai``, ``.tv``,
-      ``.io``) get a clear, customer-facing message.
-    * Unknown TLDs (``.xyz``, ``.shop``) are rejected (phase-1 decision —
-      see DOMAIN_REGISTRATION_SCOPE.md).
+    * ``validate_domain`` passthrough-path: ``.ai``, ``.io``, ``.tv``
+      etc. are now ACCEPTED (we register them and pass on the cost
+      above £14/yr at Launch checkout).
+    * Unknown TLDs (``.shop``, ``.party``) still rejected — see
+      DOMAIN_REGISTRATION_SCOPE.md.
+    * ``passthrough_info`` returns the right per-TLD extra cost.
     * Malformed input is normalised (scheme/path stripped) or rejected.
-    * The signup endpoint enforces the allowlist for ``tier='launch'``
-      and skips validation for ``tier='sandbox'`` (no domain in Sandbox).
+    * The signup endpoint accepts passthrough TLDs at ``tier='launch'``
+      and rejects only truly unknown TLDs.
+    * Sandbox tier skips domain validation entirely.
 """
 
 from __future__ import annotations
@@ -67,26 +70,44 @@ def test_allowed_tlds_accepted(domains_module, candidate):
 
 
 @pytest.mark.parametrize(
-    "candidate, tld_in_message",
+    "candidate, tld, expected_extra_gbp",
     [
-        ("openai.ai", ".ai"),
-        ("foo.io", ".io"),
-        ("watch.tv", ".tv"),
-        ("clan.gg", ".gg"),
-        ("link.so", ".so"),
-        ("about.me", ".me"),
-        ("random.xyz", ".xyz"),
+        ("openai.ai",   ".ai",  76),  # 90 - 14
+        ("foo.io",      ".io",  16),  # 30 - 14
+        ("watch.tv",    ".tv",  16),  # 30 - 14
+        ("clan.gg",     ".gg",  56),  # 70 - 14
+        ("link.so",     ".so",  11),  # 25 - 14
+        ("about.me",    ".me",   1),  # 15 - 14
+        ("random.xyz",  ".xyz",  6),  # 20 - 14
     ],
 )
-def test_blocked_tlds_rejected_with_message(
-    domains_module, candidate, tld_in_message,
+def test_passthrough_tlds_accepted(
+    domains_module, candidate, tld, expected_extra_gbp,
 ):
+    # Accepted at validate_domain — we register them.
     ok, msg = domains_module.validate_domain(candidate)
-    assert ok is False
-    assert tld_in_message in msg
-    # Customer-facing copy must point at the BYO escape hatch so they
-    # have a path forward.
-    assert "hello@hatchik.com" in msg
+    assert ok is True, f"{candidate!r} should now be accepted (passthrough)"
+    assert msg == ""
+
+    # The signup endpoint (and Launch checkout) uses passthrough_info
+    # to compute the extra line item.
+    info = domains_module.passthrough_info(candidate)
+    assert info is not None
+    matched_tld, extra_gbp, _label = info
+    assert matched_tld == tld
+    assert extra_gbp == expected_extra_gbp
+
+
+def test_passthrough_info_none_for_allowlisted(domains_module):
+    """Allowlisted TLDs aren't passthrough — no extra cost line item."""
+    assert domains_module.passthrough_info("prepsheet.com") is None
+    assert domains_module.passthrough_info("alex.co.uk") is None
+
+
+def test_passthrough_info_none_for_unknown(domains_module):
+    """Unknown TLDs are rejected upstream; passthrough_info also
+    returns None so callers don't accidentally bill for them."""
+    assert domains_module.passthrough_info("weird.shop") is None
 
 
 @pytest.mark.parametrize(
@@ -195,13 +216,12 @@ def test_launch_signup_accepts_allowlisted_domain(app_client):
     assert resp.status_code == 201, resp.text
 
 
-def test_launch_signup_rejects_blocked_tld(app_client):
+def test_launch_signup_accepts_passthrough_tld(app_client):
+    """Passthrough TLDs (.ai, .io, .tv etc.) are now accepted at signup.
+    Launch checkout adds the extra-cost line item separately."""
     client, _main = app_client
     resp = client.post("/api/signup", json=_payload(domain_choice="prepsheet.ai"))
-    assert resp.status_code == 422
-    body = resp.json()
-    assert body["detail"]["error"] == "domain_not_supported"
-    assert ".ai" in body["detail"]["message"]
+    assert resp.status_code == 201, resp.text
 
 
 def test_launch_signup_rejects_unknown_tld(app_client):
