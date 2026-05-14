@@ -161,9 +161,29 @@
            if it spots automation. -->
       <div id="turnstileWidget" class="flex justify-center"></div>
 
+      <!-- Required T&Cs consent. Submit stays disabled until this is
+           ticked and the rest of the form is valid. Captured server-side
+           in the signups table (accepted_terms_at) for audit. -->
+      <div class="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+        <input
+          id="acceptedTerms"
+          name="accepted_terms"
+          type="checkbox"
+          required
+          class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <label for="acceptedTerms" class="text-sm text-slate-700 leading-snug">
+          I agree to Hatchik&rsquo;s
+          <a href="/terms" target="_blank" rel="noopener" class="underline hover:text-slate-900">Terms of Service</a>
+          and
+          <a href="/privacy" target="_blank" rel="noopener" class="underline hover:text-slate-900">Privacy Policy</a>.
+        </label>
+      </div>
+
       <button
         id="submitBtn"
         type="submit"
+        disabled
         class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <span id="submitLabel">Start free Sandbox &rarr;</span>
@@ -261,6 +281,23 @@
     card.addEventListener('click', () => selectPlan(card.dataset.plan));
   });
 
+  // Submit stays disabled until required text fields are non-empty AND
+  // the T&Cs checkbox is ticked. Mirrors the server-side gate so the
+  // customer can't tab past the checkbox and get a confusing 422.
+  const acceptedTerms = $('acceptedTerms');
+  function updateSubmitState() {
+    const email = ($('email').value || '').trim();
+    const idea = ($('idea').value || '').trim();
+    const ok = !!email && !!idea && acceptedTerms.checked;
+    submitBtn.disabled = !ok;
+  }
+  ['email', 'idea', 'productName', 'firstName', 'githubUsername'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('input', updateSubmitState);
+  });
+  acceptedTerms.addEventListener('change', updateSubmitState);
+  updateSubmitState();
+
   function slugify(s) {
     return (s || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'untitled';
   }
@@ -287,6 +324,9 @@
     if (githubUsername && !/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(githubUsername)) {
       return showError("That doesn't look like a GitHub username. Leave it blank if you'd rather we handle it.");
     }
+    if (!acceptedTerms.checked) {
+      return showError("Please tick the box to accept our Terms of Service and Privacy Policy.");
+    }
 
     submitBtn.disabled = true;
     submitLabel.textContent = 'Launching…';
@@ -302,6 +342,7 @@
           product_name: productName,
           tier: plan,
           github_username: githubUsername,
+          accepted_terms: true,
           turnstile_token: turnstileToken,
           source: 'launch-wizard',
         })

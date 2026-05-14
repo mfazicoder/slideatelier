@@ -701,6 +701,11 @@ def init_db() -> None:
             conn.execute("ALTER TABLE signups ADD COLUMN city TEXT")
         if "asn" not in cols:
             conn.execute("ALTER TABLE signups ADD COLUMN asn TEXT")
+        # Audit trail for T&Cs acceptance — ISO-8601 timestamp at signup
+        # time. Nullable so the migration is additive: historical rows
+        # pre-date the consent gate and will read NULL.
+        if "accepted_terms_at" not in cols:
+            conn.execute("ALTER TABLE signups ADD COLUMN accepted_terms_at TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS rate_limit (
@@ -887,6 +892,13 @@ class SignupRequest(BaseModel):
         "",
         max_length=39,
         validation_alias=AliasChoices("github_username", "githubUsername"),
+    )
+    # T&Cs consent — required at signup time so we have an auditable
+    # record of acceptance per row (see accepted_terms_at column on the
+    # signups table). False/missing → 422 from create_signup.
+    accepted_terms: bool = Field(
+        False,
+        validation_alias=AliasChoices("accepted_terms", "acceptedTerms"),
     )
     turnstile_token: str | None = Field(None, max_length=4096)
 
@@ -1639,6 +1651,21 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
     if not check_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Too many requests")
 
+    # T&Cs consent gate. The marketing form checkbox is required and the
+    # submit button is disabled until ticked, so this almost only fires
+    # for direct API callers or out-of-date front-ends — still, the audit
+    # trail (accepted_terms_at) only makes sense if we hard-reject
+    # missing consent here.
+    if not req.accepted_terms:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "ok": False,
+                "error": "terms_not_accepted",
+                "message": "Please accept the Terms of Service and Privacy Policy to sign up.",
+            },
+        )
+
     # Disposable-email gate — applied before any expensive work (Turnstile,
     # geo-IP, DB insert) so abuse traffic doesn't waste resources.
     if is_disposable_email(str(req.email)):
@@ -1733,14 +1760,15 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
             INSERT INTO signups (
                 created_at, email, first_name, product_name, description, tier,
                 region, domain_choice, ip_address, user_agent, github_username,
-                status, country_code, city, asn
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?)
+                status, country_code, city, asn, accepted_terms_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)
             """,
             (
                 created_at, str(req.email), req.first_name, req.product_name,
                 req.description, req.tier, req.region, req.domain_choice,
                 ip, user_agent, req.github_username or None,
                 geo["country_code"] or None, geo["city"] or None, geo["asn"] or None,
+                created_at,  # accepted_terms_at — gate above guarantees consent
             ),
         )
         signup_id = cur.lastrowid or 0

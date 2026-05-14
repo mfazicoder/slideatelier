@@ -114,6 +114,10 @@ def _signup_payload(**overrides):
         "product_name": "TestApp",
         "description": "A test app",
         "tier": "sandbox",
+        # T&Cs consent is required on every /api/signup call as of the
+        # accepted_terms gate. Tests that want to exercise the reject
+        # path can override this to False/missing.
+        "accepted_terms": True,
     }
     base.update(overrides)
     return base
@@ -158,6 +162,39 @@ def _set_github_username(main, email: str, handle: str | None) -> None:
             (handle, email.lower()),
         )
         conn.commit()
+
+
+# ─── /api/signup: T&Cs consent gate ──────────────────────────────────────
+def test_signup_without_accepted_terms_returns_422(app_client, monkeypatch):
+    """POST /api/signup with accepted_terms=False → 422 terms_not_accepted.
+
+    The signup form gates the submit button on the T&Cs checkbox, but
+    the server-side gate is the source of truth for the audit trail
+    (accepted_terms_at column). Anyone hitting the API directly without
+    consent must be rejected.
+    """
+    client, main, _slug = app_client
+    # If we ever reach the GitHub lookup, the test has skipped the
+    # consent gate — fail loudly.
+    async def fail_if_called(handle):  # noqa: ANN001
+        raise AssertionError("consent gate should have rejected before github lookup")
+    monkeypatch.setattr(main, "_github_user_exists", fail_if_called)
+
+    r = client.post(
+        "/api/signup",
+        json=_signup_payload(
+            email="no-consent@example.com",
+            accepted_terms=False,
+        ),
+    )
+    assert r.status_code == 422, r.text
+    body = r.json()
+    # FastAPI wraps HTTPException.detail under {"detail": ...} — the
+    # structured rejection should surface error="terms_not_accepted".
+    detail = body.get("detail") or body
+    assert detail.get("ok") is False
+    assert detail.get("error") == "terms_not_accepted"
+    assert "Terms" in detail.get("message", "") or "terms" in detail.get("message", "")
 
 
 # ─── /api/signup: handle existence check ─────────────────────────────────
