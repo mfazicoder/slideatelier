@@ -74,8 +74,9 @@ What to do first:
 
   1. Click the link above and log in. You'll see a working app with
      sign-up, login, billing (test mode), and a placeholder dashboard.
-  2. Open your favourite AI tool (Claude, Cursor, Windsurf — anything
-     that supports MCP) and add the Hatchik MCP — instructions at
+  2. Open your favourite AI tool (Cursor, Windsurf, Claude Code, Cline,
+     Codex, Antigravity — anything that supports MCP) and add the
+     Hatchik MCP — instructions at
      https://hatchik.com/install
   3. In your AI, ask: "What's next on the backlog?" It'll read
      BACKLOG.md at the repo root and walk you through the first feature.

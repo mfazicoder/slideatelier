@@ -102,7 +102,7 @@ git push</code></pre>
 
     <h2 id="curl">The direct way (for AI tools)</h2>
     <p>
-      Some AI tools (especially browser-based ones like ChatGPT or Perplexity Comet) prefer not to commit half-finished work just to test a change. For those cases, your <code>AI_CONTEXT.md</code> file includes a per-tenant deploy URL and a deploy token. POST to the URL with the token in a header and we'll redeploy without needing a Git commit.
+      Some AI tools (especially browser-based ones like ChatGPT, Gemini, Grok, or Perplexity Comet) prefer not to commit half-finished work just to test a change. For those cases, your <code>AI_CONTEXT.md</code> file includes a per-tenant deploy URL and a deploy token. POST to the URL with the token in a header and we'll redeploy without needing a Git commit.
     </p>
     <pre><code>curl -X POST https://hatchik.com/api/tenants/&lt;your-slug&gt;/redeploy \
   -H "X-Deploy-Token: &lt;your-deploy-token&gt;"</code></pre>

@@ -113,7 +113,7 @@ scope (see §5).
 ### 3.1 AI credits passthrough (optional convenience)
 
 **The model:** customer's app calls AI providers (Claude, GPT, Gemini,
-open-source via OpenRouter) for runtime features. By default the customer
+Grok, open-source via OpenRouter) for runtime features. By default the customer
 brings their own API key and is billed directly by the provider. Optionally,
 they can route AI usage through Hatchik for unified billing.
 
@@ -125,7 +125,7 @@ they can route AI usage through Hatchik for unified billing.
 | Billing | Provider bills customer directly | Hatchik bills customer; we pay providers |
 | Invoice line | n/a | Single line: "AI usage — £X" (no margin breakdown shown) |
 | Margin | None — customer pays provider rate | We mark up provider cost (margin not surfaced on invoice) |
-| Provider switching | Customer's choice | One config change, switch between Claude/GPT/Gemini |
+| Provider switching | Customer's choice | One config change, switch between Claude/GPT/Gemini/Grok |
 | Token allowance included | n/a | £3/mo on Launch, £10/mo on Growth |
 | Cost caps | Customer's own setup | Built-in spend caps in dashboard |
 | Best for | Customers with existing AI provider accounts; cost-sensitive | Customers wanting unified billing, vendor flexibility, runaway-prompt protection |
@@ -190,7 +190,7 @@ the substrate from day one.
     customer's product description; AI coder reads/writes the board via
     Linear MCP
 11. **AI features inside your app (if you want them)** — Pre-wired
-    integration with Claude / GPT / Gemini / open-source models;
+    integration with Claude / GPT / Gemini / Grok / open-source models;
     **customer's choice**: bring your own API key OR use Hatchik passthrough
     (with included token allowance — **one-off £0.50 of Claude Haiku** on Sandbox to wire up your first AI feature, then £3/mo on Launch, £10/mo on Growth)
 

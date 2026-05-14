@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AI tool setup — Hatchik docs</title>
-<meta name="description" content="Wire up Claude Code, Cursor, Windsurf, ChatGPT or Perplexity Comet to your Hatchik sandbox. Per-tool steps plus the universal first-prompt template." />
+<meta name="description" content="Wire up Cursor, Windsurf, Claude Code, Cline, Codex, or Antigravity to your Hatchik sandbox — plus ChatGPT, Gemini, Grok, or Perplexity Comet in a browser. Per-tool steps plus the universal first-prompt template." />
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,17 +105,6 @@
       You don't need to edit it. You just need to make sure your AI tool reads it. Below is how to do that in each major tool.
     </p>
 
-    <h2 id="claude-code">Claude Code <span class="badge badge-manual">file reference</span></h2>
-    <div class="tool-card">
-      <p>Claude Code (the desktop CLI / IDE plugin) doesn't auto-read every file in your project. To make sure it reads <code>AI_CONTEXT.md</code> first, reference it explicitly at the start of your conversation.</p>
-      <ol>
-        <li>Open the cloned repo folder in your terminal.</li>
-        <li>Start Claude Code (<code>claude</code> in your shell, or open it from your IDE).</li>
-        <li>In the first message, drag <code>AI_CONTEXT.md</code> into the chat to attach it as a file reference, or type <code>@AI_CONTEXT.md</code> and Claude will pick it up.</li>
-      </ol>
-      <p>Then paste the <a href="#first-prompt">first-prompt template</a> below.</p>
-    </div>
-
     <h2 id="cursor">Cursor <span class="badge badge-auto">auto-read</span></h2>
     <div class="tool-card">
       <p>Cursor auto-indexes the open folder, including <code>AI_CONTEXT.md</code>. As long as you've opened the repo as your project root, the file is in Cursor's context.</p>
@@ -138,26 +127,59 @@
       <p>Then paste the <a href="#first-prompt">first-prompt template</a>. Windsurf tends to ask before editing — answer "yes" the first time and it'll get into the rhythm.</p>
     </div>
 
-    <h2 id="comet">Perplexity Comet <span class="badge badge-manual">file attachment</span></h2>
+    <h2 id="claude-code">Claude Code <span class="badge badge-manual">file reference</span></h2>
     <div class="tool-card">
-      <p>Comet is browser-first, so it doesn't sit inside your repo folder. You attach <code>AI_CONTEXT.md</code> as a file at the start of the conversation, and Comet refers back to it for the rest of the session.</p>
+      <p>Claude Code (the desktop CLI / IDE plugin) doesn't auto-read every file in your project. To make sure it reads <code>AI_CONTEXT.md</code> first, reference it explicitly at the start of your conversation.</p>
       <ol>
-        <li>Open Comet and start a new chat with the coding-capable model (Sonnet, Opus or GPT-5 depending on your plan).</li>
-        <li>Click the <strong>attach</strong> icon and upload <code>AI_CONTEXT.md</code> from your cloned repo folder.</li>
-        <li>In the same message, paste the <a href="#first-prompt">first-prompt template</a>.</li>
+        <li>Open the cloned repo folder in your terminal.</li>
+        <li>Start Claude Code (<code>claude</code> in your shell, or open it from your IDE).</li>
+        <li>In the first message, drag <code>AI_CONTEXT.md</code> into the chat to attach it as a file reference, or type <code>@AI_CONTEXT.md</code> and Claude will pick it up.</li>
       </ol>
-      <p>Comet can run shell commands if you grant it access, so it'll be able to <code>git push</code> for you once you've confirmed.</p>
+      <p>Then paste the <a href="#first-prompt">first-prompt template</a> below.</p>
     </div>
 
-    <h2 id="chatgpt">ChatGPT in a browser <span class="badge badge-manual">file attachment</span></h2>
+    <h2 id="cline">Cline <span class="badge badge-auto">auto-read</span></h2>
     <div class="tool-card">
-      <p>If you're not using a dedicated code tool, the browser version of ChatGPT works fine for small changes. You'll do more copy-paste, but the loop still works.</p>
+      <p>Cline is a VS Code extension — it sees your whole workspace, so <code>AI_CONTEXT.md</code> is in context as soon as you open the repo folder.</p>
       <ol>
-        <li>Open <a href="https://chat.openai.com">chat.openai.com</a> and start a new chat (GPT-5 or whichever Code-capable model you have).</li>
-        <li>Click the <strong>+</strong> button next to the prompt box and upload <code>AI_CONTEXT.md</code> from your repo folder.</li>
+        <li>Open VS Code and use <strong>File → Open Folder</strong> on the cloned repo.</li>
+        <li>Click the Cline icon in the sidebar to open the chat.</li>
+        <li>In the first message, type <code>@AI_CONTEXT.md</code> to pin the file explicitly (Cline's recent versions auto-discover it, but pinning is foolproof).</li>
+      </ol>
+      <p>Then paste the <a href="#first-prompt">first-prompt template</a>. Cline runs locally and asks for approval before each file edit — useful while you're getting comfortable; switch to auto-approve later if you want.</p>
+    </div>
+
+    <h2 id="codex">Codex (OpenAI CLI) <span class="badge badge-auto">auto-read</span></h2>
+    <div class="tool-card">
+      <p>OpenAI's Codex CLI runs in your terminal and reads files in the working directory like Claude Code. You'll need a ChatGPT Plus / Pro / Team / Enterprise login.</p>
+      <ol>
+        <li>Open the cloned repo folder in your terminal.</li>
+        <li>Run <code>codex</code> (after installing via <code>npm install -g @openai/codex</code> or the OpenAI installer).</li>
+        <li>In the first message, type <code>@AI_CONTEXT.md</code> to bring the file into context.</li>
+      </ol>
+      <p>Then paste the <a href="#first-prompt">first-prompt template</a>. Codex defaults to ask-before-editing — exactly the safe default for a Hatchik sandbox.</p>
+    </div>
+
+    <h2 id="antigravity">Antigravity (Google) <span class="badge badge-auto">auto-read</span></h2>
+    <div class="tool-card">
+      <p>Antigravity is Google's agentic IDE built around Gemini. It opens project folders like VS Code and auto-indexes the contents — <code>AI_CONTEXT.md</code> is in scope from the moment you open the repo.</p>
+      <ol>
+        <li>Open Antigravity.</li>
+        <li><strong>File → Open Folder</strong> and pick the cloned repo.</li>
+        <li>Open the agent panel and start a new conversation.</li>
+      </ol>
+      <p>Then paste the <a href="#first-prompt">first-prompt template</a>. If Gemini seems unaware of the file, attach it explicitly via the paperclip icon — same fallback as Cursor.</p>
+    </div>
+
+    <h2 id="browser-ais">Browser AIs (ChatGPT, Gemini, Grok, Claude.ai, Perplexity Comet) <span class="badge badge-manual">file attachment</span></h2>
+    <div class="tool-card">
+      <p>If you don't have a dedicated coding tool, any browser-based AI works for small changes — you just do more copy-paste than file-editing. The loop still works.</p>
+      <ol>
+        <li>Open the chat (<a href="https://chat.openai.com">chat.openai.com</a>, <a href="https://gemini.google.com">gemini.google.com</a>, <a href="https://grok.com">grok.com</a>, <a href="https://claude.ai">claude.ai</a>, or Comet) and start a new conversation with a code-capable model.</li>
+        <li>Click the <strong>attach</strong> / <strong>+</strong> icon and upload <code>AI_CONTEXT.md</code> from your cloned repo folder.</li>
         <li>In the same message, paste the <a href="#first-prompt">first-prompt template</a>.</li>
       </ol>
-      <p>ChatGPT can't run Git from inside the browser, so you'll need to copy edited files back into your repo yourself and run <code>git push</code> in your terminal. (Or use the Codex side-panel if you have it.)</p>
+      <p>None of these can run <code>git push</code> from inside the browser (Comet is the partial exception — it can run shell commands if you grant it access). For the others, copy edited files back into your repo yourself and run <code>git push</code> in your terminal — or use Hatchik's redeploy URL from <code>AI_CONTEXT.md</code> if you'd rather not touch a terminal at all.</p>
     </div>
 
     <h2 id="first-prompt">Universal first-prompt template</h2>

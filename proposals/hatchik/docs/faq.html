@@ -173,7 +173,16 @@
 
     <div class="qa">
       <h3 id="not-dev">What if I'm not a developer?</h3>
-      <p>Hatchik is built for you. The product owners we have in mind are lawyers, restaurateurs, consultants, designers — people with a clear app idea but no infrastructure background. You'll drive an AI helper (Claude, Cursor or similar) to build the actual features, and we make sure that experience is safe — your AI can't accidentally break the substrate. If you've never used an AI coding tool before, see <a href="/ai-tool-setup">AI tool setup</a>.</p>
+      <p>Hatchik is built for you. The product owners we have in mind are lawyers, restaurateurs, consultants, designers — people with a clear app idea but no infrastructure background. You'll drive an AI helper (Cursor, Windsurf, Claude Code, Cline, Codex, Antigravity or similar) to build the actual features, and we make sure that experience is safe — your AI can't accidentally break the substrate. If you've never used an AI coding tool before, see <a href="/ai-tool-setup">AI tool setup</a>.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="which-ai">Does it work with GPT, Gemini, Grok? What about Copilot, Codex, or Antigravity?</h3>
+      <p>Yes to all. Hatchik gives you a normal GitHub repo and a file called <code>AI_CONTEXT.md</code> that explains your stack — any AI coding tool can read that file and start helping.</p>
+      <p><strong>Named and tested</strong> (these open the repo folder and edit files autonomously): Cursor, Windsurf, Claude Code, Cline, Codex (OpenAI's CLI), Antigravity (Google's IDE). Continue, Aider, and Copilot agent mode also work via the standard MCP config — see <a href="/install">install</a>.</p>
+      <p><strong>Browser AIs work too</strong>: ChatGPT, Gemini, Grok, Claude.ai, Perplexity Comet — you copy-paste between the chat and your editor instead of letting the AI edit files directly. Comet can also run shell commands and <code>git push</code> for you if you grant access.</p>
+      <p><strong>And the AI <em>inside</em> your app</strong> (for features like chatbots or summaries) is a separate question — that can use any provider: Anthropic, OpenAI, Google, xAI (Grok), Mistral, OpenRouter, or open-source models. Drop your provider key in your app's <code>.env</code> file and the substrate routes calls there.</p>
+      <p>If your tool isn't on this list, try it anyway — most of them just work. If it doesn't, email us at <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> and we'll add wiring instructions.</p>
     </div>
 
     <div class="qa">

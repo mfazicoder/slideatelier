@@ -219,7 +219,8 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
         "name": "AI_CONTEXT.md",
         "detail": (
             "Substrate map + deploy token + first-prompt template. Drop into "
-            "Claude Code, Cursor, or Windsurf and start building."
+            "Cursor, Windsurf, Claude Code, Cline, Codex, or Antigravity "
+            "and start building."
         ),
         "status": "live",
         "configure_url": "{repo_url}",
