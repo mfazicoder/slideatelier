@@ -709,6 +709,21 @@ def reconcile_one(
         entry["actions"].append("skip-not-live")
         return
 
+    # ── Promoted-tenant escape hatch ─────────────────────────────────────
+    # Tenants whose customer has upgraded to Launch/Growth keep their
+    # sandbox as a dev environment. promote.py marks the registry entry
+    # with `promoted_to` ("launch" | "growth") + `promoted_at` at promote
+    # time. The idle-archive policy doesn't apply — the customer is
+    # paying for Launch/Growth, the sandbox is their dev side, it stays
+    # alive even if untouched for weeks. The ongoing infra cost (~£1.50/mo
+    # share of the shared sandbox host) is folded into the Launch/Growth
+    # cost-to-serve in MARKETING_PLAN §6 + AI_COGS_SENSITIVITY.xlsx.
+    promoted_to = tenant.get("promoted_to")
+    if promoted_to:
+        promoted_at = tenant.get("promoted_at", "?")
+        entry["actions"].append(f"skip-promoted-to-{promoted_to}-at-{promoted_at}")
+        return
+
     # ── Live path: query activity, compare to thresholds ─────────────────
     last_activity = query_last_activity(slug)
     if last_activity is None:

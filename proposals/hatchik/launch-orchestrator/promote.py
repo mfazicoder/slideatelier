@@ -364,8 +364,15 @@ Hatchik. Reply to this email if you'd like me to help.
             "Your Hatchik Launch tier is live",
             _customer_welcome_email(plan, live_url),
         )
+        # Founder's choice (option A from the smoke #13 review): keep the
+        # sandbox alive after promote so it acts as the customer's dev
+        # environment. Mark it `promoted_to: launch` so lifecycle.py
+        # skips its idle-archive policy (a customer paying for Launch
+        # shouldn't have their dev sandbox torn down for being idle —
+        # they may not need it every day, but it must be there when
+        # they do).
         if plan["sandbox_slug"]:
-            _decommission_sandbox(plan["sandbox_slug"], log_lines)
+            _mark_sandbox_promoted(plan["sandbox_slug"], "launch", log_lines)
         return {
             "ok": True,
             "server_id": server_id,
@@ -554,10 +561,75 @@ write_files:
 """
 
 
-# ─── Decommission sandbox (called after promote success) ────────────────
+# ─── Sandbox lifecycle after Launch promote ─────────────────────────────
+# Founder's choice (option A from smoke #13 review): the sandbox stays
+# alive as the customer's dev environment after they promote to Launch.
+# We mark its registry entry with `promoted_to` + `promoted_at` so
+# lifecycle.py knows to skip the idle-archive policy. The cost is one
+# extra ~1.3 GB sandbox slot on the shared host per launched customer —
+# baked into the AI_COGS_SENSITIVITY.xlsx model so the founder can see
+# the margin impact.
+#
+# The old `_decommission_sandbox` helper is retained below as
+# `_decommission_sandbox_legacy` because operators sometimes still need
+# to free the slug manually (e.g. when a customer downgrades to
+# Launch-without-sandbox, or when the dev sandbox is corrupted and
+# they want a fresh one).
 
-def _decommission_sandbox(slug: str, log_lines: list[str]) -> None:
-    """Free the sandbox slug — call sandbox-orchestrator/decommission.py."""
+import json as _json_for_registry  # local alias — avoids shadowing module-level imports
+
+SANDBOX_REGISTRY_FILE = Path(
+    os.environ.get("HATCHIK_SANDBOX_REGISTRY", "/opt/hatchik-tenants/registry.json")
+)
+
+
+def _mark_sandbox_promoted(slug: str, promoted_to: str, log_lines: list[str]) -> None:
+    """Mark the sandbox's registry entry as promoted to a paid tier.
+
+    Adds `promoted_to` (e.g. "launch" or "growth") and `promoted_at`
+    (ISO timestamp) fields. lifecycle.py reads these to skip the
+    idle-archive policy for promoted tenants.
+
+    Non-fatal if the registry is missing or the slug isn't in it —
+    we log a WARN and move on. Promote shouldn't fail just because
+    the sandbox housekeeping is in an unexpected state.
+    """
+    if not SANDBOX_REGISTRY_FILE.exists():
+        log_lines.append(
+            f"WARN: sandbox registry not found at {SANDBOX_REGISTRY_FILE} — "
+            f"slug {slug} not marked as promoted (lifecycle may try to archive it)"
+        )
+        return
+    try:
+        reg = _json_for_registry.loads(SANDBOX_REGISTRY_FILE.read_text())
+        tenant = reg.get("tenants", {}).get(slug)
+        if tenant is None:
+            log_lines.append(
+                f"WARN: sandbox slug {slug} not found in registry — "
+                f"can't mark promoted; lifecycle will treat it as a normal sandbox"
+            )
+            return
+        tenant["promoted_to"] = promoted_to
+        tenant["promoted_at"] = datetime.now(timezone.utc).isoformat()
+        tmp = SANDBOX_REGISTRY_FILE.with_suffix(".json.tmp")
+        tmp.write_text(_json_for_registry.dumps(reg, indent=2, sort_keys=True))
+        tmp.rename(SANDBOX_REGISTRY_FILE)
+        log_lines.append(
+            f"sandbox slug {slug} marked promoted_to={promoted_to}; "
+            f"idle-archive policy disabled for it"
+        )
+    except Exception as e:  # noqa: BLE001
+        log_lines.append(f"WARN _mark_sandbox_promoted exception: {e}")
+
+
+def _decommission_sandbox_legacy(slug: str, log_lines: list[str]) -> None:
+    """Free the sandbox slug — call sandbox-orchestrator/decommission.py.
+
+    NOT called from the standard promote flow (sandboxes stay alive as
+    dev environments per the option-A decision). Retained for operator
+    use: customer-initiated `decommission my sandbox` flow, or recovery
+    from a corrupted sandbox where the customer wants a fresh one.
+    """
     import subprocess
     decom = Path("/opt/hatchik-orchestrator/decommission.py")
     if not decom.exists():
