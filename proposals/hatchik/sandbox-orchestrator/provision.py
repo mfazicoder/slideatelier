@@ -457,14 +457,42 @@ changed).
 You don't run the stack locally — Docker + Supabase + Caddy is too heavy.
 The sandbox is your dev environment. Push small, push often.
 
-## First-prompt template — paste into your AI tool
+## Building your first feature — instructions for the AI
 
-Once you've cloned the repo and opened it in Claude Code (or Cursor):
+> **AI tool reading this**: the human is non-technical. They use you to
+> vibe-code. They probably don't know git, Docker, or what "clone a
+> repo" means. **You handle the mechanics; they describe the feature.**
+>
+> When they say things like "ship it", "deploy", "save my changes",
+> "push it live", or "make it real" — just do it:
+> 1. `git add -A && git commit -m "<short description>"`
+> 2. `git push`
+> Their sandbox redeploys in ~30s. Confirm when it's live.
+>
+> Don't ask the human to open a terminal, run `git`, or paste commands.
+> If you can't run the command yourself in the current environment,
+> POST to the deploy URL below instead (curl command is in this file).
+
+### Recommended kick-off prompt
+
+When the human first opens this repo in you, here's a sensible
+starting prompt to internalise:
 
 > {first_prompt}
 
-The AI will read this file, understand the substrate, and start
-proposing changes. Accept, push, watch the sandbox update.
+Start by:
+1. Reading this whole AI_CONTEXT.md (you're doing that now).
+2. Reading `apps/web/src/App.tsx` and `apps/api/src/index.ts` to see
+   the current routes wired in.
+3. Asking the human ONE concrete question about the very first
+   user-facing flow they want to see working. Not a list of options;
+   ONE question.
+4. Proposing a tiny, shippable first slice — a single page or a
+   single API route. Push that. Get the feedback loop going.
+
+Anything under `apps/web/src/product/`, `apps/api/src/product/`, and
+`supabase/migrations/` is yours to edit freely. The "Don't edit" list
+below is substrate plumbing — leave it alone.
 
 ## Building for mobile
 
@@ -875,7 +903,18 @@ def send_walkthrough_email(
     first_name: str = "",
     first_prompt: str = "",
 ) -> bool:
-    """Send the "get started with Claude Code" follow-up email.
+    """Send the "build your first feature with your AI tool" follow-up.
+
+    Written for the non-tech, vibe-coding founder: no git knowledge
+    assumed, no terminal steps required. The recommended path is the
+    web-only route (Codespaces / github.dev); the local-AI-tool route is
+    presented as an alternative for people who already have Cursor /
+    Claude Code installed.
+
+    The "first prompt" content (substrate orientation, where to put new
+    code, etc.) lives inside AI_CONTEXT.md in the customer's repo — see
+    write_ai_context() — so the AI can self-serve when read with the
+    one-line "read AI_CONTEXT.md and let's start" instruction.
 
     Fires right after send_sandbox_ready_email so the customer has both
     inbox messages by the time they sit down to actually build. Failures
@@ -885,46 +924,76 @@ def send_walkthrough_email(
         print("WARN: no RESEND_API_KEY, skipping walkthrough email")
         return False
     greeting = f"Hi {first_name}," if first_name else "Hi,"
-    clone_cmd = f"git clone {repo_url}.git"
     # docs.hatchik.com is under construction — link to the FAQ until it's
     # ready so customers don't land on a 404.
     docs_url = f"https://{DOMAIN}/#faq"
+    install_url = f"https://{DOMAIN}/install"
+    support_email = "support@hatchik.com"
+    # github.dev opens a browser editor on the repo (no install needed);
+    # Codespaces gives a full VS Code in the browser. Both are "click
+    # the green Code button" pathways the customer can do without ever
+    # touching a terminal.
+    codespaces_url = repo_url
+    githubdev_url = repo_url.replace("https://github.com/", "https://github.dev/") if repo_url else ""
+
     text = f"""{greeting}
 
-Your {product_name} sandbox is up — now to the fun part: building it.
+How to build your first feature with your AI tool.
 
-Hatchik gives you a GitHub repo that mirrors the substrate running in
-your sandbox. Clone it, open it in an AI coding tool, push your
-changes; your sandbox redeploys automatically — usually within 30
-seconds of your push or your AI tool calling our deploy endpoint.
+Your code lives in a GitHub repo we made for you. It's already a
+working app — you just add the features that make it yours. Your AI
+tool does the actual code-writing; you describe what you want.
 
-Step 1 — open your repo
-{repo_url}
+Your repo: {repo_url}
 
-Step 2 — clone it locally
-  {clone_cmd}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use it on the web (recommended)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Step 3 — open the folder in Claude Code, Cursor, or Windsurf
-Any one of them will do. They all read the AI_CONTEXT.md file in the
-repo root, which tells them where the substrate boundaries are, how
-to talk to your sandbox, and how to deploy.
+No installs. No terminal. Works in any browser.
 
-Step 4 — paste this prompt to get rolling
-  {first_prompt}
+1. Visit your repo: {repo_url}
+2. Click the green "Code" button at the top right.
+3. Pick one of:
+   • "Open in GitHub Codespaces" — full editor in your browser, AI
+     tools that support remote MCP read the repo directly.
+   • "Open in github.dev" (or press . on the repo page) — quick
+     in-browser file editor at {githubdev_url}.
+4. Tell your AI helper: "read AI_CONTEXT.md and let's start."
 
-Step 5 — push your changes
-  git add . && git commit -m "first feature" && git push
-Your sandbox redeploys automatically — usually within 30 seconds of
-your push (or sooner if your AI tool calls the deploy endpoint
-directly; AI_CONTEXT.md shows it how).
+That's it. AI_CONTEXT.md tells your AI everything it needs to know
+about your sandbox — what's wired up, where to put new code, how to
+deploy. You just describe the feature.
 
-Stuck? Reply to this email — Farhan reads everything personally.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Or use a local AI tool (Cursor, Claude Code)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you prefer Cursor or Claude Code on your own laptop, your AI
+tool will get the repo for you with one command — we'll guide you
+through it on first run. After that:
+
+• You tell the AI what you want to build.
+• It writes the code AND handles git for you — commits, pushes,
+  the lot. You don't need to know what any of those words mean.
+• Your sandbox redeploys in about 30 seconds. Reload and look at it.
+
+Setup instructions for each tool are at {install_url}.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Works with any AI coding tool that supports MCP: Claude Code, Cursor,
+Windsurf, Cline. If yours isn't listed, ask it — most of them will
+just work.
+
+Already built your app elsewhere? Reach out via {support_email} and
+we'll help migrate your code in.
+
+Reply if you're stuck — we'll help you get unstuck.
 
 — Hatchik
 
 More at {docs_url}.
-
-(This is an automated message — please don't reply.)
 """
     html = f"""\
 <!DOCTYPE html>
@@ -932,7 +1001,7 @@ More at {docs_url}.
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Get started building {product_name}</title>
+  <title>Build your first feature in {product_name}</title>
 </head>
 <body style="margin:0;padding:0;background:#f6f5f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f6f5f1;">
@@ -941,31 +1010,50 @@ More at {docs_url}.
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background:#ffffff;border-radius:8px;padding:32px;">
           <tr>
             <td style="font-size:16px;line-height:1.6;color:#1a1a1a;">
-              <p style="margin:0 0 16px 0;">{greeting}</p>
-              <p style="margin:0 0 16px 0;">Your <strong>{product_name}</strong> sandbox is up &mdash; now to the fun part: building it.</p>
-              <p style="margin:0 0 24px 0;">Hatchik gives you a GitHub repo that mirrors the substrate running in your sandbox. Clone it, open it in an AI coding tool, push your changes; your sandbox redeploys automatically &mdash; usually within 30 seconds of your push or your AI tool calling our deploy endpoint.</p>
+              <p style="margin:0 0 8px 0;font-weight:600;font-size:20px;color:#0f172a;">How to build your first feature with your AI tool</p>
+              <p style="margin:0 0 24px 0;">{greeting}</p>
 
-              <p style="margin:24px 0 8px 0;font-weight:600;">Step 1 &mdash; open your repo</p>
-              <p style="margin:0 0 16px 0;"><a href="{repo_url}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;">Open on GitHub &rarr;</a></p>
+              <p style="margin:0 0 16px 0;">Your code lives in a GitHub repo we made for you. It&rsquo;s already a working app &mdash; you just add the features that make it yours. Your AI tool does the actual code-writing; you describe what you want.</p>
 
-              <p style="margin:24px 0 8px 0;font-weight:600;">Step 2 &mdash; clone it locally</p>
-              <pre style="margin:0 0 16px 0;background:#f6f5f1;padding:12px 16px;border-radius:8px;font-size:13px;overflow:auto;"><code>{clone_cmd}</code></pre>
+              <p style="margin:0 0 24px 0;"><a href="{repo_url}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;">Open your repo on GitHub &rarr;</a></p>
 
-              <p style="margin:24px 0 8px 0;font-weight:600;">Step 3 &mdash; open the folder in your AI tool</p>
-              <p style="margin:0 0 16px 0;">Claude Code, Cursor, or Windsurf &mdash; any of them. They all read the <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> file in the repo root, which tells them where the substrate boundaries are and how to talk to your sandbox.</p>
+              <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 4px 0;font-weight:600;font-size:16px;color:#0f172a;">Use it on the web</p>
+              <p style="margin:0 0 16px 0;color:#555;font-size:14px;"><strong>Recommended for non-coders.</strong> No installs, no terminal, works in any browser.</p>
 
-              <p style="margin:24px 0 8px 0;font-weight:600;">Step 4 &mdash; paste this prompt to get rolling</p>
-              <blockquote style="margin:0 0 16px 0;padding:12px 16px;background:#f6f5f1;border-left:3px solid #4f46e5;border-radius:0 8px 8px 0;font-size:14px;color:#333;">{_html_escape(first_prompt)}</blockquote>
+              <ol style="margin:0 0 16px 0;padding-left:20px;">
+                <li style="margin:0 0 8px 0;">Visit <a href="{repo_url}" style="color:#4f46e5;text-decoration:underline;">your repo</a>.</li>
+                <li style="margin:0 0 8px 0;">Click the green <strong>Code</strong> button (top right of the repo page).</li>
+                <li style="margin:0 0 8px 0;">Pick one of:
+                  <ul style="margin:6px 0 0 0;padding-left:18px;">
+                    <li style="margin:0 0 4px 0;"><strong>Open in GitHub Codespaces</strong> &mdash; full VS Code in your browser. AI tools with remote MCP support read the repo directly.</li>
+                    <li style="margin:0 0 4px 0;"><strong>Open in github.dev</strong> (or press <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">.</code> on the repo page) &mdash; lightweight in-browser editor.</li>
+                  </ul>
+                </li>
+                <li style="margin:0 0 8px 0;">Tell your AI helper: <em>&ldquo;read <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo;</em></li>
+              </ol>
+              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">That&rsquo;s it. <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> tells your AI everything it needs to know about your sandbox &mdash; what&rsquo;s wired up, where to put new code, how to deploy. You just describe the feature.</p>
 
-              <p style="margin:24px 0 8px 0;font-weight:600;">Step 5 &mdash; push your changes</p>
-              <pre style="margin:0 0 16px 0;background:#f6f5f1;padding:12px 16px;border-radius:8px;font-size:13px;overflow:auto;"><code>git add . &amp;&amp; git commit -m "first feature" &amp;&amp; git push</code></pre>
-              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">Your sandbox redeploys automatically &mdash; usually within 30 seconds of your push (or sooner if your AI tool calls the deploy endpoint directly; <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;">AI_CONTEXT.md</code> shows it how).</p>
+              <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 4px 0;font-weight:600;font-size:16px;color:#0f172a;">Or use a local AI tool (Cursor, Claude Code)</p>
+              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">If you prefer to run your AI on your own laptop:</p>
+              <ul style="margin:0 0 16px 0;padding-left:20px;color:#333;font-size:14px;">
+                <li style="margin:0 0 6px 0;">Your AI tool will get the repo for you with one command &mdash; we&rsquo;ll guide you through it on first run.</li>
+                <li style="margin:0 0 6px 0;">You tell the AI what you want to build.</li>
+                <li style="margin:0 0 6px 0;">It writes the code <strong>and handles git for you</strong> &mdash; when it suggests changes, it commits and pushes for you. Your sandbox redeploys in about 30 seconds. You don&rsquo;t need to know git.</li>
+              </ul>
+              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Setup instructions for each tool are at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{install_url}</a>.</p>
 
-              <p style="margin:32px 0 16px 0;">Stuck? Reply to this email &mdash; Farhan reads everything personally.</p>
+              <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 8px 0;font-weight:600;font-size:15px;">Works with any AI tool that supports MCP</p>
+              <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Claude Code, Cursor, Windsurf, Cline. If yours isn&rsquo;t listed, just ask it &mdash; most of them will work.</p>
+
+              <p style="margin:0 0 16px 0;color:#333;font-size:14px;"><strong>Already built your app elsewhere?</strong> Reach out via <a href="mailto:{support_email}" style="color:#4f46e5;text-decoration:underline;">{support_email}</a> &mdash; we&rsquo;ll help migrate your code in.</p>
+
+              <p style="margin:24px 0 16px 0;">Reply if you&rsquo;re stuck &mdash; we&rsquo;ll help you get unstuck.</p>
 
               <p style="margin:24px 0 0 0;">&mdash; Hatchik</p>
-              <p style="margin:24px 0 0 0;color:#555;font-size:14px;">More at <a href="{docs_url}" style="color:#4f46e5;text-decoration:underline;">{docs_url}</a>.</p>
-              <p style="margin:24px 0 0 0;color:#888;font-size:12px;">This is an automated message &mdash; please don&rsquo;t reply.</p>
+              <p style="margin:16px 0 0 0;color:#555;font-size:14px;">More at <a href="{docs_url}" style="color:#4f46e5;text-decoration:underline;">{docs_url}</a>.</p>
             </td>
           </tr>
         </table>
@@ -978,7 +1066,7 @@ More at {docs_url}.
     payload = {
         "from": HATCHIK_FROM_EMAIL,
         "to": to,
-        "subject": f"Start building {product_name} — your AI-coding handoff",
+        "subject": f"Build your first feature in {product_name} with your AI tool",
         "text": text,
         "html": html,
     }
