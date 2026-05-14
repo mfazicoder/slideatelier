@@ -565,7 +565,7 @@
         </div>
         <div>
           <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Available on upgrade (${upgrade.length})</h3>
-          <ul class="mt-3 rounded-xl ring-1 ring-slate-200 bg-white px-4">${upgradeItems || '<li class="py-3 text-sm text-slate-500">Everything's wired.</li>'}</ul>
+          <ul class="mt-3 rounded-xl ring-1 ring-slate-200 bg-white px-4">${upgradeItems || '<li class="py-3 text-sm text-slate-500">Everything&rsquo;s wired.</li>'}</ul>
         </div>
       </div>
       ${info.sandbox_url ? `<p class="mt-6 text-xs text-slate-500">Sandbox: <a href="${escapeHtml(info.sandbox_url)}" target="_blank" rel="noopener" class="text-indigo-600 hover:text-indigo-700">${escapeHtml(info.sandbox_url)}</a>${info.repo_url ? ` &middot; Repo: <a href="${escapeHtml(info.repo_url)}" target="_blank" rel="noopener" class="text-indigo-600 hover:text-indigo-700">${escapeHtml(info.repo_url.replace(/^https?:\/\//, ''))}</a>` : ''}</p>` : ''}
