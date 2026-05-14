@@ -124,11 +124,13 @@ they can route AI usage through Hatchik for unified billing.
 | Setup | Customer adds their Anthropic / OpenAI / OpenRouter key to their `.env` | Customer flips toggle in dashboard; no key needed |
 | Billing | Provider bills customer directly | Hatchik bills customer; we pay providers |
 | Invoice line | n/a | Single line: "AI usage — £X" (no margin breakdown shown) |
-| Margin | None — customer pays provider rate | We mark up provider cost (margin not surfaced on invoice) |
+| Margin | None — customer pays provider rate | Hatchik applies a small markup over provider cost on tokens past the included allowance.[^overage-markup] |
 | Provider switching | Customer's choice | One config change, switch between Claude/GPT/Gemini/Grok |
 | Token allowance included | n/a | £3/mo on Launch, £10/mo on Growth |
 | Cost caps | Customer's own setup | Built-in spend caps in dashboard |
 | Best for | Customers with existing AI provider accounts; cost-sensitive | Customers wanting unified billing, vendor flexibility, runaway-prompt protection |
+
+[^overage-markup]: The exact markup is a strategic lever, not a published rate. Default modelled at 30% in `proposals/hatchik/AI_COGS_SENSITIVITY.xlsx` (cell `overage_markup` on the Inputs sheet — tunable to model alternative values). The bundled-invoice presentation does not surface it line-by-line; the customer sees only the all-in usage figure.
 
 **No lock-in either way.** Customer can switch from passthrough to BYO key
 (or vice versa) at any time. The substrate code reads from environment
