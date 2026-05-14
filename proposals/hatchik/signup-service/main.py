@@ -35,6 +35,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, field_validator
 
+# Local sibling: TLD allowlist for Launch-tier ``domain_choice``. Phase-1
+# input guard so we never offer to register a domain that costs more than
+# £14/yr (the cap implied by Launch's £89 setup fee). See
+# ``proposals/hatchik/DOMAIN_REGISTRATION_SCOPE.md`` for the full memo.
+from domains import validate_domain as validate_domain_choice  # noqa: E402
+
 # ─── service_inventory import shim ────────────────────────────────────────
 # service_inventory.py is the canonical "what ships in a sandbox" data
 # source. It lives in sandbox-orchestrator/ (used by provision.py for the
@@ -1665,6 +1671,28 @@ async def create_signup(req: SignupRequest, request: Request) -> Any:
                 "message": "Please accept the Terms of Service and Privacy Policy to sign up.",
             },
         )
+
+    # Launch-tier domain allowlist. Phase-1 input guard: rejects
+    # customer-supplied domains whose TLD costs more than the ~£14/yr we
+    # can absorb inside the £89 setup fee. Sandbox doesn't get a custom
+    # domain (it lives on a hatchik.com subdomain) so we skip there.
+    # Empty domain_choice on Launch is also rejected — we can't honour
+    # "year 1 included" against a blank value.
+    if req.tier == "launch":
+        ok_domain, domain_msg = validate_domain_choice(req.domain_choice)
+        if not ok_domain:
+            log.info(
+                "rejected launch signup domain from %s: %r (%s)",
+                ip, req.domain_choice, domain_msg,
+            )
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "ok": False,
+                    "error": "domain_not_supported",
+                    "message": domain_msg,
+                },
+            )
 
     # Disposable-email gate — applied before any expensive work (Turnstile,
     # geo-IP, DB insert) so abuse traffic doesn't waste resources.
