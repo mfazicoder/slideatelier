@@ -128,6 +128,7 @@
     <button data-tab="upgrade"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Upgrade</button>
     <button data-tab="billing"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Billing</button>
     <button data-tab="settings"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Settings</button>
+    <button data-tab="api-keys"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">API keys</button>
     <button data-tab="danger"    class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-rose-600">Danger zone</button>
   </nav>
 
@@ -250,6 +251,48 @@
         <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition">Save</button>
         <p id="githubStatus" class="text-sm hidden"></p>
       </form>
+    </div>
+  </div>
+
+  <!-- API keys tab -->
+  <div data-tab-panel="api-keys" id="api-keys" class="mt-8 space-y-6">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8 max-w-2xl">
+      <h2 class="text-xl font-bold">API keys</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        An API key lets your AI coding tool (Cursor, Windsurf, Claude Code, Cline, Codex, Antigravity &mdash; via the Hatchik MCP) talk to your Hatchik project from chat: deploy, check status, redeploy, etc.
+        Paste the key into the MCP config snippet on <a href="/install" class="text-indigo-600 underline">hatchik.com/install</a> in place of <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_HATCHIK_API_KEY</code>.
+      </p>
+      <p class="mt-3 text-xs text-slate-500 leading-relaxed">
+        Heads-up: a new key&rsquo;s plaintext is shown <strong>only once</strong>, the moment you create it. Copy it then &mdash; we only keep a one-way hash after that. Lost the key? Revoke and reissue, no harm done.
+      </p>
+
+      <form id="apiKeyCreateForm" class="mt-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+        <div class="flex-1">
+          <label for="apiKeyName" class="text-sm font-medium text-slate-700">Label (so you remember what it&rsquo;s for)</label>
+          <input id="apiKeyName" name="name" type="text" maxlength="80"
+            placeholder="e.g. Cursor on my MacBook"
+            class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+        </div>
+        <button type="submit" class="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition shrink-0">Create new key</button>
+      </form>
+      <p id="apiKeyStatus" class="mt-3 text-sm hidden"></p>
+
+      <!-- Plaintext-reveal box. Shown once after a successful create, then dismissed. -->
+      <div id="apiKeyReveal" class="hidden mt-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200">
+        <p class="text-sm font-semibold text-amber-900">Copy this key now &mdash; you won&rsquo;t see it again.</p>
+        <div class="mt-3 flex items-stretch gap-2">
+          <code id="apiKeyPlaintext" class="flex-1 font-mono text-xs bg-white border border-amber-300 rounded-lg px-3 py-3 overflow-x-auto select-all" style="word-break:break-all;"></code>
+          <button id="apiKeyCopyBtn" type="button" class="shrink-0 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition">Copy</button>
+        </div>
+        <button id="apiKeyDismissBtn" type="button" class="mt-3 text-xs text-amber-800 underline">I&rsquo;ve copied it, hide this</button>
+      </div>
+
+      <div class="mt-8">
+        <p class="text-sm font-semibold text-slate-800">Your keys</p>
+        <div id="apiKeyList" class="mt-3 space-y-2 text-sm">
+          <p class="text-slate-500 italic">Loading&hellip;</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -656,6 +699,7 @@
       renderBilling();
       renderMobile(me.sandboxes || []);
       renderServices(me.sandboxes || []);
+      renderApiKeys();
       show('dashboard');
     } catch (e) {
       if (e.status === 401) {
@@ -895,14 +939,140 @@
     status.classList.remove('hidden');
   });
 
+  // ─── API keys ───────────────────────────────────────────────────
+  //
+  // The server returns the plaintext key exactly once on create; after
+  // that only the metadata. We reveal-once in a yellow box then dismiss.
+  //
+  // The list re-fetches after every create or revoke so labels and
+  // "last used" stay current. Revoked keys still render (as muted +
+  // "Revoked") so the customer can audit what's been retired.
+  async function renderApiKeys() {
+    const listEl = $('apiKeyList');
+    listEl.innerHTML = '<p class="text-slate-500 italic">Loading…</p>';
+    try {
+      const data = await fetchJSON('/api/account/api-keys');
+      const keys = data.keys || [];
+      if (keys.length === 0) {
+        listEl.innerHTML = '<p class="text-slate-500 italic">You haven\'t created an API key yet. Click <strong>Create new key</strong> above when you\'re ready to wire up your AI tool.</p>';
+        return;
+      }
+      listEl.innerHTML = '';
+      for (const k of keys) {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-3 p-3 rounded-xl border ' + (k.revoked_at ? 'border-slate-200 bg-slate-50 opacity-60' : 'border-slate-200');
+        const created = (k.created_at || '').slice(0, 10);
+        const lastUsed = k.last_used_at ? `last used ${k.last_used_at.slice(0,10)}` : 'never used';
+        const status = k.revoked_at ? `<span class="ml-2 text-xs text-rose-600 font-medium">Revoked</span>` : '';
+        row.innerHTML = `
+          <div class="min-w-0 flex-1">
+            <p class="font-medium text-slate-900 truncate">${escapeHtml(k.name || 'Unnamed key')}${status}</p>
+            <p class="text-xs text-slate-500">created ${created} · ${lastUsed}</p>
+          </div>
+        `;
+        if (!k.revoked_at) {
+          const revokeBtn = document.createElement('button');
+          revokeBtn.type = 'button';
+          revokeBtn.className = 'shrink-0 px-3 py-1.5 text-xs rounded-lg text-rose-600 border border-rose-200 hover:bg-rose-50 transition';
+          revokeBtn.textContent = 'Revoke';
+          revokeBtn.addEventListener('click', () => revokeApiKey(k.id, k.name || 'this key'));
+          row.appendChild(revokeBtn);
+        }
+        listEl.appendChild(row);
+      }
+    } catch (e) {
+      listEl.innerHTML = '<p class="text-rose-600">Couldn\'t load your API keys. Refresh the page to try again.</p>';
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function revokeApiKey(id, label) {
+    if (!confirm(`Revoke "${label}"? Any tool using this key will stop working immediately. You can create a fresh one straight after.`)) return;
+    try {
+      const res = await fetch(`/api/account/api-keys/${id}`, { method: 'DELETE', credentials: 'same-origin' });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+      await renderApiKeys();
+    } catch (e) {
+      alert("Couldn't revoke that key — try again in a moment.");
+    }
+  }
+
+  const apiKeyForm = $('apiKeyCreateForm');
+  if (apiKeyForm) {
+    apiKeyForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const nameInput = $('apiKeyName');
+      const status = $('apiKeyStatus');
+      const reveal = $('apiKeyReveal');
+      const plaintextEl = $('apiKeyPlaintext');
+      status.classList.add('hidden');
+      reveal.classList.add('hidden');
+      const name = (nameInput.value || '').trim();
+      try {
+        const data = await fetchJSON('/api/account/api-keys', {
+          method: 'POST',
+          body: JSON.stringify({ name }),
+        });
+        plaintextEl.textContent = data.key || '';
+        reveal.classList.remove('hidden');
+        nameInput.value = '';
+        await renderApiKeys();
+      } catch (e) {
+        status.textContent = "Couldn't create that key — try again in a moment.";
+        status.className = 'mt-3 text-sm text-rose-600';
+        status.classList.remove('hidden');
+      }
+    });
+  }
+
+  const apiKeyCopyBtn = $('apiKeyCopyBtn');
+  if (apiKeyCopyBtn) {
+    apiKeyCopyBtn.addEventListener('click', async () => {
+      const text = $('apiKeyPlaintext').textContent || '';
+      try {
+        await navigator.clipboard.writeText(text);
+        apiKeyCopyBtn.textContent = 'Copied ✓';
+        setTimeout(() => { apiKeyCopyBtn.textContent = 'Copy'; }, 2000);
+      } catch (e) {
+        // Fallback: select-all so the user can ctrl/cmd-C
+        const range = document.createRange();
+        range.selectNodeContents($('apiKeyPlaintext'));
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    });
+  }
+
+  const apiKeyDismissBtn = $('apiKeyDismissBtn');
+  if (apiKeyDismissBtn) {
+    apiKeyDismissBtn.addEventListener('click', () => {
+      $('apiKeyReveal').classList.add('hidden');
+      $('apiKeyPlaintext').textContent = '';
+    });
+  }
+
   // Sign-out
   signOutBtn.addEventListener('click', async () => {
     try { await fetchJSON('/api/account/logout', { method: 'POST' }); } catch (e) { /* ignore */ }
     location.href = '/account';
   });
 
+  // Deep-link support: if the URL has #api-keys, jump to that tab on load.
+  // Used from install.html ("create one at /account#api-keys").
+  function honorHash() {
+    const hash = (location.hash || '').replace('#', '');
+    if (!hash) return;
+    const btn = document.querySelector(`[data-tab="${hash}"]`);
+    if (btn) btn.click();
+  }
+  window.addEventListener('hashchange', honorHash);
+
   setupTabs();
-  bootstrap();
+  bootstrap().then(honorHash);
 })();
 </script>
 

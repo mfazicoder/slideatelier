@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Install Hatchik — connect your AI to your stack</title>
-<meta name="description" content="Paste this snippet into Claude, Cursor or Windsurf and your AI tool talks directly to your Hatchik project. Deploys, previews, rollbacks — all from chat." />
+<meta name="description" content="Paste one snippet into Cursor, Windsurf, Claude Code, Cline, Codex, or Antigravity — your AI tool talks directly to your Hatchik project. Deploys, previews, rollbacks all from chat." />
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,7 +159,7 @@
       check deploys, run migrations and roll things back — straight from chat. No CLI to learn.
     </p>
     <p class="mt-4 text-sm text-slate-500">
-      Takes ~2 minutes. You'll need the API key from your Hatchik welcome email.
+      Takes ~2 minutes. You'll need a Hatchik API key &mdash; <a href="/account#api-keys" class="text-indigo-600 underline">create one at hatchik.com/account &rarr; API keys</a> (the plaintext key is shown once, copy it then).
     </p>
   </div>
 </section>
@@ -249,7 +249,7 @@
         <span class="step-num">2</span>
         <div class="flex-1">
           <h4 class="font-bold mb-1">Paste this in</h4>
-          <p class="text-sm text-slate-600 mb-3">Replace <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_HATCHIK_API_KEY</span> with the key from your welcome email. If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry inside it.</p>
+          <p class="text-sm text-slate-600 mb-3">Replace <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">YOUR_HATCHIK_API_KEY</span> with your Hatchik API key (create one at <a href="/account#api-keys" class="text-indigo-600 underline">hatchik.com/account &rarr; API keys</a>). If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry inside it.</p>
           <div class="code-window">
             <div class="mb-3">
               <span class="dot" style="background:#ef4444"></span>
@@ -420,7 +420,7 @@ Are you connected to Hatchik? Show me my recent deploys.</pre>
         <span class="step-num">2</span>
         <div class="flex-1">
           <h4 class="font-bold mb-1">Paste this in</h4>
-          <p class="text-sm text-slate-600 mb-3">Replace the placeholder with the key from your welcome email.</p>
+          <p class="text-sm text-slate-600 mb-3">Replace the placeholder with your Hatchik API key (create one at <a href="/account#api-keys" class="text-indigo-600 underline">hatchik.com/account &rarr; API keys</a>).</p>
           <div class="code-window">
             <div class="mb-3">
               <span class="dot" style="background:#ef4444"></span>
@@ -498,6 +498,20 @@ Are you connected to Hatchik? What's the URL of my preview deploy?</pre>
       <div class="flex items-start gap-2">
         <span class="tick">&#10003;</span>
         <div>
+          <div class="font-semibold">Codex</div>
+          <div class="text-xs text-slate-500">OpenAI CLI &mdash; edit <span class="mono">~/.codex/mcp.json</span></div>
+        </div>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="tick">&#10003;</span>
+        <div>
+          <div class="font-semibold">Antigravity</div>
+          <div class="text-xs text-slate-500">Google IDE &mdash; Settings &rarr; MCP Servers</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="tick">&#10003;</span>
+        <div>
           <div class="font-semibold">Continue</div>
           <div class="text-xs text-slate-500">edit <span class="mono">~/.continue/config.json</span></div>
         </div>
@@ -507,6 +521,13 @@ Are you connected to Hatchik? What's the URL of my preview deploy?</pre>
         <div>
           <div class="font-semibold">Aider</div>
           <div class="text-xs text-slate-500">via <span class="mono">aider.mcp.servers</span></div>
+        </div>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="tick">&#10003;</span>
+        <div>
+          <div class="font-semibold">Copilot (agent mode)</div>
+          <div class="text-xs text-slate-500">VS Code &mdash; <span class="mono">.vscode/mcp.json</span></div>
         </div>
       </div>
     </div>
