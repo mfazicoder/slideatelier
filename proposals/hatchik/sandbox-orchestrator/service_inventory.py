@@ -195,8 +195,10 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
     {
         "name": "AI token allowance",
         "detail": (
-            "£0.50/month included (~50k Claude Haiku tokens) — enough to taste "
-            "the passthrough flow before upgrading. Bring your own key any time."
+            "One-time £0.50 of Claude Haiku tokens (~50k) — enough to wire up "
+            "your first AI-powered feature and see runtime AI working before "
+            "you decide whether to bring your own key or upgrade to a "
+            "monthly Launch / Growth allowance. Spent once, gone once."
         ),
         "status": "live",
         "configure_url": None,

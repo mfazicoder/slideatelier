@@ -32,7 +32,7 @@ gated features. **Every tier ships the same substrate.**
 | **Backups** | 24h retention |
 | **Mobile shells** | iOS + Android, store-submittable (customer handles submission — see §5.3). Cloud builds via GitHub Actions, **rate-limited to 3 builds/hour per tenant** |
 | **AI tool integration** | Full MCP setup |
-| **AI token allowance** | **~£0.50/month included** (~50k Claude Haiku tokens — enough to taste the passthrough flow before upgrading). Customer can also BYO key. |
+| **AI token allowance** | **One-off £0.50** of Claude Haiku (~50k tokens) — a taster, deliberately enough to wire up one AI-powered feature and see it run. Not a monthly subscription; spent once, gone once. Customer can BYO key any time or upgrade to a tier with a monthly allowance. |
 | **Branding** | "Built with Hatchik" footer (non-removable) |
 | **Idle policy** | Archived after 30 consecutive days idle; restorable on request |
 | **Support** | Community forum |
@@ -192,7 +192,7 @@ the substrate from day one.
 11. **AI features inside your app (if you want them)** — Pre-wired
     integration with Claude / GPT / Gemini / open-source models;
     **customer's choice**: bring your own API key OR use Hatchik passthrough
-    (with included token allowance — **£0.50/mo Sandbox**, £3/mo Launch, £10/mo Growth)
+    (with included token allowance — **one-off £0.50 of Claude Haiku** on Sandbox to wire up your first AI feature, then £3/mo on Launch, £10/mo on Growth)
 
 ### 4.3 Substrate payment provider — Stripe vs Paddle
 
@@ -227,17 +227,32 @@ not a rewrite.
 
 ### 4.4 Why Sandbox includes a small AI passthrough allowance
 
-The £0.50/mo Sandbox allowance is a deliberate acquisition lever, not a
-giveaway. If Sandbox users default to BYO key during the free phase, they
-build a habit + provider relationship that survives the Launch upgrade —
-making Hatchik's passthrough product permanently optional even at Growth.
+The one-off £0.50 Sandbox allowance is a deliberate acquisition lever, not
+a recurring giveaway. If Sandbox users default to BYO key during the free
+phase, they build a habit + provider relationship that survives the
+Launch upgrade — making Hatchik's passthrough product permanently
+optional even at Growth.
 
-By including ~50k Haiku tokens on Sandbox, the customer is already routing
-through Hatchik's passthrough infrastructure when they decide whether to
-graduate. The default path becomes "stay on passthrough, upgrade allowance"
-rather than "swap to BYO". Estimated marginal cost: ~£0.25/avg Sandbox
-user/month (50% will never exhaust the allowance), modest at the projected
-volumes.
+By seeding ~50k Haiku tokens on Sandbox, the customer is routing through
+Hatchik's passthrough infrastructure when they wire up their first AI
+feature — they see it work, they see the unified invoice line. When they
+decide whether to graduate, the default path becomes "stay on
+passthrough, upgrade to a monthly allowance" rather than "swap to BYO".
+
+**Why one-off, not monthly.** A recurring £0.50/month allowance reads
+to the customer as "an ongoing freebie I should ration" — they
+under-use it and never build the muscle memory. A one-off taster
+reads as "I have £0.50 of free AI; let me actually spend it." Higher
+activation, cleaner mental model, removes the ambient cost from the
+free tier (we want Sandbox marginal cost to round to zero per
+customer-month after the initial taster is used). Customers who run
+out either BYO key (most likely outcome) or feel the actual cost of
+their app's AI usage and upgrade to a tier with a real monthly
+allowance — exactly the conversion event we want.
+
+Estimated marginal cost: a one-time £0.25-£0.40 per Sandbox customer
+(some never wire up AI; some use only half the taster), with zero
+recurring drag.
 
 ## 5. Out of scope (explicit non-offering)
 
