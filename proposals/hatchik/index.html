@@ -51,6 +51,20 @@
   details > summary::-webkit-details-marker { display:none; }
   details[open] .chev { transform: rotate(180deg); }
   .chev { transition: transform .15s; }
+  /* Pricing-card collapsibles — summary holds stage/name/price/blurb +
+     toggle; everything after the </summary> appears only when open.
+     Keeps the three tier cards at equal compact height by default so
+     the customer can scan all three side by side before drilling in. */
+  details.pricing-card { display: block; }
+  details.pricing-card .pricing-summary { outline: none; }
+  details.pricing-card .pricing-toggle {
+    display: inline-flex; align-items: center; gap: .35rem;
+    margin-top: 1.25rem;
+    color: #4f46e5; font-size: .875rem; font-weight: 600;
+    transition: color .15s;
+  }
+  details.pricing-card:hover .pricing-toggle { color: #4338ca; }
+  .chev { transition: transform .15s; }
   .gradient-text {
     background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #f59e0b 100%);
     -webkit-background-clip: text;
@@ -1325,17 +1339,22 @@
     <div class="grid md:grid-cols-3 gap-6 mt-12">
 
       <!-- Stage 0 -->
-      <div class="card relative">
-        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stage 0 · Kick the tyres</div>
-        <h3 class="mt-2 text-xl font-bold">Free Sandbox</h3>
-        <div class="mt-4 flex items-baseline gap-2">
-          <span class="text-5xl font-extrabold">£0</span>
-          <span class="text-slate-500">/ forever</span>
-        </div>
-        <p class="mt-3 text-slate-600 text-sm">See if it's right for you, no card needed. A working version of your app on a free subdomain.</p>
-        <ul class="mt-6 space-y-2 text-sm text-slate-700">
-          <li class="flex gap-2"><span class="tick">✓</span> A live website at <span class="mono text-xs">yoursubdomain.hatchik.com</span></li>
-          <li class="flex gap-2"><span class="tick">✓</span> Database with plenty of room to get started</li>
+      <details class="card relative pricing-card">
+        <summary class="pricing-summary">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stage 0 · Kick the tyres</div>
+          <h3 class="mt-2 text-xl font-bold">Free Sandbox</h3>
+          <div class="mt-4 flex items-baseline gap-2">
+            <span class="text-5xl font-extrabold">£0</span>
+          </div>
+          <p class="mt-3 text-slate-600 text-sm">See if it's right for you, no card needed. A working version of your app on a free subdomain.</p>
+          <span class="pricing-toggle">
+            See what's included
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+        </summary>
+        <ul class="mt-2 space-y-2 text-sm text-slate-700">
+          <li class="flex gap-2"><span class="tick">✓</span> A live website at <span class="mono text-xs">appname.hatchik.com</span></li>
+          <li class="flex gap-2"><span class="tick">✓</span> Database with lots of room to start</li>
           <li class="flex gap-2"><span class="tick">✓</span> Up to 3 test users (enough for you, a coworker, and a test customer)</li>
           <li class="flex gap-2"><span class="tick">✓</span> Sign-up / password-reset emails go out automatically</li>
           <li class="flex gap-2"><span class="tick">✓</span> Test payments — try a checkout flow without a real card</li>
@@ -1346,55 +1365,66 @@
           <li class="flex gap-2"><span class="cross">—</span> <span class="text-slate-500">Archived if idle 7 days</span></li>
         </ul>
         <a href="/start" class="mt-8 block text-center btn-ghost w-full">Start free</a>
-      </div>
+      </details>
 
       <!-- Stage 1 -->
-      <div class="card relative">
-        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-2">Stage 1 · Launch your idea</div>
-        <h3 class="mt-2 text-xl font-bold">Idea</h3>
-        <div class="mt-4 flex items-baseline gap-2 flex-wrap">
-          <span class="text-5xl font-extrabold">£89</span>
-          <span class="text-slate-500">once, then</span>
-          <span class="text-2xl font-bold">£14</span>
-          <span class="text-slate-500">/mo</span>
-        </div>
-        <p class="mt-3 text-slate-600 text-sm">The whole shebang — your domain, your server, your mailboxes, real payments. £89 sets it all up <em>and</em> covers your first month. £14/month from month 2 covers ongoing hosting, backups, and AI credit while you're building.</p>
-        <ul class="mt-6 space-y-2 text-sm text-slate-700">
+      <details class="card relative pricing-card">
+        <summary class="pricing-summary">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-2">Stage 1 · Launch your idea</div>
+          <h3 class="mt-2 text-xl font-bold">Idea</h3>
+          <div class="mt-4 flex items-baseline gap-2 flex-wrap">
+            <span class="text-5xl font-extrabold">£89</span>
+            <span class="text-slate-500">once, then</span>
+            <span class="text-2xl font-bold">£14</span>
+            <span class="text-slate-500">/mo</span>
+          </div>
+          <p class="mt-3 text-slate-600 text-sm">The whole shebang — your domain, your server, your mailboxes, real payments. £89 sets it all up <em>and</em> covers your first month. £14/month from month 2 covers ongoing hosting, backups, and AI credit while you're building.</p>
+          <span class="pricing-toggle">
+            See what's included
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+        </summary>
+        <ul class="mt-2 space-y-2 text-sm text-slate-700">
           <li class="flex gap-2"><span class="tick">✓</span> <strong>Everything in Sandbox, plus:</strong></li>
           <li class="flex gap-2"><span class="tick">✓</span> Your own domain — bring one you already own, or we register a new one (year 1 included*)</li>
           <li class="flex gap-2"><span class="tick">✓</span> Your own dedicated server, in the region you pick</li>
-          <li class="flex gap-2"><span class="tick">✓</span> 5 mailboxes on your domain (e.g. <span class="mono text-xs">you@yourdomain.com</span>)</li>
-          <li class="flex gap-2"><span class="tick">✓</span> Take real payments from real customers — we handle international tax for you, or use your own Stripe</li>
+          <li class="flex gap-2"><span class="tick">✓</span> 5 mailboxes on <span class="mono text-xs">@yourdomain.com</span></li>
+          <li class="flex gap-2"><span class="tick">✓</span> Take real payments from real customers</li>
           <li class="flex gap-2"><span class="tick">✓</span> Bigger database and file storage, with room to grow as your app grows</li>
-          <li class="flex gap-2"><span class="tick">✓</span> We watch your site and let you know if it goes down. Backups whenever you want them</li>
-          <li class="flex gap-2"><span class="tick">✓</span> About £3/month of AI credit included &mdash; or plug in your own AI provider key, free</li>
-          <li class="flex gap-2"><span class="tick">✓</span> No idle archive &mdash; runs until you cancel</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Your site is monitored for downtime, and backups happen automatically</li>
+          <li class="flex gap-2"><span class="tick">✓</span> £3/month of AI credit included &mdash; or plug in your own AI provider key, free</li>
         </ul>
         <a href="mailto:hello@hatchik.com?subject=Hatchik%20Launch%20-%20early%20access" class="mt-8 block text-center btn-primary w-full justify-center">Launch →</a>
-      </div>
+      </details>
 
       <!-- Stage 2 -->
-      <div class="card relative">
-        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stage 2 · You've made it</div>
-        <h3 class="mt-2 text-xl font-bold">Growth</h3>
-        <div class="mt-4 flex items-baseline gap-2">
-          <span class="text-5xl font-extrabold">£39</span>
-          <span class="text-slate-500">/ month</span>
-        </div>
-        <p class="mt-3 text-slate-600 text-sm">Once your 15th user signs up to your app, the monthly graduates. Same product, more breathing room, deeper support &mdash; by now you've got proof there's an audience.</p>
-        <ul class="mt-6 space-y-2 text-sm text-slate-700">
+      <details class="card relative pricing-card">
+        <summary class="pricing-summary">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stage 2 · You've made it</div>
+          <h3 class="mt-2 text-xl font-bold">Growth</h3>
+          <div class="mt-4 flex items-baseline gap-2">
+            <span class="text-5xl font-extrabold">£39</span>
+            <span class="text-slate-500">/ month</span>
+          </div>
+          <p class="mt-3 text-slate-600 text-sm">Once your 15th user signs up to your app, the monthly graduates. Same product, more breathing room, deeper support &mdash; by now you've got proof there's an audience.</p>
+          <span class="pricing-toggle">
+            See what's included
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+        </summary>
+        <ul class="mt-2 space-y-2 text-sm text-slate-700">
           <li class="flex gap-2"><span class="tick">✓</span> <strong>Everything in Launch, plus:</strong></li>
           <li class="flex gap-2"><span class="tick">✓</span> Bigger server &mdash; more headroom as you grow</li>
           <li class="flex gap-2"><span class="tick">✓</span> Backups kept for longer</li>
-          <li class="flex gap-2"><span class="tick">✓</span> About £10/month of AI credit included (three times the Launch amount)</li>
-          <li class="flex gap-2"><span class="tick">✓</span> Free domain renewal every year from year 2</li>
+          <li class="flex gap-2"><span class="tick">✓</span> £10/month of AI credit included (three times the Launch amount)</li>
+          <li class="flex gap-2"><span class="tick">✓</span> Free domain renewal</li>
           <li class="flex gap-2"><span class="tick">✓</span> Priority email support &mdash; replies the same business day</li>
           <li class="flex gap-2"><span class="tick">✓</span> Early access to new Hatchik features (2 weeks ahead of Launch)</li>
           <li class="flex gap-2"><span class="tick">✓</span> Custom email rules &mdash; forwards, filters, auto-responders</li>
         </ul>
         <p class="mt-6 text-xs text-slate-500 italic">"You pay more only when we've helped you make more."</p>
         <p class="mt-3 text-xs text-slate-400">We email a month before any change. No surprise charges.</p>
-      </div>
+      </details>
 
     </div>
 
