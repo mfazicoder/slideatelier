@@ -78,6 +78,15 @@ This is where most customers start.
 **The £14/month (from month 2) covers:** ongoing VPS, backups, monitoring,
 mail, edge network, included AI token allowance, substrate update PRs.
 
+**Your sandbox stays alive as a dev environment.** When you upgrade
+from Sandbox to Launch, we don't tear down your original sandbox —
+we keep it running alongside your new production stack so you have
+a real dev/prod split out of the box. The substrate code, repo and
+data on the sandbox side stay yours to experiment with. We cover the
+infrastructure cost as part of the monthly fee; the idle-archive
+policy that applies to free Sandbox tenants is disabled for promoted
+sandboxes.
+
 ### 2.3 Growth — £39/month
 
 Automatic graduation from Launch after the customer's 15th sign-up to
@@ -104,6 +113,12 @@ their app.
 Graduation trigger: 15 customer-app sign-ups (whether free or paid users
 of the customer's app). Customer gets an email a month before the
 change. No surprise charges.
+
+**Your sandbox stays alive as a dev environment.** Same arrangement
+as Launch — the original sandbox you started on stays running as your
+dev environment alongside the Growth production stack. We cover the
+infrastructure as part of the £39/mo fee; the idle-archive policy
+doesn't apply once you've upgraded.
 
 ## 3. Add-ons
 

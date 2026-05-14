@@ -164,31 +164,56 @@ the £20-30/mo entry band. We deliberately sit just under that band
 on Launch to keep the "first SaaS" affordability story while still
 clearing a real margin once the setup fee is folded in.
 
-Margin impact at the new pricing — **now with AI COGS subtracted**
-(cost-to-serve breakdown: infra £8.50/mo, **AI passthrough COGS
-£1.50/mo Launch / £5/mo Growth mid-range**, Paddle fees ~5%+£0.40/txn).
-The AI line is elastic — it scales with customer model mix (Haiku vs
-Sonnet vs GPT-4o), allowance utilisation, and the BYO-key share. Modelled
-end-to-end in `proposals/hatchik/AI_COGS_SENSITIVITY.xlsx`.
+Margin impact at the new pricing — **now with AI COGS + kept-sandbox
+cost subtracted** (cost-to-serve breakdown: infra £8.50/mo, **AI
+passthrough COGS £1.50/mo Launch / £5/mo Growth mid-range**,
+**kept-sandbox-as-dev-env £1.50/mo** for every promoted Launch/Growth
+customer — see note below, Paddle fees ~5%+£0.40/txn). The AI line is
+elastic — it scales with customer model mix (Haiku vs Sonnet vs
+GPT-4o), allowance utilisation, and the BYO-key share. The
+kept-sandbox line is structural — every paid customer comes from a
+Sandbox we now keep alive as their dev environment. Modelled
+end-to-end in `proposals/hatchik/AI_COGS_SENSITIVITY.xlsx`
+(named cell `kept_sandbox_cost`, default £1.50/mo).
 
-- **Launch ongoing margin (mid-range): ~£2.14/mo at £14** (sensitivity
-  range −£0.75 pessimistic to £4.28 optimistic). Pessimistic = all
-  customers max allowance on expensive models; optimistic = high BYO-key
-  share + low utilisation + cheap-model mix.
-- **Growth ongoing margin (mid-range): ~£21.45/mo at £39** (sensitivity
-  range £12.79 pessimistic to £27.75 optimistic).
+- **Launch ongoing margin (mid-range): ~£0.64/mo at £14** (sensitivity
+  range −£2.24 pessimistic to £2.78 optimistic). Pessimistic = all
+  customers max allowance on expensive models; optimistic = high
+  BYO-key share + low utilisation + cheap-model mix. All scenarios
+  now include the £1.50/mo kept-sandbox burden.
+- **Growth ongoing margin (mid-range): ~£19.95/mo at £39** (sensitivity
+  range £11.29 pessimistic to £26.25 optimistic). Growth absorbs the
+  £1.50 with no real strategic impact.
 - Year-1 Launch revenue: £89 + 11 × £14 = £243 (with passthrough overage
   uplift the realised figure is closer to £247 per customer).
-- Year-1 Launch net (mid-range, AI COGS included): ~£108/customer.
-- Year-1 Growth net (mid-range, AI COGS included): ~£257/customer (down
-  from the pre-AI-COGS £338 cited in earlier drafts of this plan).
+- Year-1 Launch net (mid-range, AI COGS + kept-sandbox included):
+  ~£91/customer (down from ~£108 pre-kept-sandbox).
+- Year-1 Growth net (mid-range, AI COGS + kept-sandbox included):
+  ~£239/customer (down from ~£257 pre-kept-sandbox, ~£338 pre-AI-COGS).
 - 1000-customer cohort at 80/20 Launch/Growth: Y1 gross margin
-  ~£137K (vs ~£154K pre-AI-COGS — a ~11% haircut, materially smaller
-  than I feared before running the model).
-- Blended LTV at 80/20 mix and 24-month tenure remains in the £450–£500
-  range — AI COGS trims the top of the range but not the CAC headroom.
-- CAC ceiling at 3:1 LTV:CAC: ~£150–£170 — still usable room for paid
+  ~£121K (vs ~£137K pre-kept-sandbox / ~£154K pre-AI-COGS). The
+  kept-sandbox burden specifically is **£1500/mo (£18K/yr) at full
+  saturation** — a known infrastructure line item we're choosing to
+  eat because it buys us a genuine dev/prod split that competitors
+  in the £14-39 price band don't offer.
+- Blended LTV at 80/20 mix and 24-month tenure now in the £420–£480
+  range — AI COGS + kept-sandbox each trim a slice but neither kills
+  the CAC headroom.
+- CAC ceiling at 3:1 LTV:CAC: ~£140–£160 — still usable room for paid
   acquisition.
+
+**Kept-sandbox-as-dev-env line item.** When a customer upgrades from
+Sandbox to Launch (or Growth), we now keep their original sandbox
+alive as a dev environment alongside the new production stack
+(option-A decision, implemented in `launch-orchestrator/promote.py`
+and `sandbox-orchestrator/lifecycle.py`). The marginal cost is ~£1.50
+per customer per month — a CAX21 Hetzner host (€8/mo) carries roughly
+5 active sandboxes, so each promoted-but-kept sandbox eats one slot.
+We're framing this as **the cost of giving promoted customers a real
+dev/prod split — a real product differentiator** rather than a hidden
+infrastructure tax. If the founder later decides to make the
+kept-alive sandbox opt-in or to bill it separately, set
+`kept_sandbox_cost=0` in the sensitivity workbook to model that world.
 
 **Overage-margin uplift.** Once a customer is on Hatchik's passthrough,
 they're already in our billing flow; tokens past the included allowance
