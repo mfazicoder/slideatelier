@@ -222,9 +222,37 @@
       <span class="step-num">3</span>
       <div class="flex-1 min-w-0">
         <h3 class="font-bold text-lg mb-1">Paste it into your tool&rsquo;s MCP file</h3>
-        <p class="text-sm text-slate-600 mb-4">
-          If the file already has an <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> block, just add the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry inside it. If the file doesn&rsquo;t exist yet, create it &mdash; the folder might be hidden (in Finder press <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Cmd+Shift+.</span>).
+        <p class="text-sm text-slate-600 mb-3">
+          <strong>If the file already has an</strong> <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> <strong>block:</strong> add just the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry (the inner block from the snippet above) inside the existing <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">mcpServers</span> &mdash; don&rsquo;t add a second <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">mcpServers</span>. Save the file.
         </p>
+        <p class="text-sm text-slate-600 mb-4">
+          <strong>If the file doesn&rsquo;t exist yet:</strong> create it. Paste the whole snippet above as the entire file. Save.
+        </p>
+        <details class="mb-4 bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <summary class="cursor-pointer text-sm font-semibold text-slate-800">How do I find these files? (Finder &amp; File Explorer tips)</summary>
+          <div class="mt-3 text-sm text-slate-700 space-y-3">
+            <p>The <span class="mono">~/</span> at the start of a path means &ldquo;your home folder&rdquo;. So <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">~/.cursor/mcp.json</span> is <em>inside</em> your home folder, in a hidden folder called <span class="mono">.cursor</span>, and the file is called <span class="mono">mcp.json</span>.</p>
+            <div>
+              <p class="font-semibold text-slate-800">On a Mac (Finder):</p>
+              <ol class="mt-1 list-decimal pl-5 space-y-1">
+                <li>Open Finder.</li>
+                <li>Press <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">Cmd+Shift+.</span> (period) &mdash; this reveals hidden folders that start with a dot.</li>
+                <li>Press <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">Cmd+Shift+G</span>, paste the path from the table below, hit Go. If the folder doesn&rsquo;t exist, Finder will offer to create it.</li>
+                <li>If the <span class="mono">mcp.json</span> file isn&rsquo;t there yet, use <strong>File &rarr; New &hellip; &rarr; (text-editing app)</strong> in your editor of choice (TextEdit works, just save as plain text not rich text).</li>
+              </ol>
+            </div>
+            <div>
+              <p class="font-semibold text-slate-800">On Windows (File Explorer):</p>
+              <ol class="mt-1 list-decimal pl-5 space-y-1">
+                <li>Open File Explorer.</li>
+                <li>In the View menu, tick &ldquo;Hidden items&rdquo;.</li>
+                <li>Click the address bar, paste the path (replace <span class="mono">~</span> with <span class="mono">%USERPROFILE%</span> or just your username folder under <span class="mono">C:\Users\</span>), hit Enter.</li>
+                <li>If the file isn&rsquo;t there, right-click &rarr; New &rarr; Text Document, rename to <span class="mono">mcp.json</span> (with the <span class="mono">.json</span> extension visible &mdash; turn on file extensions in the View menu if hidden).</li>
+              </ol>
+            </div>
+            <p class="text-xs text-slate-500">Easier route: most of the listed tools (Cursor, Windsurf, Cline, Antigravity) have a UI panel for managing MCP servers &mdash; you can paste the JSON there without finding the file yourself. The table below points at the UI route when one exists.</p>
+          </div>
+        </details>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -285,6 +313,22 @@
         </p>
       </div>
     </div>
+  </div>
+
+  <!-- Browser-AI sidebar -->
+  <div class="card mb-6 bg-amber-50 border-amber-200">
+    <h3 class="font-bold text-lg mb-2">Using ChatGPT, GPT, Gemini, or Grok in a browser?</h3>
+    <p class="text-sm text-slate-700 leading-relaxed">
+      Quick clarification: <strong>GPT</strong>, <strong>Gemini</strong>, and <strong>Grok</strong> are AI <em>models</em>, not tools. You can&rsquo;t directly &ldquo;install&rdquo; the MCP snippet for them &mdash; there&rsquo;s no config file. Instead:
+    </p>
+    <ul class="mt-3 text-sm text-slate-700 leading-relaxed list-disc pl-5 space-y-1.5">
+      <li><strong>If you mean the desktop tool</strong> that uses these models: ChatGPT &rarr; the closest fit is the <strong>Codex CLI</strong> (already in the table above); Gemini &rarr; <strong>Antigravity</strong> (Google&rsquo;s IDE, in the table). Wire those up the normal way.</li>
+      <li><strong>If you mean the browser chat</strong> (chat.openai.com, gemini.google.com, grok.com): MCP doesn&rsquo;t apply. Open the chat, attach <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">AI_CONTEXT.md</span> from your repo, paste this as your first message: <em>&ldquo;Read AI_CONTEXT.md and let&rsquo;s start.&rdquo;</em> You&rsquo;ll copy edited files back into your repo yourself &mdash; or use the deploy URL/token from <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">AI_CONTEXT.md</span> to push without a terminal.</li>
+      <li><strong>If you mean the AI <em>inside your app</em></strong> (chatbots, summaries, etc.): different question entirely. Put your provider key in your app&rsquo;s <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">.env</span> &mdash; works with Anthropic, OpenAI, Google, xAI (Grok), Mistral, OpenRouter.</li>
+    </ul>
+    <p class="mt-3 text-xs text-slate-600">
+      Full per-tool walk-through at <a href="https://docs.hatchik.com/ai-tool-setup" class="text-amber-700 underline font-medium">docs.hatchik.com/ai-tool-setup</a>.
+    </p>
   </div>
 
   <!-- Step 4: restart + test -->

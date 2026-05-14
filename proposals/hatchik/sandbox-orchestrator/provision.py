@@ -828,7 +828,13 @@ Your Hatchik API key is already filled in for you.
   }}
 }}
 
-Where to paste it:
+(One-click copy button: visit {DOMAIN}/install while signed in —
+your key auto-fills there too.)
+
+Where to paste it: open the config file for your tool below. If the
+file already has an "mcpServers" block, add the "hatchik" entry
+inside it. If the file doesn't exist yet, create it with just the
+block above.
 
   • Cursor       →  ~/.cursor/mcp.json
   • Windsurf     →  ~/.codeium/windsurf/mcp_config.json
@@ -837,10 +843,12 @@ Where to paste it:
   • Codex        →  ~/.codex/mcp.json
   • Antigravity  →  Settings → MCP Servers
 
+Step-by-step for opening each file (Finder / File Explorer tips,
+plus what to do for ChatGPT / GPT / Gemini / Grok in a browser):
+{DOMAIN}/install
+
 Then restart your AI tool and tell it:
   "read AI_CONTEXT.md and let's start."
-
-Full guide with per-tool screenshots: {DOMAIN}/install
 
 When you're ready to go live
 ────────────────────────────
@@ -848,8 +856,8 @@ When you're ready to go live
 Upgrading to Launch adds your own domain, real (live) payments,
 5 mailboxes on your domain, and a dedicated server.
 
-Full breakdown of what's wired up — and how much of each you have —
-lives in your account at {DOMAIN}/account → Services.
+Full breakdown of what's wired up lives in your account at
+{DOMAIN}/account → Services.
 
 — Hatchik
 
@@ -931,7 +939,8 @@ Further information at {faq_url} if you need it.
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">Wire up your AI tool</p>
               <p style="margin:0 0 12px 0;color:#333;font-size:15px;">One-time, takes about 2 minutes. Copy the config below and paste it into your AI tool&rsquo;s MCP file. <strong>Your API key is already filled in.</strong></p>
-              <div style="background:#0b1020;border-radius:8px;padding:16px;margin:0 0 16px 0;overflow-x:auto;">
+              <div style="position:relative;background:#0b1020;border-radius:8px;padding:16px;margin:0 0 12px 0;overflow-x:auto;">
+                <a href="{install_url}" style="position:absolute;top:10px;right:10px;display:inline-block;background:rgba(255,255,255,0.10);color:#cbd5e1;text-decoration:none;font-size:11px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-weight:600;padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.10);">Copy on the web &rarr;</a>
                 <pre style="margin:0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#e2e8f0;white-space:pre;">{{
   <span style="color:#a5b4fc;">"mcpServers"</span>: {{
     <span style="color:#a5b4fc;">"hatchik"</span>: {{
@@ -945,8 +954,10 @@ Further information at {faq_url} if you need it.
   }}
 }}</pre>
               </div>
-              <p style="margin:0 0 8px 0;font-weight:600;font-size:14px;color:#0f172a;">Where to paste it</p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 16px 0;font-size:14px;color:#333;border-collapse:collapse;">
+              <p style="margin:0 0 12px 0;color:#64748b;font-size:12px;">Email clients can&rsquo;t run a copy button. Triple-click the block above to select it all, then &#8984;+C (Mac) / Ctrl+C (Windows). Or hit <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a> &mdash; the snippet there has a real Copy button and your key auto-fills.</p>
+              <p style="margin:20px 0 8px 0;font-weight:600;font-size:14px;color:#0f172a;">Where to paste it</p>
+              <p style="margin:0 0 12px 0;color:#475569;font-size:13px;">If the file already has an <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;font-size:12px;">"mcpServers"</code> block, add the <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;font-size:12px;">"hatchik"</code> entry inside the existing block. If the file doesn&rsquo;t exist yet, create it with just the snippet above as the whole file.</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px 0;font-size:14px;color:#333;border-collapse:collapse;">
                 <tr><td style="padding:6px 0;width:35%;color:#0f172a;font-weight:600;">Cursor</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.cursor/mcp.json</td></tr>
                 <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Windsurf</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.codeium/windsurf/mcp_config.json</td></tr>
                 <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Claude Code</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.claude/mcp.json</td></tr>
@@ -954,14 +965,14 @@ Further information at {faq_url} if you need it.
                 <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Codex</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.codex/mcp.json</td></tr>
                 <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Antigravity</td><td style="padding:6px 0;color:#475569;font-size:13px;">Settings &rarr; MCP Servers</td></tr>
               </table>
-              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Restart your AI tool, then tell it:</p>
+              <p style="margin:0 0 16px 0;color:#475569;font-size:13px;">Not sure how to open these files, or using <strong>ChatGPT / GPT / Gemini / Grok</strong> in a browser? Step-by-step at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a> &mdash; Finder / File Explorer tips, plus the browser flow for the model-not-an-IDE crowd.</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Then restart your AI tool and tell it:</p>
               <p style="margin:0 0 12px 0;padding:12px 16px;background:#f9fafb;border-left:3px solid #4f46e5;border-radius:4px;font-style:italic;color:#0f172a;">&ldquo;read <code style="background:#fff;padding:1px 4px;border-radius:3px;border:1px solid #e5e7eb;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo;</p>
-              <p style="margin:0 0 16px 0;color:#475569;font-size:13px;">Full guide with per-tool screenshots at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a>.</p>
 
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">When you&rsquo;re ready to go live</p>
               <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Upgrading to Launch adds your own domain, real (live) payments, 5 mailboxes on your domain, and a dedicated server.</p>
-              <p style="margin:0 0 24px 0;color:#475569;font-size:14px;">Full breakdown of what&rsquo;s wired up &mdash; and how much of each you have &mdash; lives in your account at <a href="{account_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/account &rarr; Services</a>.</p>
+              <p style="margin:0 0 24px 0;color:#475569;font-size:14px;">Full breakdown of what&rsquo;s wired up lives in your account at <a href="{account_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/account &rarr; Services</a>.</p>
 
               <p style="margin:32px 0 0 0;color:#0f172a;">&mdash; Hatchik</p>
               <p style="margin:16px 0 0 0;color:#555;font-size:14px;">Further information <a href="{faq_url}" style="color:#4f46e5;text-decoration:underline;">here</a> if you need it.</p>
