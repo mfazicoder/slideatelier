@@ -764,7 +764,7 @@ def send_sandbox_ready_email(
     # Primary CTA: magic-link straight into the sandbox as the owner. Falls
     # back to the bare URL if pre-provisioning the owner failed.
     primary_link = signin_link or url
-    primary_link_label = "Sign in to your sandbox" if signin_link else f"Open your sandbox: {url}"
+    primary_link_label = "Open your sandbox" if signin_link else f"Open your sandbox: {url}"
 
     # Repo link bits — the AI tool line in "Kick the tyres" can deep-link
     # to the customer's own repo when GitHub provisioned cleanly. The full
@@ -786,18 +786,10 @@ Your sandbox for {product_name} is live.
 {primary_link_label}
 {primary_link}
 
-You're pre-set as the owner — that link signs you straight in. No
-password to remember (you can set one later from Settings if you want).
-
-It's a real working version of your app stack. When your end-users
-sign up, they get their own accounts inside it — your owner account
-stays separate.
-
 What's already working in your sandbox
 ──────────────────────────────────────
 
-• Live website — anyone with the link can visit it; the button above
-  signs you in as owner.
+• Live website — a working URL anyone can visit.
 • Sign-up & sign-in — your test users can register and log in.
 • Database — stores everything your app needs to remember.
 • File storage — photos, documents, anything your app uploads.
@@ -812,8 +804,8 @@ What's already working in your sandbox
 Wire up your AI tool (one-time, ~2 min)
 ───────────────────────────────────────
 
-Copy the JSON below and paste it into your AI tool's MCP config file.
-Your Hatchik API key is already filled in for you.
+Copy and paste this into your AI tool's MCP config. Your API key
+is already filled in.
 
 {{
   "mcpServers": {{
@@ -828,24 +820,17 @@ Your Hatchik API key is already filled in for you.
   }}
 }}
 
-(One-click copy button: visit {DOMAIN}/install while signed in —
-your key auto-fills there too.)
+Where to paste it (per tool):
 
-Where to paste it: open the config file for your tool below. If the
-file already has an "mcpServers" block, add the "hatchik" entry
-inside it. If the file doesn't exist yet, create it with just the
-block above.
+  • Cursor       →  Settings → MCP → Add server → paste
+  • Windsurf     →  Cascade → Tools → Configure → paste
+  • Cline        →  VS Code → Cline icon → MCP settings panel → paste
+  • Antigravity  →  Settings → MCP Servers → Add → paste
+  • Claude Code  →  Open or create ~/.claude/mcp.json, paste
+  • Codex        →  Open or create ~/.codex/mcp.json, paste
 
-  • Cursor       →  ~/.cursor/mcp.json
-  • Windsurf     →  ~/.codeium/windsurf/mcp_config.json
-  • Claude Code  →  ~/.claude/mcp.json
-  • Cline        →  VS Code → Cline icon → MCP settings panel
-  • Codex        →  ~/.codex/mcp.json
-  • Antigravity  →  Settings → MCP Servers
-
-Step-by-step for opening each file (Finder / File Explorer tips,
-plus what to do for ChatGPT / GPT / Gemini / Grok in a browser):
-{DOMAIN}/install
+Full step-by-step (plus what to do for ChatGPT / Gemini / Grok in a
+browser): {DOMAIN}/install
 
 Then restart your AI tool and tell it:
   "read AI_CONTEXT.md and let's start."
@@ -927,9 +912,8 @@ Further information at {faq_url} if you need it.
             <td class="container" style="padding:32px;font-size:16px;line-height:1.6;color:#1a1a1a;">
               <p style="margin:0 0 16px 0;">{greeting}</p>
               <p style="margin:0 0 24px 0;">Your sandbox for <strong>{product_name}</strong> is live.</p>
-              <p style="margin:0 0 16px 0;"><a href="{primary_link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Sign in to your sandbox &rarr;</a></p>
-              <p style="margin:0 0 16px 0;color:#555;font-size:14px;">You&rsquo;re pre-set as the owner &mdash; this link signs you straight in. No password to remember (you can set one later from Settings if you want).</p>
-              <p style="margin:24px 0 24px 0;">It&rsquo;s a real working version of your app stack. When your end-users sign up, they get their own accounts inside it &mdash; your owner account stays separate.</p>
+              <p style="margin:0 0 24px 0;"><a href="{primary_link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Open your sandbox &rarr;</a></p>
+              <p style="margin:0 0 24px 0;">It&rsquo;s a working version of your app stack. When your end-users sign up, they get their own accounts inside it.</p>
 
               <p style="margin:32px 0 12px 0;font-weight:700;font-size:18px;color:#0f172a;">What&rsquo;s already working in your sandbox</p>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
@@ -938,9 +922,8 @@ Further information at {faq_url} if you need it.
 
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">Wire up your AI tool</p>
-              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">One-time, takes about 2 minutes. Copy the config below and paste it into your AI tool&rsquo;s MCP file. <strong>Your API key is already filled in.</strong></p>
-              <div style="position:relative;background:#0b1020;border-radius:8px;padding:16px;margin:0 0 12px 0;overflow-x:auto;">
-                <a href="{install_url}" style="position:absolute;top:10px;right:10px;display:inline-block;background:rgba(255,255,255,0.10);color:#cbd5e1;text-decoration:none;font-size:11px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-weight:600;padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.10);">Copy on the web &rarr;</a>
+              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">One-time, about 2 minutes. Copy and paste this into your AI tool&rsquo;s MCP config. <strong>Your API key is already filled in.</strong></p>
+              <div style="background:#0b1020;border-radius:8px;padding:16px;margin:0 0 20px 0;overflow-x:auto;">
                 <pre style="margin:0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#e2e8f0;white-space:pre;">{{
   <span style="color:#a5b4fc;">"mcpServers"</span>: {{
     <span style="color:#a5b4fc;">"hatchik"</span>: {{
@@ -954,18 +937,16 @@ Further information at {faq_url} if you need it.
   }}
 }}</pre>
               </div>
-              <p style="margin:0 0 12px 0;color:#64748b;font-size:12px;">Email clients can&rsquo;t run a copy button. Triple-click the block above to select it all, then &#8984;+C (Mac) / Ctrl+C (Windows). Or hit <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a> &mdash; the snippet there has a real Copy button and your key auto-fills.</p>
-              <p style="margin:20px 0 8px 0;font-weight:600;font-size:14px;color:#0f172a;">Where to paste it</p>
-              <p style="margin:0 0 12px 0;color:#475569;font-size:13px;">If the file already has an <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;font-size:12px;">"mcpServers"</code> block, add the <code style="background:#f6f5f1;padding:1px 4px;border-radius:3px;font-size:12px;">"hatchik"</code> entry inside the existing block. If the file doesn&rsquo;t exist yet, create it with just the snippet above as the whole file.</p>
+              <p style="margin:20px 0 8px 0;font-weight:600;font-size:14px;color:#0f172a;">Where to paste it &mdash; per tool</p>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 12px 0;font-size:14px;color:#333;border-collapse:collapse;">
-                <tr><td style="padding:6px 0;width:35%;color:#0f172a;font-weight:600;">Cursor</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.cursor/mcp.json</td></tr>
-                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Windsurf</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.codeium/windsurf/mcp_config.json</td></tr>
-                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Claude Code</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.claude/mcp.json</td></tr>
-                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Cline</td><td style="padding:6px 0;color:#475569;font-size:13px;">VS Code &rarr; Cline icon &rarr; MCP settings panel</td></tr>
-                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Codex</td><td style="padding:6px 0;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#475569;">~/.codex/mcp.json</td></tr>
-                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;">Antigravity</td><td style="padding:6px 0;color:#475569;font-size:13px;">Settings &rarr; MCP Servers</td></tr>
+                <tr><td style="padding:6px 0;width:30%;color:#0f172a;font-weight:600;vertical-align:top;">Cursor</td><td style="padding:6px 0;color:#475569;font-size:13px;">Settings &rarr; MCP &rarr; Add server &rarr; paste</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;vertical-align:top;">Windsurf</td><td style="padding:6px 0;color:#475569;font-size:13px;">Cascade &rarr; Tools &rarr; Configure &rarr; paste</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;vertical-align:top;">Cline</td><td style="padding:6px 0;color:#475569;font-size:13px;">VS Code &rarr; Cline icon &rarr; MCP settings panel &rarr; paste</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;vertical-align:top;">Antigravity</td><td style="padding:6px 0;color:#475569;font-size:13px;">Settings &rarr; MCP Servers &rarr; Add &rarr; paste</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;vertical-align:top;">Claude Code</td><td style="padding:6px 0;color:#475569;font-size:13px;">Open or create <span style="font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;color:#0f172a;">~/.claude/mcp.json</span>, paste</td></tr>
+                <tr><td style="padding:6px 0;color:#0f172a;font-weight:600;vertical-align:top;">Codex</td><td style="padding:6px 0;color:#475569;font-size:13px;">Open or create <span style="font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;color:#0f172a;">~/.codex/mcp.json</span>, paste</td></tr>
               </table>
-              <p style="margin:0 0 16px 0;color:#475569;font-size:13px;">Not sure how to open these files, or using <strong>ChatGPT / GPT / Gemini / Grok</strong> in a browser? Step-by-step at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a> &mdash; Finder / File Explorer tips, plus the browser flow for the model-not-an-IDE crowd.</p>
+              <p style="margin:0 0 16px 0;color:#475569;font-size:13px;">Full step-by-step (plus what to do for <strong>ChatGPT / Gemini / Grok</strong> in a browser): <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/install</a>.</p>
               <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Then restart your AI tool and tell it:</p>
               <p style="margin:0 0 12px 0;padding:12px 16px;background:#f9fafb;border-left:3px solid #4f46e5;border-radius:4px;font-style:italic;color:#0f172a;">&ldquo;read <code style="background:#fff;padding:1px 4px;border-radius:3px;border:1px solid #e5e7eb;">AI_CONTEXT.md</code> and let&rsquo;s start.&rdquo;</p>
 

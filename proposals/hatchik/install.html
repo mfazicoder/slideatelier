@@ -221,93 +221,88 @@
     <div class="flex gap-4">
       <span class="step-num">3</span>
       <div class="flex-1 min-w-0">
-        <h3 class="font-bold text-lg mb-1">Paste it into your tool&rsquo;s MCP file</h3>
-        <p class="text-sm text-slate-600 mb-3">
-          <strong>If the file already has an</strong> <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"mcpServers"</span> <strong>block:</strong> add just the <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">"hatchik"</span> entry (the inner block from the snippet above) inside the existing <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">mcpServers</span> &mdash; don&rsquo;t add a second <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">mcpServers</span>. Save the file.
-        </p>
+        <h3 class="font-bold text-lg mb-1">Add it to your AI tool</h3>
         <p class="text-sm text-slate-600 mb-4">
-          <strong>If the file doesn&rsquo;t exist yet:</strong> create it. Paste the whole snippet above as the entire file. Save.
+          Find your tool below and follow the steps. Most tools have a UI panel for MCP servers — paste the snippet there. The terminal tools (Claude Code, Codex) keep their config in a file.
         </p>
-        <details class="mb-4 bg-slate-50 border border-slate-200 rounded-xl p-4">
-          <summary class="cursor-pointer text-sm font-semibold text-slate-800">How do I find these files? (Finder &amp; File Explorer tips)</summary>
+        <div class="overflow-x-auto mb-4">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left">
+                <th class="py-2 pr-4 font-semibold text-slate-700 whitespace-nowrap">Tool</th>
+                <th class="py-2 pr-4 font-semibold text-slate-700">What to do</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-700">
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Cursor</td>
+                <td class="py-3 pr-4">Settings &rarr; MCP &rarr; <strong>Add server</strong> &rarr; paste the snippet. Save.</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Windsurf</td>
+                <td class="py-3 pr-4">Click the <strong>Cascade</strong> icon in the side panel &rarr; tools icon at the top &rarr; <strong>Configure</strong> &rarr; paste the snippet. Save.</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Cline</td>
+                <td class="py-3 pr-4">In VS Code: click the <strong>Cline</strong> icon &rarr; <strong>MCP settings panel</strong> &rarr; paste the snippet.</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Antigravity</td>
+                <td class="py-3 pr-4">Settings &rarr; <strong>MCP Servers</strong> &rarr; Add &rarr; paste the snippet.</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Claude Code</td>
+                <td class="py-3 pr-4">Open or create <span class="file-pill">~/.claude/mcp.json</span> and paste the snippet as the whole file (or merge if the file already exists).</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Claude Desktop</td>
+                <td class="py-3 pr-4">
+                  Open or create <span class="file-pill">~/Library/Application Support/Claude/claude_desktop_config.json</span> (macOS) or <span class="file-pill">%APPDATA%\Claude\claude_desktop_config.json</span> (Windows) and paste the snippet.
+                </td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Codex</td>
+                <td class="py-3 pr-4">Open or create <span class="file-pill">~/.codex/mcp.json</span> and paste the snippet.</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Continue</td>
+                <td class="py-3 pr-4">Open or create <span class="file-pill">~/.continue/config.json</span> and paste the snippet.</td>
+              </tr>
+              <tr class="border-b border-slate-100">
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Aider</td>
+                <td class="py-3 pr-4">Add it under <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">aider.mcp.servers</span> in your aider config.</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 font-semibold whitespace-nowrap align-top">Copilot (agent mode)</td>
+                <td class="py-3 pr-4">In VS Code at your repo root: open or create <span class="file-pill">.vscode/mcp.json</span> and paste the snippet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <details class="mb-2 bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <summary class="cursor-pointer text-sm font-semibold text-slate-800">How do I open or create the file paths above? (Finder &amp; File Explorer tips)</summary>
           <div class="mt-3 text-sm text-slate-700 space-y-3">
             <p>The <span class="mono">~/</span> at the start of a path means &ldquo;your home folder&rdquo;. So <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">~/.cursor/mcp.json</span> is <em>inside</em> your home folder, in a hidden folder called <span class="mono">.cursor</span>, and the file is called <span class="mono">mcp.json</span>.</p>
             <div>
               <p class="font-semibold text-slate-800">On a Mac (Finder):</p>
               <ol class="mt-1 list-decimal pl-5 space-y-1">
                 <li>Open Finder.</li>
-                <li>Press <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">Cmd+Shift+.</span> (period) &mdash; this reveals hidden folders that start with a dot.</li>
-                <li>Press <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">Cmd+Shift+G</span>, paste the path from the table below, hit Go. If the folder doesn&rsquo;t exist, Finder will offer to create it.</li>
-                <li>If the <span class="mono">mcp.json</span> file isn&rsquo;t there yet, use <strong>File &rarr; New &hellip; &rarr; (text-editing app)</strong> in your editor of choice (TextEdit works, just save as plain text not rich text).</li>
+                <li>Press <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">Cmd+Shift+.</span> (period) &mdash; this reveals hidden folders.</li>
+                <li>Press <span class="mono text-xs bg-white px-1.5 py-0.5 rounded border">Cmd+Shift+G</span>, paste the path, hit Go. If the folder doesn&rsquo;t exist, Finder will offer to create it.</li>
+                <li>If the file isn&rsquo;t there, create it with TextEdit (save as plain text, not rich text).</li>
               </ol>
             </div>
             <div>
               <p class="font-semibold text-slate-800">On Windows (File Explorer):</p>
               <ol class="mt-1 list-decimal pl-5 space-y-1">
                 <li>Open File Explorer.</li>
-                <li>In the View menu, tick &ldquo;Hidden items&rdquo;.</li>
-                <li>Click the address bar, paste the path (replace <span class="mono">~</span> with <span class="mono">%USERPROFILE%</span> or just your username folder under <span class="mono">C:\Users\</span>), hit Enter.</li>
-                <li>If the file isn&rsquo;t there, right-click &rarr; New &rarr; Text Document, rename to <span class="mono">mcp.json</span> (with the <span class="mono">.json</span> extension visible &mdash; turn on file extensions in the View menu if hidden).</li>
+                <li>View menu &rarr; tick &ldquo;Hidden items&rdquo;.</li>
+                <li>Click the address bar, paste the path (replace <span class="mono">~</span> with <span class="mono">%USERPROFILE%</span>), hit Enter.</li>
+                <li>If the file isn&rsquo;t there, right-click &rarr; New &rarr; Text Document, rename to <span class="mono">mcp.json</span> (turn on file extensions if hidden).</li>
               </ol>
             </div>
-            <p class="text-xs text-slate-500">Easier route: most of the listed tools (Cursor, Windsurf, Cline, Antigravity) have a UI panel for managing MCP servers &mdash; you can paste the JSON there without finding the file yourself. The table below points at the UI route when one exists.</p>
           </div>
         </details>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-slate-200 text-left">
-                <th class="py-2 pr-4 font-semibold text-slate-700 whitespace-nowrap">Tool</th>
-                <th class="py-2 pr-4 font-semibold text-slate-700">Where it goes</th>
-              </tr>
-            </thead>
-            <tbody class="text-slate-700">
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Cursor</td>
-                <td class="py-3 pr-4"><span class="file-pill">~/.cursor/mcp.json</span> &mdash; or scope to one project with <span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">.cursor/mcp.json</span> at the repo root</td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Windsurf</td>
-                <td class="py-3 pr-4"><span class="file-pill">~/.codeium/windsurf/mcp_config.json</span> &mdash; or open Cascade &rarr; tools &rarr; Configure</td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Claude Code</td>
-                <td class="py-3 pr-4"><span class="file-pill">~/.claude/mcp.json</span></td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Claude Desktop</td>
-                <td class="py-3 pr-4">
-                  <span class="file-pill">~/Library/Application Support/Claude/claude_desktop_config.json</span>
-                  <span class="block text-xs text-slate-500 mt-1">Windows: <span class="mono">%APPDATA%\Claude\claude_desktop_config.json</span></span>
-                </td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Cline</td>
-                <td class="py-3 pr-4">VS Code &rarr; Cline icon &rarr; MCP settings panel</td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Codex</td>
-                <td class="py-3 pr-4"><span class="file-pill">~/.codex/mcp.json</span></td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Antigravity</td>
-                <td class="py-3 pr-4">Settings &rarr; MCP Servers</td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Continue</td>
-                <td class="py-3 pr-4"><span class="file-pill">~/.continue/config.json</span></td>
-              </tr>
-              <tr class="border-b border-slate-100">
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Aider</td>
-                <td class="py-3 pr-4"><span class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">aider.mcp.servers</span> in your aider config</td>
-              </tr>
-              <tr>
-                <td class="py-3 pr-4 font-semibold whitespace-nowrap">Copilot (agent)</td>
-                <td class="py-3 pr-4"><span class="file-pill">.vscode/mcp.json</span> at your repo root</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
         <p class="mt-4 text-xs text-slate-500">
           Using something else MCP-capable that isn&rsquo;t listed? Try it &mdash; if it speaks the Model Context Protocol, the same JSON works. Email us where you put it and we&rsquo;ll add a row.
         </p>
