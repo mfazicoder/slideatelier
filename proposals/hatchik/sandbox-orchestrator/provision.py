@@ -769,9 +769,9 @@ Kick the tyres — what to try
 
 • Mobile app preview (iOS + Android)
   We've already built the scaffold — to see the actual .ipa and .apk
-  files, go to https://{DOMAIN}/account → Mobile builds → Trigger.
-  The build runs on GitHub's hosted machines and takes 8–15 mins.
-  When it's done you download them from your account dashboard.
+  files (the things you'd submit to the App Store / Play Store), go
+  to https://{DOMAIN}/account → Mobile builds → Trigger. Takes about
+  8–15 minutes. Download the files from the same page when it's done.
 
 • Try test payments
   Stripe is in test mode in your sandbox. On any checkout flow use
@@ -974,9 +974,7 @@ tool will get the repo for you with one command — we'll guide you
 through it on first run. After that:
 
 • You tell the AI what you want to build.
-• It writes the code AND handles git for you — commits, pushes,
-  the lot. You don't need to know what any of those words mean.
-• Your sandbox redeploys in about 30 seconds. Reload and look at it.
+• Your sandbox updates within about 30 seconds. Reload and look at it.
 
 Setup instructions for each tool are at {install_url}.
 
@@ -1040,7 +1038,7 @@ More at {docs_url}.
               <ul style="margin:0 0 16px 0;padding-left:20px;color:#333;font-size:14px;">
                 <li style="margin:0 0 6px 0;">Your AI tool will get the repo for you with one command &mdash; we&rsquo;ll guide you through it on first run.</li>
                 <li style="margin:0 0 6px 0;">You tell the AI what you want to build.</li>
-                <li style="margin:0 0 6px 0;">It writes the code <strong>and handles git for you</strong> &mdash; when it suggests changes, it commits and pushes for you. Your sandbox redeploys in about 30 seconds. You don&rsquo;t need to know git.</li>
+                <li style="margin:0 0 6px 0;">Your sandbox updates within about 30 seconds. Reload and look at it.</li>
               </ul>
               <p style="margin:0 0 16px 0;color:#333;font-size:14px;">Setup instructions for each tool are at <a href="{install_url}" style="color:#4f46e5;text-decoration:underline;">{install_url}</a>.</p>
 
