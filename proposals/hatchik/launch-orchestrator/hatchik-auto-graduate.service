@@ -1,0 +1,18 @@
+[Unit]
+Description=Hatchik auto-graduate sweep — Launch → Growth at 15th end-user signup
+Documentation=file:///opt/hatchik/launch-orchestrator/auto_graduate.py
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hatchik/launch-orchestrator
+EnvironmentFile=-/etc/hatchik/orchestrator.env
+ExecStart=/usr/bin/python3 /opt/hatchik/launch-orchestrator/auto_graduate.py
+StandardOutput=journal
+StandardError=journal
+# Promotion can take 10-15 min in the worst case (DB rsync etc).
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target
