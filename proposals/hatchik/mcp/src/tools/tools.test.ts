@@ -15,7 +15,10 @@ import { projectInfoTool } from "./project-info.js";
 import { listSandboxesTool } from "./list-sandboxes.js";
 import { servicesTool } from "./services.js";
 import { mobileBuildsListTool, mobileBuildTriggerTool } from "./mobile-builds.js";
-import { startSignupStub } from "./signup-stubs.js";
+import {
+  startSignupTool, suggestDomainsTool, checkDomainTool, setChoicesTool,
+  quoteTool, checkoutTool, statusTool, completeTool,
+} from "./signup.js";
 
 function makeStubApi(responses: Record<string, unknown>): ApiClient {
   return {
@@ -28,6 +31,12 @@ function makeStubApi(responses: Record<string, unknown>): ApiClient {
     post: async (path: string, _body?: unknown) => {
       if (!(path in responses)) {
         throw new Error(`stub: no canned response for POST ${path}`);
+      }
+      return responses[path] as never;
+    },
+    patch: async (path: string, _body?: unknown) => {
+      if (!(path in responses)) {
+        throw new Error(`stub: no canned response for PATCH ${path}`);
       }
       return responses[path] as never;
     },
@@ -230,11 +239,155 @@ test("mobile_build_trigger: rejects invalid platform", async () => {
   );
 });
 
-// ─── signup stub ─────────────────────────────────────────────────────
+// ─── signup tools ────────────────────────────────────────────────────
 
-test("signup stub: points at the web wizard until in-chat signup ships", async () => {
-  const api = makeStubApi({});
-  const r = await startSignupStub(api).handler({});
-  assert.match(r.text, /hatchik\.com\/start/);
-  assert.match(r.text, /HATCHIK_API_KEY/);
+test("start_signup: returns a session_id and forwards the description", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions": {
+      session_id: "ws_abcdef1234567890ABCDEF12",
+      status: "new",
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+      choices: { description: "meal-prep app" },
+    },
+  });
+  const r = await startSignupTool(api).handler({ description: "meal-prep app" });
+  assert.match(r.text, /ws_abcdef/);
+  assert.match(r.text, /suggest_domains/);
+});
+
+test("suggest_domains: lists candidates and flags premium TLDs", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_x/suggest-domains": {
+      session_id: "ws_x", base_name: "mealmate",
+      suggestions: [
+        { domain: "mealmate.com", available: false, price_pence: 1400,
+          premium: false, coverage_pence: 1400, customer_pence: 0 },
+        { domain: "mealmate.app", available: true, price_pence: 1400,
+          premium: false, coverage_pence: 1400, customer_pence: 0 },
+        { domain: "mealmate.io", available: true, price_pence: 3000,
+          premium: true, coverage_pence: 1400, customer_pence: 1600 },
+      ],
+    },
+  });
+  const r = await suggestDomainsTool(api).handler({
+    session_id: "ws_x", base_name: "mealmate",
+  });
+  assert.match(r.text, /mealmate\.com/);
+  assert.match(r.text, /mealmate\.io.*premium/);
+});
+
+test("check_domain: reports availability + customer share", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_x/check-domain?domain=foo.ai": {
+      domain: "foo.ai", available: true, price_pence: 9000,
+      premium: true, coverage_pence: 1400, customer_pence: 7600,
+    },
+  });
+  const r = await checkDomainTool(api).handler({
+    session_id: "ws_x", domain: "foo.ai",
+  });
+  assert.match(r.text, /foo\.ai/);
+  assert.match(r.text, /£76\.00/);
+});
+
+test("set_choices: confirms what got recorded", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_x": {
+      id: "ws_x", status: "in_progress",
+      choices: { tier: "launch", domain: "mealmate.app", email: "alex@x" },
+    },
+  });
+  const r = await setChoicesTool(api).handler({
+    session_id: "ws_x",
+    choices: { tier: "launch", domain: "mealmate.app", email: "alex@x" },
+  });
+  assert.match(r.text, /tier: launch/);
+  assert.match(r.text, /mealmate\.app/);
+});
+
+test("quote: renders setup + monthly + year-1 totals", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_x/quote": {
+      session_id: "ws_x",
+      quote: {
+        tier: "launch",
+        setup_pence: 8900, setup_display: "£89.00",
+        monthly_pence: 1400, monthly_display: "£14.00",
+        monthly_billing_cycle: "annual",
+        domain_passthrough_pence: 0, domain_passthrough_display: "£0.00",
+        year_one_display: "£257.00",
+        breakdown: [
+          { label: "Launch setup", pence: 8900, kind: "one-off" },
+          { label: "Launch monthly (annual billing)", pence: 1400, kind: "recurring-monthly" },
+        ],
+      },
+      choices: {},
+    },
+  });
+  const r = await quoteTool(api).handler({ session_id: "ws_x" });
+  assert.match(r.text, /Launch setup/);
+  assert.match(r.text, /Year-1 total: £257\.00/);
+});
+
+test("checkout (sandbox): returns install_token + skips Paddle", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_x/checkout": {
+      session_id: "ws_x", tier: "sandbox",
+      checkout_required: false,
+      checkout_url: null,
+      install_token: "it_abcdefghij1234567890ABCDEFGHIJ12",
+      status: "provisioning",
+      message: "Sandbox tier is free — provisioning started immediately.",
+    },
+  });
+  const r = await checkoutTool(api).handler({ session_id: "ws_x" });
+  assert.match(r.text, /install_token: it_abcdef/);
+  assert.match(r.text, /status/);
+});
+
+test("checkout (launch): returns a Paddle URL", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_y/checkout": {
+      session_id: "ws_y", tier: "launch",
+      checkout_required: true,
+      checkout_url: "https://buy.paddle.com/checkout/pri_xyz?...",
+      status: "awaiting_pay",
+    },
+  });
+  const r = await checkoutTool(api).handler({ session_id: "ws_y" });
+  assert.match(r.text, /buy\.paddle\.com/);
+  assert.match(r.text, /status/);
+});
+
+test("status (ready): tells the AI to call complete", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_x/status": {
+      session_id: "ws_x", status: "ready",
+      signup_status: "live-sandbox",
+      product_name: "MealMate",
+      domain: "mealmate.app",
+      install_token_available: true,
+    },
+  });
+  const r = await statusTool(api).handler({ session_id: "ws_x" });
+  assert.match(r.text, /ready/);
+  assert.match(r.text, /complete/);
+});
+
+test("complete: returns api_key + MCP config block", async () => {
+  const api = makeStubApi({
+    "/api/wizard/sessions/ws_x/complete": {
+      ok: true, session_id: "ws_x", signup_id: 42,
+      api_key: "hk_live_abcdefghij",
+      api_url: "https://api.hatchik.com",
+      project: {
+        id: "42", product_name: "MealMate", domain: "mealmate.app", tier: "launch",
+      },
+    },
+  });
+  const r = await completeTool(api).handler({
+    session_id: "ws_x", install_token: "it_xyz",
+  });
+  assert.match(r.text, /HATCHIK_API_KEY=hk_live_abcdefghij/);
+  assert.match(r.text, /MealMate/);
 });

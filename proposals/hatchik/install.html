@@ -347,7 +347,7 @@
     <p class="mt-4 text-sm text-slate-500">Takes ~2 minutes.</p>
     <p class="mt-3 text-xs text-slate-500 max-w-2xl mx-auto">
       Already signed up via the <a href="/start" class="underline hover:text-slate-700">web wizard</a>? Skip ahead to step 4.
-      Signing up directly inside your AI tool? Use the <a href="#mcp-signup" class="underline hover:text-slate-700">MCP signup flow</a> (coming soon).
+      Signing up directly inside your AI tool? Use the <a href="#mcp-signup" class="underline hover:text-slate-700">MCP signup flow</a> — it's live.
     </p>
   </div>
 </section>
@@ -555,6 +555,32 @@ Are you connected to Hatchik? Show me my recent deploys.</pre>
   <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 text-sm text-slate-700 leading-relaxed">
     <strong class="text-indigo-900">What this does, in plain English:</strong>
     you&rsquo;re telling your AI tool there&rsquo;s a service called &ldquo;hatchik&rdquo; it&rsquo;s allowed to talk to. When you ask it to ship a feature, check why the site is slow, or roll back yesterday&rsquo;s change, it can do that directly &mdash; the AI calls our MCP server, our server checks your API key, and the action runs against your Hatchik project. Anything that costs money or could break things (payments, deletes, rollbacks) still bounces through your browser for a click-to-confirm.
+  </div>
+</section>
+
+<!-- MCP SIGNUP (no API key yet) -->
+<section id="mcp-signup" class="max-w-4xl mx-auto px-6 pb-24">
+  <div class="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-8">
+    <p class="text-xs font-mono uppercase tracking-wider text-emerald-700">Path B</p>
+    <h2 class="mt-2 text-2xl font-bold">Sign up <em>inside</em> your AI tool</h2>
+    <p class="mt-3 text-slate-700 max-w-3xl">
+      Don&rsquo;t have a Hatchik account yet? You can install the MCP
+      <strong>before signing up</strong> and let the AI walk you through it
+      conversationally. Same outcome as the web wizard &mdash; one Paddle
+      checkout page in your browser is the only step that leaves chat.
+    </p>
+
+    <ol class="mt-6 space-y-3 text-sm text-slate-700">
+      <li><strong>1.</strong> Add the MCP block above to your AI tool&rsquo;s config, leaving the <code class="mono">env</code> block empty.</li>
+      <li><strong>2.</strong> Restart, then ask: <em class="text-slate-900">&ldquo;Use Hatchik to set up a new SaaS for [your idea].&rdquo;</em></li>
+      <li><strong>3.</strong> The AI calls <code class="mono">start_signup</code>, then walks you through name &rarr; domain &rarr; tier &rarr; quote &rarr; checkout.</li>
+      <li><strong>4.</strong> Pay in browser. Return to chat &mdash; AI calls <code class="mono">status</code> until ready, then <code class="mono">complete</code>.</li>
+      <li><strong>5.</strong> The AI prints your <code class="mono">HATCHIK_API_KEY</code>. Paste it into the MCP config&rsquo;s <code class="mono">env</code>, restart, and you&rsquo;re in ops mode.</li>
+    </ol>
+
+    <div class="mt-6 text-xs text-slate-500">
+      The eight tools your AI uses for signup: <code class="mono">start_signup</code>, <code class="mono">suggest_domains</code>, <code class="mono">check_domain</code>, <code class="mono">set_choices</code>, <code class="mono">quote</code>, <code class="mono">checkout</code>, <code class="mono">status</code>, <code class="mono">complete</code>.
+    </div>
   </div>
 </section>
 

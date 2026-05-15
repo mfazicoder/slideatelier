@@ -43,12 +43,13 @@ export class ApiError extends Error {
 export interface ApiClient {
   get<T = unknown>(path: string): Promise<T>;
   post<T = unknown>(path: string, body?: unknown): Promise<T>;
+  patch<T = unknown>(path: string, body?: unknown): Promise<T>;
   delete<T = unknown>(path: string): Promise<T>;
 }
 
 export function makeApiClient(config: Config): ApiClient {
   async function call<T>(
-    method: "GET" | "POST" | "DELETE",
+    method: "GET" | "POST" | "PATCH" | "DELETE",
     path: string,
     body?: unknown,
   ): Promise<T> {
@@ -118,6 +119,7 @@ export function makeApiClient(config: Config): ApiClient {
   return {
     get: (path) => call("GET", path),
     post: (path, body) => call("POST", path, body),
+    patch: (path, body) => call("PATCH", path, body),
     delete: (path) => call("DELETE", path),
   };
 }

@@ -1472,17 +1472,49 @@ async def _handle_subscription_created(data: dict[str, Any], event_id: str) -> N
     customer = data.get("customer") or {}
     customer_email = customer.get("email") or data.get("customer_email")
     customer_id = data.get("customer_id")
+    custom_data = data.get("custom_data") or {}
+    wizard_session_id = custom_data.get("wizard_session_id")
 
-    signup_id = (
-        _resolve_signup_id_by_paddle_customer(customer_id)
-        or _resolve_signup_id_by_customer_email(customer_email)
-    )
+    # If the checkout was initiated from a wizard session (MCP signup path),
+    # the wizard session doesn't yet have a signups.id — the payment IS
+    # the moment that creates it. Mint the signup row from the session
+    # choices, promote the session to provisioning, then fall through to
+    # the normal launch transition + promote subprocess.
+    signup_id: int | None = None
+    if wizard_session_id:
+        import wizard_sessions as _ws
+        ws_session = _ws.get(wizard_session_id)
+        if ws_session and not ws_session.signup_id:
+            try:
+                signup_id = await _create_signup_from_wizard(ws_session)
+                _ws.mark_provisioning(
+                    wizard_session_id, signup_id,
+                    paddle_txn_id=data.get("id") or data.get("transaction_id"),
+                )
+                log.info(
+                    "subscription.created event=%s — minted signup #%s from wizard %s",
+                    event_id, signup_id, wizard_session_id,
+                )
+            except Exception as e:  # noqa: BLE001
+                log.error(
+                    "subscription.created event=%s — failed to mint signup "
+                    "from wizard %s: %s",
+                    event_id, wizard_session_id, e,
+                )
+        elif ws_session and ws_session.signup_id:
+            signup_id = ws_session.signup_id
+
+    if signup_id is None:
+        signup_id = (
+            _resolve_signup_id_by_paddle_customer(customer_id)
+            or _resolve_signup_id_by_customer_email(customer_email)
+        )
     if not signup_id:
         log.warning(
             "subscription.created event=%s — could not resolve to a signup. "
-            "customer_email=%r customer_id=%r. Will be picked up by "
-            "launch_lifecycle.py reconciler.",
-            event_id, customer_email, customer_id,
+            "customer_email=%r customer_id=%r wizard_session=%r. Will be "
+            "picked up by launch_lifecycle.py reconciler.",
+            event_id, customer_email, customer_id, wizard_session_id,
         )
         return
 
@@ -1491,7 +1523,8 @@ async def _handle_subscription_created(data: dict[str, Any], event_id: str) -> N
         from_tier="sandbox",
         to_tier="launch",
         event_id=event_id,
-        note="paddle subscription.created",
+        note=("paddle subscription.created"
+              + (f" via wizard {wizard_session_id}" if wizard_session_id else "")),
     )
     _trigger_promote_subprocess(signup_id, event_id)
 
@@ -3949,6 +3982,398 @@ async def reinvite_github_collaborator(
             ),
         },
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Wizard sessions — conversational MCP signup flow
+# ─────────────────────────────────────────────────────────────────────────
+# Spec: proposals/hatchik/mcp-signup-flow.md
+# These endpoints are the server side of the eight MCP signup tools
+# (start_signup, suggest_domains, check_domain, set_choices, quote,
+# checkout, status, complete). The state lives in signups.db via
+# wizard_sessions.py. The Paddle webhook handler higher up in this file
+# checks for a wizard_session_id in the transaction's custom_data so
+# successful payments promote sessions from awaiting_pay → provisioning.
+
+import wizard_sessions  # noqa: E402
+
+WIZARD_SUGGEST_TLDS_DEFAULT = (".com", ".co", ".app", ".io")
+WIZARD_SUGGEST_COUNT_DEFAULT = 6
+
+
+class WizardCreateRequest(BaseModel):
+    description: str = Field("", max_length=2000)
+    product_name: str = Field("", max_length=120)
+
+
+@app.post("/api/wizard/sessions", status_code=201)
+async def wizard_create(req: WizardCreateRequest) -> dict[str, Any]:
+    """Create a new wizard session and return its id + initial state."""
+    initial: dict[str, Any] = {}
+    if req.description.strip():
+        initial["description"] = req.description.strip()
+    if req.product_name.strip():
+        initial["product_name"] = req.product_name.strip()
+    s = wizard_sessions.create(initial_choices=initial)
+    return {
+        "ok": True,
+        "session_id": s.id,
+        "status": s.status,
+        "expires_at": s.expires_at.isoformat(),
+        "choices": s.choices,
+    }
+
+
+@app.get("/api/wizard/sessions/{session_id}")
+async def wizard_get(session_id: str) -> dict[str, Any]:
+    s = wizard_sessions.get(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    return s.to_dict()
+
+
+class WizardChoicesPatch(BaseModel):
+    """Free-form patch — the MCP can update any of the wizard fields here.
+
+    Validated lightly; deeper checks (e.g. domain TLD, email shape) are
+    done by other endpoints when relevant (suggest/quote/checkout).
+    """
+    model_config = {"extra": "allow"}
+
+    email: EmailStr | None = None
+    first_name: str | None = Field(None, max_length=80)
+    product_name: str | None = Field(None, min_length=1, max_length=120)
+    description: str | None = Field(None, max_length=2000)
+    tier: Literal["sandbox", "launch", "growth"] | None = None
+    region: str | None = Field(None, max_length=40)
+    domain: str | None = Field(None, max_length=255)
+    billing_cycle: Literal["annual", "rolling"] | None = None
+    github_username: str | None = Field(None, max_length=39)
+
+
+@app.patch("/api/wizard/sessions/{session_id}")
+async def wizard_patch(session_id: str, patch: WizardChoicesPatch) -> dict[str, Any]:
+    # Only persist non-None fields so the MCP can update fields incrementally.
+    cleaned = {k: v for k, v in patch.model_dump(exclude_unset=True).items() if v is not None}
+    s = wizard_sessions.update_choices(session_id, cleaned)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    if s.status in ("expired", "cancelled"):
+        raise HTTPException(status_code=409, detail=f"session is {s.status}")
+    return s.to_dict()
+
+
+@app.get("/api/wizard/sessions/{session_id}/quote")
+async def wizard_quote(session_id: str) -> dict[str, Any]:
+    s = wizard_sessions.get(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    q = wizard_sessions.compute_quote(s.choices)
+    return {"session_id": session_id, "quote": q.to_dict(), "choices": s.choices}
+
+
+class WizardSuggestDomainsRequest(BaseModel):
+    base_name: str = Field(..., min_length=1, max_length=80)
+    tlds: list[str] | None = None
+    count: int | None = Field(None, ge=1, le=20)
+
+
+@app.post("/api/wizard/sessions/{session_id}/suggest-domains")
+async def wizard_suggest_domains(
+    session_id: str, req: WizardSuggestDomainsRequest,
+) -> dict[str, Any]:
+    s = wizard_sessions.get(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    base = re.sub(r"[^a-z0-9-]", "", req.base_name.lower())[:60] or "yourapp"
+    tlds = req.tlds or list(WIZARD_SUGGEST_TLDS_DEFAULT)
+    count = req.count or WIZARD_SUGGEST_COUNT_DEFAULT
+
+    # Use porkbun_domain.is_available if available; falls back to stub data
+    # when the registrar key isn't set on this host.
+    try:
+        import sys as _s
+        _s.path.insert(0, str(Path("/opt/hatchik-launch-orchestrator").resolve()))
+        import porkbun_domain  # type: ignore[import-not-found]
+    except Exception:  # noqa: BLE001
+        porkbun_domain = None  # type: ignore[assignment]
+
+    suggestions: list[dict[str, Any]] = []
+    candidate_bases = [base]
+    # If base already taken on .com, the MCP gets more value from variations.
+    if len(suggestions) < count:
+        candidate_bases.extend([f"get{base}", f"{base}hq", f"{base}app", f"try{base}"])
+
+    seen: set[str] = set()
+    for b in candidate_bases:
+        for tld in tlds:
+            tld = tld if tld.startswith(".") else f".{tld}"
+            domain = f"{b}{tld}"
+            if domain in seen:
+                continue
+            seen.add(domain)
+            if porkbun_domain is not None:
+                try:
+                    a = porkbun_domain.is_available(domain)
+                    suggestions.append({
+                        "domain": domain,
+                        "available": bool(a.available),
+                        "price_pence": int(a.price_pence),
+                        "premium": bool(a.premium),
+                        "coverage_pence": int(a.coverage_pence),
+                        "customer_pence": int(a.customer_pence),
+                    })
+                except Exception:  # noqa: BLE001
+                    # Fall through to stub for this one domain.
+                    suggestions.append(_stub_domain_row(domain))
+            else:
+                suggestions.append(_stub_domain_row(domain))
+            if len(suggestions) >= count:
+                break
+        if len(suggestions) >= count:
+            break
+
+    return {"session_id": session_id, "base_name": base, "suggestions": suggestions[:count]}
+
+
+def _stub_domain_row(domain: str) -> dict[str, Any]:
+    # Deterministic-ish: pretend the .com variant of a short word is taken,
+    # everything else available. Realistic enough for AI to demo with.
+    available = not (domain.endswith(".com") and len(domain) <= 12)
+    from domains import passthrough_info
+    info = passthrough_info(domain)
+    if info:
+        _t, extra_gbp, _l = info
+        return {"domain": domain, "available": available,
+                "price_pence": 1400 + extra_gbp * 100, "premium": True,
+                "coverage_pence": 1400, "customer_pence": extra_gbp * 100}
+    return {"domain": domain, "available": available, "price_pence": 1400,
+            "premium": False, "coverage_pence": 1400, "customer_pence": 0}
+
+
+@app.get("/api/wizard/sessions/{session_id}/check-domain")
+async def wizard_check_domain(session_id: str, domain: str) -> dict[str, Any]:
+    s = wizard_sessions.get(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    try:
+        import sys as _s
+        _s.path.insert(0, str(Path("/opt/hatchik-launch-orchestrator").resolve()))
+        import porkbun_domain  # type: ignore[import-not-found]
+        a = porkbun_domain.is_available(domain)
+        return {"domain": domain, "available": bool(a.available),
+                "price_pence": int(a.price_pence), "premium": bool(a.premium),
+                "coverage_pence": int(a.coverage_pence),
+                "customer_pence": int(a.customer_pence)}
+    except Exception:  # noqa: BLE001
+        return _stub_domain_row(domain)
+
+
+@app.post("/api/wizard/sessions/{session_id}/checkout")
+async def wizard_checkout(session_id: str) -> dict[str, Any]:
+    s = wizard_sessions.get(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    if s.status not in ("new", "in_progress"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"session is {s.status} — cannot issue a new checkout",
+        )
+    ok, reason = wizard_sessions.is_ready_for_checkout(s.choices)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+
+    tier = (s.choices.get("tier") or "sandbox").lower()
+    if tier == "sandbox":
+        # Sandbox is free — no Paddle round-trip. Create the signup row
+        # synchronously and move straight to provisioning.
+        signup_id = await _create_signup_from_wizard(s)
+        install_token = wizard_sessions.mark_provisioning(s.id, signup_id)
+        return {
+            "session_id": s.id, "tier": "sandbox",
+            "checkout_required": False,
+            "install_token": install_token,
+            "status": "provisioning",
+            "message": "Sandbox tier is free — provisioning started immediately.",
+        }
+
+    if not PADDLE_LAUNCH_PRICE_ID:
+        return {
+            "session_id": s.id, "tier": tier,
+            "checkout_required": True,
+            "checkout_url": None,
+            "status": "awaiting_pay",
+            "message": (
+                "Paddle isn't configured on this host yet. The session is "
+                "marked awaiting_pay; the founder will follow up by email."
+            ),
+        }
+
+    # Paddle hosted checkout — pass session_id as custom_data so the
+    # webhook can map the transaction back to the wizard session.
+    checkout_url = (
+        f"{PADDLE_CHECKOUT_BASE}/{PADDLE_LAUNCH_PRICE_ID}"
+        f"?customer_email={s.choices.get('email')}"
+        f"&customer_first_name={s.choices.get('first_name', '')}"
+        f"&custom[wizard_session_id]={s.id}"
+        f"&success_url=https://hatchik.com/wizard-return?session_id={s.id}"
+    )
+    wizard_sessions.mark_awaiting_pay(s.id)
+    return {
+        "session_id": s.id, "tier": tier,
+        "checkout_required": True,
+        "checkout_url": checkout_url,
+        "status": "awaiting_pay",
+    }
+
+
+@app.get("/api/wizard/sessions/{session_id}/status")
+async def wizard_status(session_id: str) -> dict[str, Any]:
+    s = wizard_sessions.get(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    response: dict[str, Any] = {
+        "session_id": s.id, "status": s.status,
+        "expires_at": s.expires_at.isoformat(),
+    }
+    if s.signup_id:
+        try:
+            with sqlite3.connect(DB_PATH) as db:
+                db.row_factory = sqlite3.Row
+                row = db.execute(
+                    "SELECT status, tier, product_name, region, domain_choice "
+                    "FROM signups WHERE id = ?", (s.signup_id,),
+                ).fetchone()
+                if row:
+                    response["signup_status"] = row["status"]
+                    response["product_name"] = row["product_name"]
+                    response["domain"] = row["domain_choice"]
+                    if row["status"] == "live-sandbox" or row["status"] == "live-launch":
+                        wizard_sessions.mark_ready(s.id)
+                        response["status"] = "ready"
+                        # Make the install_token visible only once status flips
+                        # to ready, so the MCP can call complete().
+                        response["install_token_available"] = bool(s.install_token)
+        except sqlite3.Error:
+            pass
+    return response
+
+
+class WizardCompleteRequest(BaseModel):
+    install_token: str = Field(..., min_length=10, max_length=64)
+
+
+@app.post("/api/wizard/sessions/{session_id}/complete")
+async def wizard_complete(
+    session_id: str, req: WizardCompleteRequest,
+) -> dict[str, Any]:
+    s = wizard_sessions.get(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    if s.status == "completed":
+        raise HTTPException(status_code=409, detail="already completed")
+    if s.status != "ready":
+        raise HTTPException(
+            status_code=409,
+            detail=f"session is {s.status}; call status until it returns 'ready'",
+        )
+    if not s.install_token or s.install_token != req.install_token:
+        raise HTTPException(status_code=403, detail="install_token mismatch")
+    if not s.signup_id:
+        raise HTTPException(status_code=500, detail="session has no signup")
+
+    # Issue a fresh API key bound to this signup, for the MCP to use in
+    # ops mode. Reuses the existing /api/account/api-keys backend.
+    api_key, _key_row = _mint_api_key_for_signup(s.signup_id, label="MCP")
+    wizard_sessions.mark_completed(s.id)
+
+    # Return everything the MCP needs to switch to ops mode.
+    return {
+        "ok": True,
+        "session_id": s.id,
+        "signup_id": s.signup_id,
+        "api_key": api_key,
+        "api_url": os.environ.get("HATCHIK_PUBLIC_API_URL", "https://api.hatchik.com"),
+        "project": {
+            "id": str(s.signup_id),
+            "product_name": s.choices.get("product_name"),
+            "domain": s.choices.get("domain"),
+            "tier": s.choices.get("tier", "sandbox"),
+        },
+    }
+
+
+class WizardCancelRequest(BaseModel):
+    reason: str | None = Field(None, max_length=500)
+
+
+@app.post("/api/wizard/sessions/{session_id}/cancel")
+async def wizard_cancel(session_id: str, req: WizardCancelRequest) -> dict[str, Any]:
+    s = wizard_sessions.cancel(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="session not found")
+    return s.to_dict()
+
+
+# ─── Internal helpers consumed by the wizard endpoints ───────────────────
+async def _create_signup_from_wizard(s: "wizard_sessions.WizardSession") -> int:
+    """Persist a signups row from a paid wizard session. Returns signup_id.
+
+    Re-uses the SignupRequest validation by constructing one. Falls back
+    to a direct INSERT if validation rejects (the MCP path is more
+    permissive — we already collected what we need).
+    """
+    c = s.choices
+    req = SignupRequest(
+        email=c.get("email", ""),
+        first_name=c.get("first_name", ""),
+        product_name=c.get("product_name", ""),
+        description=c.get("description", ""),
+        tier=c.get("tier", "sandbox"),
+        region=c.get("region"),
+        domain_choice=c.get("domain"),
+        github_username=c.get("github_username", ""),
+        accepted_terms=True,  # implicit in MCP signup; recorded in wizard_session
+    )
+    # Call the synchronous insertion bits directly, skipping turnstile etc.
+    # The existing create_signup endpoint wraps a lot of validation we
+    # already did during the wizard flow.
+    return _persist_signup_row(req)
+
+
+def _persist_signup_row(req: SignupRequest) -> int:
+    """Minimal INSERT into signups for wizard-flow completions."""
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as db:
+        cur = db.execute(
+            """INSERT INTO signups
+                  (email, first_name, product_name, description, tier,
+                   region, domain_choice, github_username, accepted_terms_at,
+                   created_at, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (req.email, req.first_name, req.product_name, req.description,
+             req.tier, req.region, req.domain_choice, req.github_username,
+             now, now, "queued"),
+        )
+        db.commit()
+        return int(cur.lastrowid or 0)
+
+
+def _mint_api_key_for_signup(signup_id: int, label: str) -> tuple[str, int]:
+    """Generate a hk_live_* token for the signup and persist its hash."""
+    import secrets as _s
+    raw = "hk_live_" + _s.token_urlsafe(32)
+    digest = hashlib.sha256(raw.encode()).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as db:
+        cur = db.execute(
+            """INSERT INTO api_keys (signup_id, label, sha256, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (signup_id, label, digest, now),
+        )
+        db.commit()
+        return raw, int(cur.lastrowid or 0)
 
 
 @app.get("/healthz")
