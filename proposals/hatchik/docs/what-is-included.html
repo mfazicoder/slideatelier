@@ -294,7 +294,7 @@
       </thead>
       <tbody>
         <tr><td>Subdomain</td><td><span class="mono">&lt;your-slug&gt;.hatchik.com</span> with wildcard TLS</td><td>1 subdomain. Custom domain is Launch tier only.</td></tr>
-        <tr><td>Postgres database</td><td>Supabase-managed Postgres 15, isolated per sandbox</td><td>512 MB RAM cap. Disk shares the host budget &mdash; ~1 GB practical before we'd ask you to upgrade.</td></tr>
+        <tr><td>Postgres database</td><td>Supabase-managed Postgres 15, isolated per sandbox</td><td><strong>512 MB RAM per service</strong> (per-process working memory). Storage cap on Sandbox is <strong>100 MB database storage</strong> &mdash; that's the data your app holds, separate from the RAM the database process uses. Disk shares the host budget &mdash; ~1 GB practical before we'd ask you to upgrade.</td></tr>
         <tr><td>Authentication</td><td>Supabase Auth &mdash; magic-link + email/password</td><td>Up to 3 test users on Sandbox. Google OAuth: not configured (you can add when ready).</td></tr>
         <tr><td>File storage</td><td>Supabase Storage (S3-compatible)</td><td>128 MB working RAM; bucket size shares the tenant disk budget.</td></tr>
         <tr><td>Realtime</td><td>Supabase Realtime row-change subscriptions</td><td>Included; same Supabase auth flow.</td></tr>
@@ -403,7 +403,7 @@
         <tr>
           <td>Mailboxes</td>
           <td class="no">No mailboxes</td>
-          <td class="yes">5 real mailboxes on your domain</td>
+          <td class="yes">3 real mailboxes on your domain (Growth: 10)</td>
         </tr>
         <tr>
           <td>Transactional mail sender</td>
@@ -432,7 +432,7 @@
         </tr>
         <tr>
           <td>Idle-archive</td>
-          <td>After 7 days idle</td>
+          <td>After 30 days idle</td>
           <td class="yes">Never auto-archived</td>
         </tr>
         <tr>
@@ -443,7 +443,7 @@
         <tr>
           <td>Region choice</td>
           <td class="partial">Shared (Hetzner FSN1)</td>
-          <td class="yes">5 regions across 3 continents</td>
+          <td class="yes">6 cities across 5 regions</td>
         </tr>
       </tbody>
     </table>
@@ -460,6 +460,32 @@
       <span class="mono">.me</span> (~£15, ~£1),
       <span class="mono">.xyz</span> (~£20, ~£6).
       Prices verified at checkout against the registrar's live rate. Year-2 renewals are at-cost on Launch; free on Growth.
+    </p>
+
+    <h2 id="backups">Backups &mdash; retention by tier and environment</h2>
+    <p>Differentiated by environment so we can keep your most important data the longest without driving costs up everywhere. Click-to-snapshot any time from Supabase Studio (Launch and Growth).</p>
+    <table class="tier">
+      <thead>
+        <tr>
+          <th>Environment</th>
+          <th>Frequency</th>
+          <th>Retention</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Sandbox</td><td>On-demand (your AI tool runs <code>pg_dump</code>)</td><td>n/a</td></tr>
+        <tr><td>Launch &mdash; Prod</td><td>Nightly</td><td><strong>14 days</strong></td></tr>
+        <tr><td>Launch &mdash; Preview / Dev branches</td><td>Nightly</td><td>7 days</td></tr>
+        <tr><td>Growth &mdash; Prod</td><td>Nightly</td><td><strong>30 days</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="substrate-updates">Substrate updates</h2>
+    <p>
+      We push substrate updates (security patches, new wiring, dependency bumps) as <strong>opt-in pull requests</strong> to your repo &mdash; you choose what to merge, when. Nothing changes in your code without you saying yes.
+    </p>
+    <p>
+      <strong>Growth tier early access:</strong> Growth customers see new substrate features <strong>2 weeks before</strong> they roll out to Launch customers, so you can test them on your dev sandbox before they hit your production stack.
     </p>
 
     <h2 id="not-included">What's never included (any tier)</h2>

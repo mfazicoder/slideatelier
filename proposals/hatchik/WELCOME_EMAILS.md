@@ -7,7 +7,7 @@ no-reply alias). British voice throughout.
 
 ---
 
-## §1 — Sandbox signup acknowledgement (within 1 hour)
+## §1 — Sandbox signup acknowledgement (in a few mins)
 
 **Subject:** Welcome to Hatchik, {{first_name}} — your sandbox is being set up
 
@@ -17,7 +17,7 @@ Hi {{first_name}},
 Got your signup — thanks for trying Hatchik with {{their_product_idea_in_their_words}}.
 
 Your Hatchik sandbox is being set up now. You'll get another email
-within the hour with the link to log in and start building.
+in a few mins with the link to log in and start building.
 
 Until then: have a look at https://hatchik.com#included if you want
 to see what's already wired up for you.
@@ -40,7 +40,7 @@ Your Hatchik is being provisioned now. The pieces in flight:
 
   • {{domain}} — registered / configured ({{ETA}})
   • Your dedicated server in {{region}} — spinning up
-  • 5 mailboxes on @{{domain}} — being set up
+  • 3 mailboxes on @{{domain}} — being set up
   • Stripe live mode wired into your app
   • Your code repo in your GitHub (you'll get an invite)
   • BACKLOG.md at the repo root with 20 starter tasks tailored to your idea
@@ -62,7 +62,7 @@ signed up.
 ```
 Hi {{first_name}},
 
-Your Hatchik sandbox is up. Have a look:
+Your sandbox is live at https://{{slug}}.hatchik.com — took a few mins.
 
   Your app:        https://{{slug}}.hatchik.com
   Log in with:     {{email}} (we'll send a magic link)
@@ -84,13 +84,16 @@ What to do first:
 
 A few things to know:
 
-  • You're on the Sandbox tier — capped at 3 users and 100MB. Plenty
-    for testing and prototyping. When you're ready for real customers,
-    upgrade in the dashboard to Launch for £89.
+  • You're on the Sandbox tier — capped at 3 users and 100 MB of
+    database storage, with a one-off £0.50 of AI credit to wire up
+    your first AI-powered feature. Plenty for testing and prototyping.
+    When you're ready for real customers, upgrade in the dashboard
+    to Launch for £89.
   • There's a "Built with Hatchik" footer on your sandbox app. That
     disappears when you upgrade to Launch.
-  • Your sandbox stays free as long as you're active. Idle 7 days →
-    archived (we can restore it on request).
+  • Your sandbox stays free as long as you're active. Idle 30 days →
+    archived (we email you on day 28 and day 29 first; restorable on
+    request after that).
 
 Reply to this email if anything's not working — email support is
 typically same business day.
@@ -112,12 +115,11 @@ Your Hatchik is fully set up. Here's everything:
   Payments:          Stripe LIVE — you can take real money today
   Your to-do list:   BACKLOG.md in your repo
   Your code:         {{github_repo_url}}
-  Your mailboxes:    {{webmail_url}}
+  Your 3 mailboxes:  {{webmail_url}}
                      hello@{{domain}}     — general
                      support@{{domain}}   — customer support
-                     billing@{{domain}}   — payments
                      noreply@{{domain}}   — automated mails
-                     {{custom_inbox}}     — your personal
+                     (Growth tier bumps to 10 inboxes)
 
   Server:            {{provider}} in {{region}}, root SSH in your name
   Backups:           On-demand pg_dump from Studio + Hetzner VPS snapshots

@@ -34,7 +34,7 @@ knowledge.
 | **Agent response time** | <2 min | <2 min | <30 sec |
 | **Human escalation** | community-flagged | within 1 business day | within same day |
 | **Channels** | Community forum, email | + dashboard, MCP, email | + Discord, email, dashboard, MCP |
-| **Proactive outreach** | none | monthly system health summary | monthly proactive check-in + quarterly 30-min call |
+| **Proactive outreach** | none | monthly system health summary | monthly proactive check-in |
 | **Knowledge base** | public docs | + customer-specific runbook | + private founder Discord |
 
 ## Channels

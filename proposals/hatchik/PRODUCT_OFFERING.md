@@ -25,7 +25,7 @@ gated features. **Every tier ships the same substrate.**
 | **Price** | £0 |
 | **URL** | `<customer-subdomain>.hatchik.com` |
 | **Server** | Co-tenanted shared infrastructure |
-| **Database** | **3 users, 100 MB cap** |
+| **Database** | **3 users, 100 MB database storage** |
 | **Payments** | Stripe **or** Paddle, test mode only (customer picks at signup) |
 | **Mailboxes** | Single shared sender (`noreply@hatchik.com`) |
 | **Repo** | Private repo in **hatchik-sandboxes** org, customer added as collaborator with write access |
@@ -34,7 +34,7 @@ gated features. **Every tier ships the same substrate.**
 | **AI tool integration** | Full MCP setup |
 | **AI token allowance** | **One-off £0.50** of Claude Haiku (~50k tokens) — a taster, deliberately enough to wire up one AI-powered feature and see it run. Not a monthly subscription; spent once, gone once. Customer can BYO key any time or upgrade to a tier with a monthly allowance. |
 | **Branding** | "Built with Hatchik" footer (non-removable) |
-| **Idle policy** | Archived after 7 consecutive days idle; restorable on request |
+| **Idle policy** | Archived after 30 consecutive days idle; restorable on request |
 | **Support** | Community forum |
 
 Purpose: derisk the purchase decision. Sandbox is the "try it" path that
@@ -52,7 +52,7 @@ co-founder and a friend) properly test the experience.
 | **Server** | Dedicated VPS in customer's chosen region |
 | **Database** | Unlimited size, unlimited users |
 | **Payments** | Stripe **or** Paddle, live mode (customer's choice — see §4.3) |
-| **Mailboxes** | 5 inboxes on customer's domain |
+| **Mailboxes** | 3 inboxes on customer's domain |
 | **Repo** | Same private repo from Sandbox carries over (in **hatchik-sandboxes** org, customer keeps collaborator write access) |
 | **Backups** | Tiered by environment — see §6 |
 | **Mobile shells** | Same scaffold as Sandbox; same up to 3 cloud builds per hour per tenant — Launch differs in support/SLA, not mobile capability |
@@ -69,7 +69,7 @@ This is where most customers start.
 - VPS provisioning in customer's chosen region
 - Caddy + TLS + Cloudflare wiring
 - Supabase stack deployment
-- 5 mailboxes + SPF/DKIM/DMARC
+- 3 mailboxes + SPF/DKIM/DMARC
 - Stripe Connect handshake + product creation
 - GitHub repo + CI/CD + MCP config
 - Linear board with 20 seed tasks
@@ -106,7 +106,6 @@ their app.
 | **Substrate updates** | **Early access** — Growth customers see substrate features 2 weeks before they roll out to Launch |
 | **Custom email rules** | Forwards, auto-responders, mail filters configurable from dashboard |
 | **Support** | Email, same-day response, monthly proactive health check |
-| **Founder time** | Quarterly 30-min 1:1 with a member of the Hatchik team |
 | **Priority on new features** | Vote on roadmap; early access to beta features |
 | **Community access** | Hatchik founders' Discord — direct line to other customers and team |
 
@@ -170,7 +169,7 @@ the substrate from day one.
 4. **A real website address** — Customer's choice: bring an existing
    domain (we configure DNS + TLS) OR register a new one (year 1 included
    in £89)
-5. **Mailboxes on your domain** — 5 inboxes via Infomaniak Mail, plus
+5. **Mailboxes on your domain** — 3 inboxes via Infomaniak Mail, plus
    SPF/DKIM/DMARC for transactional email
 6. **Your server, in your region** — Dedicated Hetzner Cloud VPS in the
    customer's chosen city. **All hosting is Hetzner** to keep ops simple
@@ -185,8 +184,8 @@ the substrate from day one.
    | 🇺🇸 US West | Hillsboro, OR | HIL |
    | 🇸🇬 Singapore | Singapore | SIN |
 
-   Marketing copy says "5 regions across 3 continents" (counting
-   countries, not cities). Customer picks one at signup, defaults to
+   Marketing copy says "6 cities across 5 regions" (counting
+   datacentres). Customer picks one at signup, defaults to
    nearest by IP. Switching region post-launch requires a migration
    ticket (Growth tier: included; Launch tier: £49 one-off).
 
@@ -195,9 +194,9 @@ the substrate from day one.
    **Swiss / Canadian / Sydney / Indian customers** requesting regional
    hosting receive their nearest Hetzner option (Falkenstein for CH/CA;
    Singapore for IN/AU). On-request bespoke hosting is *out of scope*.
-7. **iPhone and Android versions** — Capacitor shells from the same
-   codebase, store-submittable (customer handles store accounts and
-   submission — see §5.3)
+7. **iOS + Android app shells** — Capacitor scaffolds from the same
+   codebase, cloud-built and signed (customer handles store accounts
+   and submission — see §5.3)
 8. **Code you actually own** — Private GitHub repo under customer's
    account
 9. **A safety net** — Tiered backups (see §6) + uptime monitoring + error
@@ -336,8 +335,8 @@ environments as a standalone product.
 
 ### 5.8 24/7 phone support / SLAs beyond email
 
-Email-first support, with same-day response on Growth tier and a
-quarterly 30-min call. No on-call.
+Email-first support, with same-day response on Growth tier and
+1-business-day response on Launch. No on-call.
 
 The clarity of these "no"s is part of the product. We're not a managed
 services company.
@@ -372,7 +371,6 @@ on overage at provider rate, capped at ~£0.50/month for typical app size).
 | Support response | community | 1 business day | same day |
 | Substrate security patches | when severe | within 14 days | within 7 days |
 | Migration off (handover) | self-serve | 1 business day | priority |
-| Founder time included | none | none | quarterly 30-min |
 
 No financial credits for missed SLAs in v1 — we're a small operation
 and won't pretend otherwise. Persistent issues = full refund of the
