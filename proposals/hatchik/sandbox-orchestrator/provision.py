@@ -910,7 +910,8 @@ When you're ready to go live
 ────────────────────────────
 
 Upgrading to Launch adds your own domain, real (live) payments,
-5 mailboxes on your domain, and a dedicated server.
+3 mailboxes on your domain, Supabase Studio, and production hosting
+in your chosen region. £14/mo on annual prepay or £17/mo rolling.
 
 Full breakdown of what's wired up lives in your account at
 {DOMAIN}/account → Services.
@@ -1023,7 +1024,7 @@ Further information at {faq_url} if you need it.
 
               <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 8px 0;font-weight:700;font-size:18px;color:#0f172a;">When you&rsquo;re ready to go live</p>
-              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Upgrading to Launch adds your own domain, real (live) payments, 5 mailboxes on your domain, and a dedicated server.</p>
+              <p style="margin:0 0 12px 0;color:#333;font-size:15px;">Upgrading to Launch adds your own domain, real (live) payments, 3 mailboxes on your domain, Supabase Studio, and production hosting in your chosen region. £14/mo on annual prepay (£168/yr) or £17/mo rolling.</p>
               <p style="margin:0 0 24px 0;color:#475569;font-size:14px;">Full breakdown of what&rsquo;s wired up lives in your account at <a href="{account_url}" style="color:#4f46e5;text-decoration:underline;">{DOMAIN}/account &rarr; Services</a>.</p>
 
               <p style="margin:32px 0 0 0;color:#0f172a;">&mdash; Hatchik</p>

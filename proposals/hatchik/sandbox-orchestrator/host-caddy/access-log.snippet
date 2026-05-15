@@ -1,0 +1,34 @@
+# Access-log snippet for the host Caddyfile.
+#
+# idle_suspend.py reads /opt/hatchik-host-caddy/logs/access.log to compute
+# per-tenant last-request timestamps. Add the block below to the GLOBAL
+# options section of the host Caddyfile (the `{ ... }` block at the very
+# top), then `caddy reload`.
+#
+# This produces one JSON line per request, including `request.host` (which
+# the suspend daemon parses as <slug>.hatchik.com) and `ts` (epoch
+# seconds). Rotated by logrotate; sized at 100 MiB × 5 keeps ~3 weeks of
+# traffic at typical sandbox volumes.
+
+{
+    # ... existing globals (email, acme_ca, etc.) ...
+
+    log default {
+        output file /var/log/caddy/access.log {
+            roll_size 100mb
+            roll_keep 5
+            roll_keep_for 30d
+        }
+        format json
+        level INFO
+    }
+}
+
+# Mount the access log into the host-caddy container so we both
+# - write here from inside the container, and
+# - read here from idle_suspend.py running on the host
+# by editing host-caddy/docker-compose.yml to bind /opt/hatchik-host-caddy/logs:/var/log/caddy.
+#
+# After the bind mount + Caddyfile change, the suspend daemon reads from
+# /opt/hatchik-host-caddy/logs/access.log (the value of
+# HATCHIK_IDLE_SUSPEND_CADDY_LOG defaults there).

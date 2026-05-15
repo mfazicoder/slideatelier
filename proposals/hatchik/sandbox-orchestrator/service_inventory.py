@@ -95,10 +95,12 @@ _SANDBOX_WIRED_BASE: list[dict[str, Any]] = [
             f"with {SANDBOX_DISK_GB_PRACTICAL} GB space on a shared server."
         ),
         "status": "live",
-        # Supabase Studio at {sandbox_url}/studio is the configuration UI
-        # for the DB. The container ships unhealthy on small RAM caps —
-        # if the link 404s, fall back to telling the customer to ask
-        # their AI tool to inspect the schema via the MCP.
+        # Studio is no longer shipped on Sandbox tier (Launch+ only). On
+        # Sandbox, customers inspect/admin the DB via their AI tool which
+        # talks to Postgres through the substrate's psql client. The
+        # AI_CONTEXT.md handoff explains the patterns. configure_url stays
+        # None on Sandbox; the Launch/Growth inventory builder fills in
+        # the {domain}/studio URL there.
         "configure_url": None,
         "category": "compute",
     },
@@ -248,10 +250,10 @@ _SANDBOX_AVAILABLE_ON_UPGRADE: list[dict[str, Any]] = [
         "name": "Mailboxes",
         "tier": "launch",
         "blurb": (
-            "Up to 5 real mailboxes on your domain via Infomaniak Mail, "
+            "3 real mailboxes on your domain via Infomaniak Mail, "
             "SPF/DKIM/DMARC wired. You pick the names — common starters "
-            "are hello@yourdomain and support@yourdomain; the remaining "
-            "3 are yours to allocate (team@, billing@, etc.)."
+            "are hello@yourdomain, support@yourdomain, and founder@yourdomain. "
+            "Growth tier bumps to 10 mailboxes."
         ),
     },
     {
@@ -273,8 +275,20 @@ _SANDBOX_AVAILABLE_ON_UPGRADE: list[dict[str, Any]] = [
         "name": "Backups",
         "tier": "launch",
         "blurb": (
-            "Launch: on-demand pg_dump from Supabase Studio. "
+            "Launch + Growth: on-demand pg_dump from Supabase Studio (the "
+            "database admin UI is included on Launch and above; not shipped "
+            "on Sandbox to keep that tier dense and cheap). "
             "Growth: nightly off-site Postgres backups on Backblaze B2."
+        ),
+    },
+    {
+        "name": "Supabase Studio (database admin UI)",
+        "tier": "launch",
+        "blurb": (
+            "Click-through table browsing, SQL editor, auth user list, "
+            "storage browser, on-demand pg_dump. Available from Launch tier "
+            "upwards. On Sandbox your AI tool runs the equivalent admin "
+            "tasks directly via the substrate's database connection."
         ),
     },
     {
