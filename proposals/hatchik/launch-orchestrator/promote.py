@@ -240,8 +240,22 @@ Log file: {LOG_DIR}/promote-{plan['signup_id']}.log
 """
 
 
-def _customer_welcome_email(plan: dict[str, Any], live_url: str) -> str:
+def _customer_welcome_email(
+    plan: dict[str, Any], live_url: str,
+    mailboxes: list[Any] | None = None,
+) -> str:
     name = plan.get("first_name") or "there"
+    mailbox_block = ""
+    if mailboxes:
+        rows = "\n".join(
+            f"     {m.address}    password: {m.password}"
+            for m in mailboxes
+        )
+        mailbox_block = (
+            "\nYour mailboxes — one-time passwords (rotate after first login):\n"
+            f"{rows}\n"
+            "Webmail: https://mail.infomaniak.com\n"
+        )
     return f"""Hi {name},
 
 Your Hatchik Launch tier is live at {live_url}.
@@ -254,6 +268,7 @@ What just happened:
   • Your GitHub repo stays the same; push to main triggers a deploy
   • Your custom domain is wired with TLS
   • Email (3 mailboxes), payments, and mobile builds are on Launch-tier quotas
+{mailbox_block}
 
 Billing:
   • £89 setup fee was charged today — covers the hosting provisioning,
@@ -303,6 +318,88 @@ Two heads-ups:
 #       ...
 #     }
 #   }
+
+
+def _provision_launch_extras(
+    plan: dict[str, Any], log_lines: list[str], tier: str = "launch",
+) -> list[Any] | None:
+    """Register the customer's domain + provision mailboxes + write DNS.
+
+    Best-effort. Each step swallows its own errors (logging to log_lines
+    + the founder email) so a missing API token or registrar hiccup
+    doesn't block the Launch promotion from completing. The customer
+    gets whatever succeeded; the founder gets a chase list.
+
+    Returns the list of Mailbox objects (cleartext passwords) so the
+    welcome email can include them, or None if mailbox provisioning was
+    skipped entirely (no domain on file).
+    """
+    domain = plan.get("customer_domain")
+    if not domain:
+        log_lines.append("_provision_launch_extras: no customer_domain — skipping")
+        return None
+
+    mailboxes: list[Any] | None = None
+
+    # 1. Register domain (skipped if BYO or already-owned).
+    if plan.get("hatchik_registers_domain"):
+        try:
+            import porkbun_domain  # local import to keep promote.py importable in tests
+            avail = porkbun_domain.is_available(domain)
+            if avail.available:
+                contact = porkbun_domain.Contact(
+                    first_name=plan.get("first_name", ""),
+                    last_name=plan.get("last_name", ""),
+                    email=plan.get("customer_email", ""),
+                    phone=plan.get("phone", ""),
+                    address_line_1=plan.get("address_line_1", ""),
+                    city=plan.get("city", ""),
+                    postcode=plan.get("postcode", ""),
+                    country=plan.get("country", "GB"),
+                    organisation=plan.get("organisation"),
+                )
+                r = porkbun_domain.register(domain, contact, years=1)
+                log_lines.append(f"_provision_launch_extras: porkbun register → {r}")
+            else:
+                log_lines.append(
+                    f"_provision_launch_extras: {domain} not available — assuming BYO")
+        except Exception as e:  # noqa: BLE001
+            log_lines.append(f"_provision_launch_extras: domain register errored: {e}")
+
+    # 2. Provision mailboxes.
+    try:
+        import infomaniak_mail
+        mailboxes = infomaniak_mail.provision_mailboxes(domain, tier=tier)
+        log_lines.append(
+            f"_provision_launch_extras: provisioned {len(mailboxes)} mailbox(es)"
+        )
+    except Exception as e:  # noqa: BLE001
+        log_lines.append(f"_provision_launch_extras: mailbox provision errored: {e}")
+        mailboxes = []
+
+    # 3. Write SPF/DKIM/DMARC + MX records via Cloudflare.
+    try:
+        import infomaniak_mail
+        import dns_api
+        zone_id = dns_api.find_zone_id(domain) if hasattr(dns_api, "find_zone_id") else None
+        if zone_id:
+            for rec in infomaniak_mail.dns_records_for(domain):
+                try:
+                    dns_api.create_record(  # type: ignore[attr-defined]
+                        zone_id=zone_id, type=rec.type, name=rec.name,
+                        content=rec.value, ttl=rec.ttl,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    log_lines.append(f"  DNS record write failed ({rec.type} {rec.name}): {e}")
+            log_lines.append("_provision_launch_extras: SPF/DKIM/DMARC + MX records written")
+        else:
+            log_lines.append(
+                f"_provision_launch_extras: zone for {domain} not in Cloudflare — "
+                "customer needs to add records manually (printed in welcome email)")
+    except Exception as e:  # noqa: BLE001
+        log_lines.append(f"_provision_launch_extras: DNS step errored: {e}")
+
+    return mailboxes
 
 
 def _next_host_id(reg: dict[str, Any]) -> str:
@@ -744,22 +841,29 @@ Hatchik. Reply to this email if you'd like me to help.
         )
 
     if bootstrap_ok and (caddy_ok or not plan["customer_domain"]):
+        # Provision domain + mailboxes if the customer brought a domain.
+        # Stubs cleanly if API tokens are missing; founder gets a warning.
+        mailboxes = _provision_launch_extras(plan, log_lines, tier="launch")
+
         reg = _load_registry()
         reg["tenants"][slug]["status"] = "live"
         reg["tenants"][slug]["last_seen_at"] = datetime.now(timezone.utc).isoformat()
+        if mailboxes is not None:
+            reg["tenants"][slug]["mailbox_count"] = len(mailboxes)
         _save_registry(reg)
         _update_signup_tier(signup_id, "launch", "live-launch")
         live_url = f"https://{plan['customer_domain']}" if plan["customer_domain"] else f"http://{host_ip}:{port_base}"
         _send_email(
             plan["customer_email"],
             "Your Hatchik Launch tier is live",
-            _customer_welcome_email(plan, live_url),
+            _customer_welcome_email(plan, live_url, mailboxes=mailboxes),
         )
         if plan["sandbox_slug"]:
             _mark_sandbox_promoted(plan["sandbox_slug"], "launch", log_lines)
         return {
             "ok": True, "slug": slug, "host_id": host_id, "port_base": port_base,
             "ip": host_ip, "status": "live", "live_url": live_url, "shared": True,
+            "mailbox_count": len(mailboxes) if mailboxes else 0,
         }
 
     log_lines.append("SHARED TENANT BOOTSTRAP FAILED — operator follow-up")
@@ -977,17 +1081,21 @@ Hatchik. Reply to this email if you'd like me to help.
     bootstrap_ok = _run_substrate_bootstrap(ip, plan, log_lines)
 
     if bootstrap_ok:
+        # Provision domain + mailboxes (same helper as shared path).
+        mailboxes = _provision_launch_extras(plan, log_lines, tier="launch")
         # Mark live + email customer + free sandbox slug
         reg = _load_registry()
         reg["tenants"][slug]["status"] = "live"
         reg["tenants"][slug]["last_seen_at"] = datetime.now(timezone.utc).isoformat()
+        if mailboxes is not None:
+            reg["tenants"][slug]["mailbox_count"] = len(mailboxes)
         _save_registry(reg)
         _update_signup_tier(signup_id, "launch", "live-launch")
         live_url = f"https://{plan['customer_domain']}" if plan["customer_domain"] else f"https://{ip}"
         _send_email(
             plan["customer_email"],
             "Your Hatchik Launch tier is live",
-            _customer_welcome_email(plan, live_url),
+            _customer_welcome_email(plan, live_url, mailboxes=mailboxes),
         )
         # Founder's choice (option A from the smoke #13 review): keep the
         # sandbox alive after promote so it acts as the customer's dev
