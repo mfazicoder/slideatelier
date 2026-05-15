@@ -1,7 +1,9 @@
 {
   "schema_version": 1,
   "tenants": {},
+  "launch_hosts": {},
   "_format": {
-    "tenants": "Object keyed by slug. Each value: { signup_id, customer_email, customer_domain, tier ('launch'|'growth'), hetzner_server_id, hetzner_location, ip, status ('provisioning'|'live'|'suspended'|'canceled'|'decommissioned'), paddle_subscription_id, created_at, last_seen_at, canceled_at, decommissioned_at, region }"
+    "tenants": "Object keyed by slug. Each value: { signup_id, customer_email, customer_domain, tier ('launch'|'growth'), hetzner_server_id, hetzner_location, ip, status ('provisioning'|'live'|'suspended'|'canceled'|'decommissioned'), paddle_subscription_id, created_at, last_seen_at, canceled_at, decommissioned_at, region }. Tenants on a shared Launch host additionally carry: shared: true, host_id ('launch-host-N'), port_base (int, e.g. 18000). Tenants migrated to Growth carry growth_migration: { step_N_at, dedicated_server_id, dedicated_ip, dedicated_slug } for resumable idempotency.",
+    "launch_hosts": "Pool of CAX41 shared Launch hosts (Phase 1, HATCHIK_LAUNCH_MODE=shared). Object keyed by host_id ('launch-host-N'). Each value: { hetzner_server_id, ip, location, server_type ('cax41'), tenant_slugs (list), capacity (int, default 25), status ('active'|'cordoned'|'full'|'decommissioning'), port_ranges_used (list of int port_base values, e.g. [18000, 18100]), created_at }."
   }
 }

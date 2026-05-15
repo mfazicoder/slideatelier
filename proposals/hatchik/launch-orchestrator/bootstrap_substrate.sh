@@ -137,11 +137,16 @@ if [[ -n "$SANDBOX_HOST" && -n "$SANDBOX_SLUG" ]]; then
 fi
 
 # ─── 5. Compose up ────────────────────────────────────────────────────
-echo "→ docker compose up -d"
+# Launch tier activates the `launch` compose profile, which brings up
+# Supabase Studio alongside the base substrate. Sandbox provisioning
+# (sandbox-orchestrator/provision.py) deliberately omits the profile so
+# Studio doesn't ship on free tier — that's the density bet behind the
+# £0.30/mo kept-sandbox cost.
+echo "→ docker compose --profile launch up -d"
 cd "$APP_DIR"
-docker compose pull || true   # pull any pre-built images; skip on first boot
-docker compose up -d
-docker compose ps
+docker compose --profile launch pull || true   # pull any pre-built images; skip on first boot
+docker compose --profile launch up -d
+docker compose --profile launch ps
 
 # ─── 6. Restore DB once postgres is healthy (if dump available) ────────
 if [[ -n "${DUMP:-}" && -f "$DUMP" && ! -f "$APP_DIR/.bootstrap-db-restored" ]]; then

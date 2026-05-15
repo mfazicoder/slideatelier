@@ -61,6 +61,19 @@ FOUNDER_EMAIL = os.environ.get("HATCHIK_FOUNDER_EMAIL", "hello@hatchik.com")
 FROM_EMAIL = os.environ.get("HATCHIK_FROM_EMAIL", "hello@hatchik.com")
 LOG_DIR = Path(os.environ.get("HATCHIK_LOG_DIR", "/var/log/hatchik"))
 
+# ─── Shared-host mode (Phase 1) ─────────────────────────────────────────
+# HATCHIK_LAUNCH_MODE=shared  → bin-pack tenants onto CAX41 hosts (~25/box)
+# HATCHIK_LAUNCH_MODE=dedicated (default) → existing one-VPS-per-tenant
+LAUNCH_MODE = os.environ.get("HATCHIK_LAUNCH_MODE", "dedicated").lower()
+SHARED_HOST_SERVER_TYPE = os.environ.get("HATCHIK_SHARED_HOST_TYPE", "cax41")
+SHARED_HOST_DEFAULT_LOCATION = os.environ.get("HATCHIK_SHARED_HOST_LOCATION", "nbg1")
+SHARED_HOST_CAPACITY = int(os.environ.get("HATCHIK_SHARED_HOST_CAPACITY", "25"))
+# Tenant port-base is 18000 + (slot_index * 100). Each tenant gets a
+# 100-port band so the substrate's internal Caddy + future per-tenant
+# debug ports (Mailpit, Studio, ...) never overlap with siblings.
+PORT_BASE_START = int(os.environ.get("HATCHIK_PORT_BASE_START", "18000"))
+PORT_BASE_STRIDE = int(os.environ.get("HATCHIK_PORT_BASE_STRIDE", "100"))
+
 
 # ─── DB helpers ─────────────────────────────────────────────────────────
 
@@ -234,17 +247,20 @@ def _customer_welcome_email(plan: dict[str, Any], live_url: str) -> str:
 Your Hatchik Launch tier is live at {live_url}.
 
 What just happened:
-  • You now have a dedicated VPS in your chosen region
+  • You now have production hosting in your chosen region (isolated
+    per-tenant stack on a shared CAX41 host — promoted to a dedicated
+    VPS automatically when you cross the 15th end-user signup)
   • Your app's data is migrated from the Sandbox — nothing lost
   • Your GitHub repo stays the same; push to main triggers a deploy
   • Your custom domain is wired with TLS
-  • Email (5 mailboxes), payments, and mobile builds are on Launch-tier quotas
+  • Email (3 mailboxes), payments, and mobile builds are on Launch-tier quotas
 
 Billing:
-  • £89 setup fee was charged today — covers the VPS provisioning,
-    domain wiring, mailboxes, and the first month of hosting.
-  • £14/month starts from month 2. Update card any time from
-    https://hatchik.com/account → Billing.
+  • £89 setup fee was charged today — covers the hosting provisioning,
+    domain wiring, mailboxes, and the first month of service.
+  • Then £14/month on annual prepay (£168/yr — best value) or £17/month
+    rolling. Pick at https://hatchik.com/account → Billing. Pro-rata credit
+    if you migrate to Growth mid-year.
 
 What to do first:
   1. Open {live_url} in a browser and sign in.
@@ -263,10 +279,619 @@ Two heads-ups:
 """
 
 
+# ─── Shared Launch host pool (Phase 1) ──────────────────────────────────
+#
+# Registry layout when HATCHIK_LAUNCH_MODE=shared is in effect:
+#
+#   {
+#     "schema_version": 1,
+#     "tenants":      { ... per-tenant entries (unchanged shape) ...
+#                       tenants on shared hosts additionally carry
+#                       `host_id`, `port_base`, `shared`: true },
+#     "launch_hosts": {
+#       "launch-host-1": {
+#         "hetzner_server_id": 12345,
+#         "ip": "1.2.3.4",
+#         "location": "nbg1",
+#         "server_type": "cax41",
+#         "tenant_slugs": ["launch-1", "launch-2"],
+#         "capacity": 25,
+#         "status": "active" | "cordoned" | "full" | "decommissioning",
+#         "port_ranges_used": [18000, 18100],     # port_base ints
+#         "created_at": "2026-…"
+#       },
+#       ...
+#     }
+#   }
+
+
+def _next_host_id(reg: dict[str, Any]) -> str:
+    """Deterministic, monotonically-increasing host id.
+
+    Numbers are unique even after a host is decommissioned — we never
+    re-use IDs because operator emails and log lines might still
+    reference the old one. Decommissioned hosts stay in the registry
+    with status='decommissioning' or removed by hand.
+    """
+    hosts = (reg.get("launch_hosts") or {})
+    used = set()
+    for hid in hosts.keys():
+        try:
+            used.add(int(hid.rsplit("-", 1)[-1]))
+        except (ValueError, IndexError):
+            continue
+    n = 1
+    while n in used:
+        n += 1
+    return f"launch-host-{n}"
+
+
+def _allocate_port_base(host: dict[str, Any]) -> int:
+    """Return the next free port_base on this host (e.g. 18000, 18100…).
+
+    Each tenant on a shared host claims a 100-port band so the substrate's
+    internal Caddy plus any per-tenant debug ports stay collision-free.
+    """
+    used = set(host.get("port_ranges_used") or [])
+    capacity = int(host.get("capacity") or SHARED_HOST_CAPACITY)
+    for slot in range(capacity):
+        candidate = PORT_BASE_START + slot * PORT_BASE_STRIDE
+        if candidate not in used:
+            return candidate
+    raise RuntimeError(
+        f"host {host.get('hetzner_server_id')} has no free port slots "
+        f"(capacity={capacity})"
+    )
+
+
+def _pick_launch_host(plan: dict[str, Any], log_lines: list[str]) -> dict[str, Any]:
+    """Return a shared Launch host that has room for one more tenant.
+
+    Reads the registry, prefers the first ``active`` host with
+    ``len(tenant_slugs) < capacity``. If none qualifies, provisions a
+    fresh CAX41 via ``_provision_launch_host()`` and returns it.
+
+    Mutates the registry only when provisioning a new host — the caller
+    is responsible for adding the tenant slug + port_base to the picked
+    host's entry once provisioning succeeds.
+    """
+    reg = _load_registry()
+    hosts = reg.setdefault("launch_hosts", {})
+    for host_id, host in hosts.items():
+        if host.get("status") != "active":
+            continue
+        if len(host.get("tenant_slugs") or []) >= int(host.get("capacity") or SHARED_HOST_CAPACITY):
+            continue
+        log_lines.append(f"_pick_launch_host: reusing {host_id} ({len(host.get('tenant_slugs') or [])} / "
+                         f"{host.get('capacity') or SHARED_HOST_CAPACITY} tenants)")
+        return {"host_id": host_id, **host}
+
+    log_lines.append("_pick_launch_host: no active host with capacity; provisioning a new one")
+    return _provision_launch_host(plan, log_lines)
+
+
+def _provision_launch_host(plan: dict[str, Any], log_lines: list[str]) -> dict[str, Any]:
+    """Create a fresh CAX41 and bootstrap it as a shared Launch host.
+
+    Adds an entry to ``registry.launch_hosts`` BEFORE returning so that
+    a mid-step failure (e.g. SSH timeout during bootstrap) leaves the
+    host in a recoverable state — operator can re-run promote.py and
+    ``_pick_launch_host`` will see the existing entry.
+
+    Returns the full host record including the synthetic ``host_id``.
+    """
+    if not hetzner_api:
+        raise RuntimeError(
+            "hetzner_api not importable — refusing to provision a shared "
+            "Launch host without it."
+        )
+
+    reg = _load_registry()
+    host_id = _next_host_id(reg)
+    location = plan.get("hetzner_location") or SHARED_HOST_DEFAULT_LOCATION
+    log_lines.append(f"_provision_launch_host: creating {host_id} in {location}")
+    resp = hetzner_api.create_server(
+        name=host_id,
+        location=location,
+        server_type=SHARED_HOST_SERVER_TYPE,
+        labels={
+            "hatchik_tier": "launch",
+            "hatchik_host_role": "shared",
+            "hatchik_host_id": host_id,
+        },
+        user_data=_cloud_init_script(host_id),
+    )
+    server_id = resp["server"]["id"]
+    srv = hetzner_api.wait_for_running(server_id, timeout_s=300)
+    ip = srv["public_net"]["ipv4"]["ip"]
+    log_lines.append(f"  server_id={server_id} ip={ip}")
+
+    host_record = {
+        "hetzner_server_id": server_id,
+        "ip": ip,
+        "location": location,
+        "server_type": SHARED_HOST_SERVER_TYPE,
+        "tenant_slugs": [],
+        "capacity": SHARED_HOST_CAPACITY,
+        "status": "active",
+        "port_ranges_used": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    reg.setdefault("launch_hosts", {})[host_id] = host_record
+    _save_registry(reg)
+
+    # Bootstrap (host Caddy + per-host scaffolding). If this fails we
+    # leave the entry in place so the operator can recover by hand.
+    if not _run_host_bootstrap(ip, log_lines):
+        log_lines.append(f"WARN: bootstrap_launch_host.sh failed on {host_id} ({ip}); operator follow-up needed")
+        _send_email(
+            FOUNDER_EMAIL,
+            f"[Launch host {host_id}] bootstrap failed at {ip}",
+            f"""Hatchik shared Launch host {host_id} provisioned but its
+bootstrap script reported a failure.
+
+SSH:    ssh root@{ip}
+Tail:   tail -200 /var/log/hatchik-launch-host-bootstrap.log
+
+Once host Caddy is up and curl http://127.0.0.1/__hatchik_host_health
+returns 'ok', the host is ready to accept tenants and you can re-run
+promote.py — _pick_launch_host will reuse this entry.
+""",
+        )
+
+    return {"host_id": host_id, **host_record}
+
+
+def _run_host_bootstrap(ip: str, log_lines: list[str]) -> bool:
+    """SCP bootstrap_launch_host.sh to the new host and run it."""
+    import shlex
+    import subprocess
+
+    bootstrap_src = Path(__file__).parent / "bootstrap_launch_host.sh"
+    if not bootstrap_src.exists():
+        log_lines.append(f"bootstrap_launch_host.sh missing at {bootstrap_src}")
+        return False
+
+    ssh_opts = [
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=30",
+        "-o", "ServerAliveInterval=30",
+        "-o", "BatchMode=yes",
+    ]
+    target = f"root@{ip}"
+
+    log_lines.append(f"waiting for SSH at {target}")
+    for _ in range(30):
+        r = subprocess.run(
+            ["ssh", *ssh_opts, target, "true"],
+            capture_output=True, text=True, timeout=20,
+        )
+        if r.returncode == 0:
+            break
+        time.sleep(5)
+    else:
+        log_lines.append("SSH never came up within 150s")
+        return False
+
+    r = subprocess.run(
+        ["scp", *ssh_opts, str(bootstrap_src), f"{target}:/root/bootstrap_launch_host.sh"],
+        capture_output=True, text=True, timeout=120,
+    )
+    if r.returncode != 0:
+        log_lines.append(f"scp host bootstrap failed: {r.stderr[:300]}")
+        return False
+
+    quoted = shlex.quote("/root/bootstrap_launch_host.sh")
+    log_lines.append(f"running bootstrap_launch_host.sh on {ip}")
+    r = subprocess.run(
+        ["ssh", *ssh_opts, target, f"bash {quoted}"],
+        capture_output=True, text=True, timeout=900,
+    )
+    log_lines.append(f"  rc={r.returncode}")
+    log_lines.append(f"  stdout (last 500 chars): {r.stdout[-500:]}")
+    if r.stderr:
+        log_lines.append(f"  stderr (last 500 chars): {r.stderr[-500:]}")
+    return r.returncode == 0
+
+
+def _run_tenant_bootstrap_on_host(
+    *,
+    host_ip: str,
+    slug: str,
+    repo_url: str,
+    domain: str,
+    port_base: int,
+    sandbox_host: str | None,
+    sandbox_slug: str | None,
+    log_lines: list[str],
+) -> bool:
+    """SCP bootstrap_tenant_on_host.sh to the shared host and run it."""
+    import shlex
+    import subprocess
+
+    bootstrap_src = Path(__file__).parent / "bootstrap_tenant_on_host.sh"
+    if not bootstrap_src.exists():
+        log_lines.append(f"bootstrap_tenant_on_host.sh missing at {bootstrap_src}")
+        return False
+
+    ssh_opts = [
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=30",
+        "-o", "ServerAliveInterval=30",
+        "-o", "BatchMode=yes",
+    ]
+    target = f"root@{host_ip}"
+
+    r = subprocess.run(
+        ["scp", *ssh_opts, str(bootstrap_src), f"{target}:/root/bootstrap_tenant_on_host.sh"],
+        capture_output=True, text=True, timeout=120,
+    )
+    if r.returncode != 0:
+        log_lines.append(f"scp tenant bootstrap failed: {r.stderr[:300]}")
+        return False
+
+    cmd_args = [
+        "bash", "/root/bootstrap_tenant_on_host.sh",
+        "--slug", slug,
+        "--repo-url", repo_url,
+        "--domain", domain,
+        "--port-base", str(port_base),
+    ]
+    if sandbox_host and sandbox_slug:
+        cmd_args += ["--sandbox-host", sandbox_host, "--sandbox-slug", sandbox_slug]
+    quoted = " ".join(shlex.quote(a) for a in cmd_args)
+    log_lines.append(f"running bootstrap_tenant_on_host.sh on {host_ip}: {quoted}")
+    r = subprocess.run(
+        ["ssh", *ssh_opts, target, quoted],
+        capture_output=True, text=True, timeout=1200,
+    )
+    log_lines.append(f"  rc={r.returncode}")
+    log_lines.append(f"  stdout (last 500 chars): {r.stdout[-500:]}")
+    if r.stderr:
+        log_lines.append(f"  stderr (last 500 chars): {r.stderr[-500:]}")
+    return r.returncode == 0
+
+
+def _write_caddy_snippet_on_host(
+    *,
+    host_ip: str,
+    slug: str,
+    domain: str,
+    port_base: int,
+    log_lines: list[str],
+) -> bool:
+    """Drop a per-tenant Caddy snippet onto the shared host and reload.
+
+    Two-step: write a temp file locally, scp it, then `caddy reload`.
+    """
+    import subprocess
+    import tempfile
+
+    ssh_opts = [
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=30",
+        "-o", "BatchMode=yes",
+    ]
+    target = f"root@{host_ip}"
+    snippet = f"""# Auto-generated by promote.py — tenant {slug}
+{domain} {{
+    tls {{
+        dns cloudflare {{env.CF_API_TOKEN}}
+    }}
+    encode gzip zstd
+    reverse_proxy 127.0.0.1:{port_base} {{
+        header_up X-Forwarded-Host {{host}}
+        header_up X-Forwarded-Proto {{scheme}}
+    }}
+    header {{
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }}
+}}
+"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".caddy", delete=False) as f:
+        f.write(snippet)
+        local_path = f.name
+
+    try:
+        r = subprocess.run(
+            ["scp", *ssh_opts, local_path,
+             f"{target}:/opt/hatchik-host-caddy/tenants.d/{slug}.caddy"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if r.returncode != 0:
+            log_lines.append(f"scp Caddy snippet failed: {r.stderr[:300]}")
+            return False
+        # Reload host Caddy. Non-fatal: a failed reload still leaves the
+        # tenant reachable on the next host-Caddy restart, but we surface
+        # the error so the operator can chase it.
+        r = subprocess.run(
+            ["ssh", *ssh_opts, target,
+             "docker exec hatchik-host-caddy-caddy-1 caddy reload "
+             "--config /etc/caddy/Caddyfile"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if r.returncode != 0:
+            log_lines.append(f"WARN: caddy reload failed: {r.stderr[:300]}")
+            return False
+        log_lines.append(f"Caddy snippet for {slug} live on {host_ip}")
+        return True
+    finally:
+        try:
+            os.unlink(local_path)
+        except OSError:
+            pass
+
+
+def _execute_shared(plan: dict[str, Any], log_lines: list[str]) -> dict[str, Any]:
+    """Shared-host Launch promotion (HATCHIK_LAUNCH_MODE=shared)."""
+    if not hetzner_api:
+        raise RuntimeError(
+            "hetzner_api module failed to import — refusing to --execute "
+            "without it. Check HETZNER_API_TOKEN."
+        )
+
+    signup_id = plan["signup_id"]
+    slug = f"launch-{signup_id}"
+
+    # Idempotency check: if the tenant is already provisioned on a host
+    # we re-use that placement instead of double-booking.
+    reg = _load_registry()
+    existing = (reg.get("tenants") or {}).get(slug)
+    if existing and existing.get("shared") and existing.get("host_id"):
+        log_lines.append(f"tenant {slug} already on host {existing['host_id']} (port {existing.get('port_base')}); resuming")
+        host_id = existing["host_id"]
+        host = (reg.get("launch_hosts") or {}).get(host_id) or {}
+        host_ip = host.get("ip") or existing.get("ip")
+        port_base = existing["port_base"]
+    else:
+        # 1. Pick (or provision) a shared host
+        host = _pick_launch_host(plan, log_lines)
+        host_id = host["host_id"]
+        host_ip = host["ip"]
+
+        # 2. Allocate a port_base on that host. Re-load registry because
+        # _pick_launch_host may have written a new host entry.
+        reg = _load_registry()
+        host_record = reg["launch_hosts"][host_id]
+        port_base = _allocate_port_base(host_record)
+        log_lines.append(f"allocated port_base={port_base} on {host_id}")
+
+        # 3. Write the tenant entry + reserve the port slot atomically
+        host_record.setdefault("port_ranges_used", []).append(port_base)
+        host_record.setdefault("tenant_slugs", []).append(slug)
+        if len(host_record["tenant_slugs"]) >= int(host_record.get("capacity") or SHARED_HOST_CAPACITY):
+            host_record["status"] = "full"
+        reg.setdefault("tenants", {})[slug] = {
+            "signup_id": signup_id,
+            "customer_email": plan["customer_email"],
+            "customer_domain": plan["customer_domain"],
+            "tier": "launch",
+            "shared": True,
+            "host_id": host_id,
+            "port_base": port_base,
+            "hetzner_server_id": host_record["hetzner_server_id"],
+            "hetzner_location": host_record["location"],
+            "ip": host_ip,
+            "status": "provisioning",
+            "paddle_subscription_id": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "region": plan["region"],
+        }
+        _save_registry(reg)
+
+    # 4. DNS — point customer's domain at the shared host's IP
+    if plan["customer_domain"] and dns_api:
+        try:
+            log_lines.append(f"dns set_a_record {plan['customer_domain']} -> {host_ip}")
+            dns_api.set_a_record(plan["customer_domain"], host_ip, proxied=True)
+        except dns_api.ZoneNotFound:
+            log_lines.append("  ZoneNotFound — customer brought own domain; manual DNS needed")
+            _send_email(
+                plan["customer_email"],
+                f"Action needed: point {plan['customer_domain']} at {host_ip}",
+                f"""Hi,
+
+Your Hatchik Launch tenant is provisioned. To finish the setup, add this
+A record at your DNS provider (where you registered
+{plan['customer_domain']}):
+
+  Name: @ (or {plan['customer_domain']})
+  Type: A
+  Value: {host_ip}
+  TTL: Auto / 1 hour
+
+Once it propagates (usually 5–60 minutes) your domain will resolve to
+Hatchik. Reply to this email if you'd like me to help.
+
+— Hatchik
+""",
+            )
+
+    # 5. Bootstrap the tenant on the shared host
+    repo_url = _infer_repo_url(plan)
+    if not repo_url:
+        log_lines.append("repo URL not derivable from signup; aborting tenant bootstrap")
+        return {
+            "ok": False, "slug": slug, "host_id": host_id, "port_base": port_base,
+            "ip": host_ip, "status": "provisioning",
+            "error": "repo_url not derivable; check signup.github_username + sandbox_slug",
+        }
+
+    bootstrap_ok = _run_tenant_bootstrap_on_host(
+        host_ip=host_ip,
+        slug=slug,
+        repo_url=repo_url,
+        domain=plan["customer_domain"] or "",
+        port_base=port_base,
+        sandbox_host=os.environ.get("HATCHIK_SANDBOX_HOST", "178.105.139.144") if plan.get("sandbox_slug") else None,
+        sandbox_slug=plan.get("sandbox_slug"),
+        log_lines=log_lines,
+    )
+
+    # 6. Write the host-Caddy snippet (idempotent — bootstrap also writes,
+    #    but we write the canonical version + force a reload here)
+    caddy_ok = False
+    if plan["customer_domain"]:
+        caddy_ok = _write_caddy_snippet_on_host(
+            host_ip=host_ip,
+            slug=slug,
+            domain=plan["customer_domain"],
+            port_base=port_base,
+            log_lines=log_lines,
+        )
+
+    if bootstrap_ok and (caddy_ok or not plan["customer_domain"]):
+        reg = _load_registry()
+        reg["tenants"][slug]["status"] = "live"
+        reg["tenants"][slug]["last_seen_at"] = datetime.now(timezone.utc).isoformat()
+        _save_registry(reg)
+        _update_signup_tier(signup_id, "launch", "live-launch")
+        live_url = f"https://{plan['customer_domain']}" if plan["customer_domain"] else f"http://{host_ip}:{port_base}"
+        _send_email(
+            plan["customer_email"],
+            "Your Hatchik Launch tier is live",
+            _customer_welcome_email(plan, live_url),
+        )
+        if plan["sandbox_slug"]:
+            _mark_sandbox_promoted(plan["sandbox_slug"], "launch", log_lines)
+        return {
+            "ok": True, "slug": slug, "host_id": host_id, "port_base": port_base,
+            "ip": host_ip, "status": "live", "live_url": live_url, "shared": True,
+        }
+
+    log_lines.append("SHARED TENANT BOOTSTRAP FAILED — operator follow-up")
+    _send_email(
+        FOUNDER_EMAIL,
+        f"[Launch #{signup_id} shared] tenant up on {host_id} ({host_ip}:{port_base}) — bootstrap incomplete",
+        f"""Tenant {slug} for signup #{signup_id} ({plan['customer_email']})
+landed on shared host {host_id} ({host_ip}) at port {port_base}, but
+either bootstrap_tenant_on_host.sh or the host-Caddy snippet write
+failed.
+
+SSH:   ssh root@{host_ip}
+Tail:  tail -200 /var/log/hatchik-launch-host-bootstrap.log
+Dir:   /opt/hatchik-tenants/{slug}
+
+After fixing on the host, re-run on the orchestrator host:
+  python3 /opt/hatchik-launch-orchestrator/promote.py \\
+      --signup-id {signup_id} --mark-live
+
+The registry already reserves the slot — _pick_launch_host will reuse
+this host_id + port_base on retry, so re-running is safe.
+""",
+    )
+    return {
+        "ok": True, "slug": slug, "host_id": host_id, "port_base": port_base,
+        "ip": host_ip, "status": "provisioning", "shared": True,
+        "deferred": ["shared-tenant-recovery"],
+    }
+
+
+def _decommission_tenant_on_host(slug: str, log_lines: list[str]) -> bool:
+    """Tear down a tenant slot on a shared Launch host.
+
+    1. SSH to host: docker compose -p <slug> down -v + remove tenant dir
+    2. Remove tenants.d/<slug>.caddy + caddy reload
+    3. Free the port_base + remove slug from host.tenant_slugs
+    4. Mark registry.tenants[slug].status = 'decommissioned'
+
+    Idempotent. Safe to re-run after partial failure.
+    """
+    import subprocess
+
+    reg = _load_registry()
+    tenant = (reg.get("tenants") or {}).get(slug)
+    if not tenant:
+        log_lines.append(f"_decommission_tenant_on_host: {slug} not in registry; nothing to do")
+        return True
+    if not tenant.get("shared"):
+        log_lines.append(f"_decommission_tenant_on_host: {slug} is not on a shared host (dedicated-VPS tenant); use decommission_launch.py instead")
+        return False
+    if tenant.get("status") == "decommissioned":
+        log_lines.append(f"_decommission_tenant_on_host: {slug} already decommissioned")
+        return True
+
+    host_id = tenant.get("host_id")
+    port_base = tenant.get("port_base")
+    host = (reg.get("launch_hosts") or {}).get(host_id) or {}
+    host_ip = host.get("ip") or tenant.get("ip")
+
+    if not host_ip:
+        log_lines.append(f"_decommission_tenant_on_host: no IP for host {host_id}; cannot SSH")
+        return False
+
+    ssh_opts = [
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=30",
+        "-o", "BatchMode=yes",
+    ]
+    target = f"root@{host_ip}"
+    log_lines.append(f"_decommission_tenant_on_host {slug} on {host_id} ({host_ip}) port_base={port_base}")
+
+    # 1. Stop + remove the tenant compose stack
+    teardown = (
+        f"cd /opt/hatchik-tenants/{slug} 2>/dev/null && "
+        f"docker compose -p {slug} down -v 2>&1 || true; "
+        f"rm -rf /opt/hatchik-tenants/{slug}"
+    )
+    r = subprocess.run(
+        ["ssh", *ssh_opts, target, teardown],
+        capture_output=True, text=True, timeout=300,
+    )
+    log_lines.append(f"  compose down rc={r.returncode}")
+    if r.stdout:
+        log_lines.append(f"  stdout (last 300): {r.stdout[-300:]}")
+
+    # 2. Remove the Caddy snippet + reload
+    r = subprocess.run(
+        ["ssh", *ssh_opts, target,
+         f"rm -f /opt/hatchik-host-caddy/tenants.d/{slug}.caddy && "
+         "docker exec hatchik-host-caddy-caddy-1 caddy reload "
+         "--config /etc/caddy/Caddyfile"],
+        capture_output=True, text=True, timeout=60,
+    )
+    log_lines.append(f"  caddy reload rc={r.returncode}")
+    if r.returncode != 0 and r.stderr:
+        log_lines.append(f"  caddy stderr: {r.stderr[-300:]}")
+
+    # 3. Free the port_base + remove slug from host.tenant_slugs
+    reg = _load_registry()
+    host_record = (reg.get("launch_hosts") or {}).get(host_id)
+    if host_record is not None:
+        if port_base in (host_record.get("port_ranges_used") or []):
+            host_record["port_ranges_used"].remove(port_base)
+        if slug in (host_record.get("tenant_slugs") or []):
+            host_record["tenant_slugs"].remove(slug)
+        # If host was 'full' and is now under capacity, mark active again
+        if (host_record.get("status") == "full"
+                and len(host_record.get("tenant_slugs") or []) < int(host_record.get("capacity") or SHARED_HOST_CAPACITY)):
+            host_record["status"] = "active"
+
+    # 4. Mark tenant decommissioned
+    reg["tenants"][slug]["status"] = "decommissioned"
+    reg["tenants"][slug]["decommissioned_at"] = datetime.now(timezone.utc).isoformat()
+    _save_registry(reg)
+    log_lines.append(f"_decommission_tenant_on_host: {slug} decommissioned on {host_id}; port {port_base} freed")
+    return True
+
+
 # ─── Execute (real Hetzner / Cloudflare calls) ──────────────────────────
 
 def _execute(plan: dict[str, Any], log_lines: list[str]) -> dict[str, Any]:
-    """Real provisioning. Idempotent where possible."""
+    """Real provisioning. Idempotent where possible.
+
+    Routes to ``_execute_shared`` when HATCHIK_LAUNCH_MODE=shared is set,
+    otherwise falls through to the original dedicated-VPS-per-tenant
+    path. Default is dedicated so existing operators are unaffected
+    until they opt in.
+    """
+    if LAUNCH_MODE == "shared":
+        log_lines.append("LAUNCH_MODE=shared — routing through _execute_shared")
+        return _execute_shared(plan, log_lines)
+
     if not hetzner_api or not dns_api:
         raise RuntimeError(
             "hetzner_api / dns_api modules failed to import — refusing to "
