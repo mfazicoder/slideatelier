@@ -311,6 +311,7 @@
     <button data-tab="sandbox"   class="active py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Sandbox</button>
     <button data-tab="services"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Services</button>
     <button data-tab="ai-credit" class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">AI credit</button>
+    <button data-tab="activity"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Activity</button>
     <button data-tab="mobile"    class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Mobile</button>
     <button data-tab="upgrade"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Upgrade</button>
     <button data-tab="billing"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Billing</button>
@@ -338,6 +339,20 @@
       </p>
       <div id="servicesBody" class="mt-6">
         <p class="text-sm text-slate-500">Loading service inventory&hellip;</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity tab -->
+  <div data-tab-panel="activity" class="mt-8 hidden">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8">
+      <h2 class="text-xl font-bold">Activity</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        Every action your AI tool has initiated through the Hatchik MCP &mdash;
+        plus every browser confirmation you&rsquo;ve clicked through. Newest first.
+      </p>
+      <div id="activityBody" class="mt-6">
+        <p class="text-sm text-slate-500">Loading activity&hellip;</p>
       </div>
     </div>
   </div>
@@ -809,6 +824,49 @@
     });
   }
 
+  async function renderActivity() {
+    const body = $('activityBody');
+    try {
+      const data = await fetchJSON('/api/account/audit?limit=80');
+      const entries = data.entries || [];
+      if (!entries.length) {
+        body.innerHTML = `<div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 text-sm text-slate-600">
+          No MCP activity yet. Once your AI tool starts calling Hatchik, every action shows up here.
+        </div>`;
+        return;
+      }
+      const STATUS_STYLES = {
+        ok:           ['bg-emerald-50 ring-emerald-200 text-emerald-700', '✓'],
+        confirmed:    ['bg-emerald-50 ring-emerald-200 text-emerald-700', '✓ confirmed'],
+        token_issued: ['bg-amber-50 ring-amber-200 text-amber-800',       '⏱ waiting for you'],
+        rejected:     ['bg-slate-50 ring-slate-200 text-slate-600',       '— cancelled'],
+        expired:      ['bg-slate-50 ring-slate-200 text-slate-500',       '⌛ expired'],
+        error:        ['bg-rose-50 ring-rose-200 text-rose-700',          '✗ error'],
+      };
+      const rows = entries.map((e, i) => {
+        const [cls, label] = STATUS_STYLES[e.status] || ['bg-slate-50 ring-slate-200 text-slate-600', e.status];
+        const when = new Date(e.occurred_at).toLocaleString();
+        const payloadStr = e.payload && Object.keys(e.payload).length
+          ? `<pre class="mt-2 text-xs mono bg-slate-50 ring-1 ring-slate-200 rounded p-2 overflow-x-auto">${escapeHtml(JSON.stringify(e.payload, null, 2))}</pre>`
+          : '';
+        return `<li class="py-3 ${i > 0 ? 'border-t border-slate-100' : ''}">
+          <div class="flex items-baseline justify-between gap-3 flex-wrap">
+            <span class="font-mono text-sm text-slate-900">${escapeHtml(e.action)}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full ring-1 ${cls}">${label}</span>
+          </div>
+          <div class="mt-1 text-xs text-slate-500">
+            ${escapeHtml(when)} &middot; ${escapeHtml(e.tool_caller || 'mcp')}
+            ${e.confirmation_token ? `&middot; <span class="mono">${escapeHtml(e.confirmation_token.slice(0, 12))}…</span>` : ''}
+          </div>
+          ${payloadStr}
+        </li>`;
+      }).join('');
+      body.innerHTML = `<ul class="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200 bg-white px-4">${rows}</ul>`;
+    } catch (e) {
+      body.innerHTML = `<div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 p-4 text-sm text-rose-700">Couldn&rsquo;t load activity.</div>`;
+    }
+  }
+
   async function renderAiCredit(sandboxes) {
     const body = $('aiCreditBody');
     const live = (sandboxes || []).filter(s => s.slug);
@@ -983,6 +1041,7 @@
       renderMobile(me.sandboxes || []);
       renderServices(me.sandboxes || []);
       renderAiCredit(me.sandboxes || []);
+      renderActivity();
       renderApiKeys();
       show('dashboard');
     } catch (e) {

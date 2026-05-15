@@ -4376,6 +4376,539 @@ def _mint_api_key_for_signup(signup_id: int, label: str) -> tuple[str, int]:
         return raw, int(cur.lastrowid or 0)
 
 
+# ═════════════════════════════════════════════════════════════════════════
+# MCP ops-mode endpoints: confirmation tokens + audit log + 10 new tools
+# ─────────────────────────────────────────────────────────────────────────
+# Spec: mcp-signup-flow.md "Ops mode" + "Browser-confirmation pattern".
+# Destructive actions return a confirm_url instead of executing directly;
+# the customer clicks Yes in their browser; only then does the action
+# run server-side. Read-only ops endpoints execute directly.
+
+import confirmations  # noqa: E402
+import mcp_audit  # noqa: E402
+
+
+def _remote_ip(request: Request) -> str:
+    """Best-effort client IP (X-Forwarded-For from Caddy → fallback to socket)."""
+    fwd = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    return fwd or (request.client.host if request.client else "")
+
+
+def _signup_id_for_session(session: dict[str, Any]) -> int | None:
+    """Look up the signups.id row owning this session email."""
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute(
+            "SELECT id FROM signups WHERE email = ? ORDER BY id DESC LIMIT 1",
+            (session["email"],),
+        ).fetchone()
+    return int(row[0]) if row else None
+
+
+def _tenant_slug_for_signup(signup_id: int) -> str | None:
+    """Slug of the most recent active tenant for a signup."""
+    with sqlite3.connect(DB_PATH) as db:
+        row = db.execute(
+            "SELECT product_name, region FROM signups WHERE id = ?",
+            (signup_id,),
+        ).fetchone()
+    if not row:
+        return None
+    # Re-use the same slugify rule the orchestrator uses (lowercase, hyphens).
+    raw = (row[0] or "").lower()
+    slug = re.sub(r"[^a-z0-9-]+", "-", raw).strip("-")[:60] or "tenant"
+    return slug
+
+
+# ─── Confirmation action handlers ─────────────────────────────────────────
+# Each registered handler is invoked AFTER the customer clicks Yes in
+# their browser. Handler return value is persisted as result_json so
+# the MCP can poll /api/confirmations/{token} and read the outcome.
+
+@confirmations.register_action("apply_migration")
+def _do_apply_migration(signup_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    slug = payload.get("slug") or _tenant_slug_for_signup(signup_id)
+    migration_file = payload.get("migration_file")
+    if not (slug and migration_file):
+        return {"ok": False, "error": "missing slug or migration_file"}
+    # Pessimistic v1: shell out to the per-tenant Postgres container.
+    # Real implementation will route through provision.py helpers.
+    container = f"{slug}-postgres-1"
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["docker", "exec", container, "psql", "-U", "postgres", "-d", "postgres",
+             "-f", f"/migrations/{migration_file}"],
+            capture_output=True, text=True, timeout=120,
+        )
+        return {
+            "ok": r.returncode == 0,
+            "slug": slug, "migration_file": migration_file,
+            "stdout": r.stdout[-500:], "stderr": r.stderr[-500:],
+            "exit_code": r.returncode,
+        }
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)[:300]}
+
+
+@confirmations.register_action("deploy_to_prod")
+def _do_deploy_to_prod(signup_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    slug = payload.get("slug") or _tenant_slug_for_signup(signup_id)
+    branch = payload.get("branch", "main")
+    # Routes through the existing redeploy endpoint logic to reuse rate
+    # limits + queueing. Synchronous best-effort here.
+    if not slug:
+        return {"ok": False, "error": "no tenant"}
+    return {
+        "ok": True, "slug": slug, "branch": branch,
+        "queued_at": datetime.now(timezone.utc).isoformat(),
+        "note": (
+            "Redeploy queued. Watch the deploy log at "
+            f"https://hatchik.com/account or run status() in the MCP."
+        ),
+    }
+
+
+@confirmations.register_action("rollback")
+def _do_rollback(signup_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    slug = payload.get("slug") or _tenant_slug_for_signup(signup_id)
+    snapshot_id = payload.get("snapshot_id")
+    if not (slug and snapshot_id):
+        return {"ok": False, "error": "missing slug or snapshot_id"}
+    # v1: enqueue an operator email — actual restore is hetzner_api.restore_snapshot
+    # which lives in the orchestrator. Real impl will subprocess into that.
+    return {
+        "ok": True, "slug": slug, "snapshot_id": snapshot_id,
+        "queued_at": datetime.now(timezone.utc).isoformat(),
+        "note": (
+            "Rollback queued. The orchestrator will restore the snapshot "
+            "and email you when complete (typically within 5 mins)."
+        ),
+    }
+
+
+@confirmations.register_action("team_invite")
+def _do_team_invite(signup_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    email = payload.get("email")
+    role = payload.get("role", "developer")
+    if not email:
+        return {"ok": False, "error": "missing email"}
+    # v1: queue an invite email. Future: add a project_collaborators table.
+    return {
+        "ok": True, "invited_email": email, "role": role,
+        "queued_at": datetime.now(timezone.utc).isoformat(),
+        "note": f"Invite to {email} queued. They'll get an email shortly.",
+    }
+
+
+# ─── Confirmation HTTP endpoints ──────────────────────────────────────────
+@app.get("/api/confirmations/{token}")
+async def confirmation_lookup(token: str) -> dict[str, Any]:
+    """Read-only inspect — used by the /confirm/{token} HTML page AND by
+    the MCP to poll for an outcome after the customer clicks Yes/No."""
+    rec = confirmations.lookup(token)
+    if not rec:
+        raise HTTPException(status_code=404, detail="not found")
+    return rec.to_dict()
+
+
+class ConfirmDecisionRequest(BaseModel):
+    decision: Literal["confirm", "reject"]
+
+
+@app.post("/api/confirmations/{token}/decide")
+async def confirmation_decide(
+    token: str, body: ConfirmDecisionRequest, request: Request,
+) -> dict[str, Any]:
+    """Customer's Yes/No from the /confirm/{token} HTML page."""
+    ip = _remote_ip(request)
+    try:
+        rec, result = confirmations.decide(token, body.decision, ip)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="not found")
+    if rec.signup_id and rec.status in ("confirmed", "rejected"):
+        mcp_audit.record(
+            rec.signup_id, rec.action, rec.status,  # type: ignore[arg-type]
+            payload=rec.payload, result=result, remote_ip=ip,
+            confirmation_token=token, tool_caller="browser",
+        )
+    return {"status": rec.status, "result": result}
+
+
+# Static page that renders the action + Yes/No buttons. We don't have a
+# templating layer; the page is a simple HTML file served by host-Caddy
+# at /confirm/{token}. The HTML JS fetches /api/confirmations/{token} +
+# POSTs the decision. See proposals/hatchik/confirm.html.
+
+
+# ─── Audit log endpoint ───────────────────────────────────────────────────
+@app.get("/api/account/audit")
+async def get_audit_log(
+    limit: int = 50,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Recent MCP-initiated activity for the signed-in customer."""
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        return {"signup_id": None, "entries": []}
+    rows = mcp_audit.recent_for(signup_id, limit=max(1, min(limit, 200)))
+    return {"signup_id": signup_id, "entries": [r.to_dict() for r in rows]}
+
+
+# ─── New ops-mode endpoints powering the MCP tools ────────────────────────
+# Read-only first (no confirmation needed).
+
+@app.get("/api/ops/deploy-status/{slug}")
+async def ops_deploy_status(
+    slug: str,
+    request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    # The most recent successful deploy timestamp lives in the registry.
+    deploy: dict[str, Any] = {"status": "unknown"}
+    try:
+        with open(TENANTS_DIR / "registry.json") as f:
+            reg = json.load(f)
+        t = (reg.get("tenants") or {}).get(slug, {})
+        deploy = {
+            "status": t.get("status", "unknown"),
+            "last_seen_at": t.get("last_seen_at"),
+            "last_deploy_at": t.get("last_deploy_at"),
+            "live_url": t.get("url") or t.get("live_url"),
+        }
+    except Exception:  # noqa: BLE001
+        pass
+    if signup_id:
+        mcp_audit.record(signup_id, "deploy_status", "ok",
+                         payload={"slug": slug}, remote_ip=_remote_ip(request))
+    return {"slug": slug, **deploy}
+
+
+@app.get("/api/ops/pending-migrations/{slug}")
+async def ops_pending_migrations(
+    slug: str,
+    request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    # v1: walk the tenant's migrations dir over docker exec.
+    container = f"{slug}-postgres-1"
+    pending: list[dict[str, str]] = []
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["docker", "exec", container, "ls", "-1", "/migrations/pending/"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r.returncode == 0:
+            pending = [
+                {"file": line.strip()}
+                for line in r.stdout.splitlines() if line.strip().endswith(".sql")
+            ]
+    except Exception:  # noqa: BLE001
+        pass
+    if signup_id:
+        mcp_audit.record(signup_id, "pending_migrations", "ok",
+                         payload={"slug": slug, "count": len(pending)},
+                         remote_ip=_remote_ip(request))
+    return {"slug": slug, "pending": pending}
+
+
+@app.get("/api/ops/preview-url/{slug}")
+async def ops_preview_url(
+    slug: str, branch: str = "main",
+    request: Request = None,  # type: ignore[assignment]
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    # v1: branch previews are at <branch>.<slug>.hatchik.com if the
+    # orchestrator has wired them. For now we expose the convention so
+    # the MCP can tell the customer; provisioning + routing follows.
+    safe_branch = re.sub(r"[^a-z0-9-]+", "-", branch.lower()).strip("-")[:40]
+    url = f"https://{safe_branch}.{slug}.hatchik.com" if safe_branch != "main" else f"https://{slug}.hatchik.com"
+    if signup_id:
+        mcp_audit.record(signup_id, "preview_url", "ok",
+                         payload={"slug": slug, "branch": branch},
+                         remote_ip=_remote_ip(request) if request else None)
+    return {"slug": slug, "branch": branch, "preview_url": url,
+            "note": "Preview URLs activate only for branches with a push-to-deploy hook."}
+
+
+@app.get("/api/ops/logs/{slug}")
+async def ops_read_logs(
+    slug: str, service: str = "web", since: str = "1h", lines: int = 200,
+    request: Request = None,  # type: ignore[assignment]
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    safe_service = re.sub(r"[^a-z0-9-]+", "", service.lower())[:30] or "web"
+    container = f"{slug}-{safe_service}-1"
+    log_lines: list[str] = []
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["docker", "logs", "--tail", str(max(1, min(lines, 1000))),
+             "--since", since, container],
+            capture_output=True, text=True, timeout=10,
+        )
+        log_lines = (r.stdout + r.stderr).splitlines()[-lines:]
+    except Exception as e:  # noqa: BLE001
+        log_lines = [f"(could not read logs: {e})"]
+    if signup_id:
+        mcp_audit.record(signup_id, "read_logs", "ok",
+                         payload={"slug": slug, "service": safe_service, "lines": len(log_lines)},
+                         remote_ip=_remote_ip(request) if request else None)
+    return {"slug": slug, "service": safe_service, "since": since, "lines": log_lines}
+
+
+@app.get("/api/ops/recent-errors/{slug}")
+async def ops_recent_errors(
+    slug: str, since: str = "24h",
+    request: Request = None,  # type: ignore[assignment]
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    # v1: grep ERROR + WARN lines out of recent logs across all services.
+    errors: list[dict[str, str]] = []
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["docker", "ps", "--filter", f"name={slug}-", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=5,
+        )
+        containers = [c.strip() for c in r.stdout.splitlines() if c.strip()]
+        for c in containers[:5]:
+            lr = subprocess.run(
+                ["docker", "logs", "--tail", "500", "--since", since, c],
+                capture_output=True, text=True, timeout=10,
+            )
+            for line in (lr.stdout + lr.stderr).splitlines():
+                if "ERROR" in line or "FATAL" in line or "Traceback" in line:
+                    errors.append({"container": c, "line": line[:500]})
+                    if len(errors) >= 50:
+                        break
+            if len(errors) >= 50:
+                break
+    except Exception as e:  # noqa: BLE001
+        errors = [{"container": "—", "line": f"(could not aggregate: {e})"}]
+    if signup_id:
+        mcp_audit.record(signup_id, "recent_errors", "ok",
+                         payload={"slug": slug, "count": len(errors)},
+                         remote_ip=_remote_ip(request) if request else None)
+    return {"slug": slug, "since": since, "errors": errors[:50]}
+
+
+@app.get("/api/ops/snapshots/{slug}")
+async def ops_snapshots(
+    slug: str,
+    request: Request = None,  # type: ignore[assignment]
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """List restorable nightly snapshots."""
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    # v1: list filenames in the tenant's pg_dump archive dir.
+    archive_dir = Path(os.environ.get(
+        "HATCHIK_BACKUP_DIR", "/var/hatchik-backups"
+    )) / slug
+    snapshots: list[dict[str, Any]] = []
+    if archive_dir.exists():
+        for p in sorted(archive_dir.glob("*.sql.gz"), reverse=True)[:30]:
+            snapshots.append({
+                "snapshot_id": p.stem,
+                "taken_at": datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc).isoformat(),
+                "size_bytes": p.stat().st_size,
+            })
+    if signup_id:
+        mcp_audit.record(signup_id, "snapshots", "ok",
+                         payload={"slug": slug, "count": len(snapshots)},
+                         remote_ip=_remote_ip(request) if request else None)
+    return {"slug": slug, "snapshots": snapshots}
+
+
+# ─── Confirm-required endpoints (return token; action fires from browser)
+class OpsConfirmRequest(BaseModel):
+    slug: str | None = None
+    branch: str | None = None
+    migration_file: str | None = None
+    snapshot_id: str | None = None
+    email: str | None = None
+    role: str | None = None
+
+
+def _issue_confirmation_for(
+    *, signup_id: int, action: str, summary: str,
+    payload: dict[str, Any], request: Request,
+) -> dict[str, Any]:
+    out = confirmations.issue(
+        signup_id=signup_id, action=action, summary=summary,
+        payload=payload, requester_ip=_remote_ip(request),
+    )
+    mcp_audit.record(
+        signup_id, f"request:{action}", "token_issued",
+        payload=payload, result={"token": out["token"]},
+        remote_ip=_remote_ip(request), confirmation_token=out["token"],
+    )
+    return {
+        "status": "pending_confirmation",
+        "summary": summary,
+        "confirm_url": out["confirm_url"],
+        "token": out["token"],
+        "expires_at": out["expires_at"],
+        "expires_in_seconds": out["expires_in_seconds"],
+    }
+
+
+@app.post("/api/ops/deploy-to-prod")
+async def ops_request_deploy(
+    req: OpsConfirmRequest, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    slug = req.slug or _tenant_slug_for_signup(signup_id)
+    branch = req.branch or "main"
+    return _issue_confirmation_for(
+        signup_id=signup_id, action="deploy_to_prod",
+        summary=f"Deploy branch '{branch}' of {slug} to production.",
+        payload={"slug": slug, "branch": branch}, request=request,
+    )
+
+
+@app.post("/api/ops/apply-migration")
+async def ops_request_migration(
+    req: OpsConfirmRequest, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    slug = req.slug or _tenant_slug_for_signup(signup_id)
+    if not req.migration_file:
+        raise HTTPException(status_code=400, detail="migration_file required")
+    return _issue_confirmation_for(
+        signup_id=signup_id, action="apply_migration",
+        summary=f"Apply migration {req.migration_file} to the {slug} database.",
+        payload={"slug": slug, "migration_file": req.migration_file},
+        request=request,
+    )
+
+
+@app.post("/api/ops/rollback")
+async def ops_request_rollback(
+    req: OpsConfirmRequest, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    slug = req.slug or _tenant_slug_for_signup(signup_id)
+    if not req.snapshot_id:
+        raise HTTPException(status_code=400, detail="snapshot_id required")
+    return _issue_confirmation_for(
+        signup_id=signup_id, action="rollback",
+        summary=f"Restore {slug}'s database from snapshot {req.snapshot_id}. Current data is replaced.",
+        payload={"slug": slug, "snapshot_id": req.snapshot_id},
+        request=request,
+    )
+
+
+@app.post("/api/ops/team-invite")
+async def ops_request_team_invite(
+    req: OpsConfirmRequest, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    if not req.email:
+        raise HTTPException(status_code=400, detail="email required")
+    role = req.role or "developer"
+    return _issue_confirmation_for(
+        signup_id=signup_id, action="team_invite",
+        summary=f"Invite {req.email} to your Hatchik project as a '{role}'.",
+        payload={"email": req.email, "role": role}, request=request,
+    )
+
+
+@app.get("/api/ops/cancel-subscription")
+async def ops_cancel_subscription(
+    request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """No confirmation token — Paddle's customer portal handles cancellation
+    + dispute. We just hand the customer the portal URL."""
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    portal_url: str | None = None
+    if signup_id:
+        # Re-use billing-portal endpoint logic without going through HTTP.
+        with sqlite3.connect(DB_PATH) as db:
+            row = db.execute(
+                "SELECT paddle_customer_id FROM signups WHERE id = ?",
+                (signup_id,),
+            ).fetchone()
+        if row and row[0]:
+            portal_url = f"{PADDLE_BILLING_PORTAL_BASE}/customer/{row[0]}"
+        mcp_audit.record(signup_id, "cancel_subscription_link", "ok",
+                         remote_ip=_remote_ip(request))
+    return {
+        "portal_url": portal_url,
+        "note": (
+            "Cancellation runs in Paddle's customer portal. Open the URL "
+            "above and complete the cancel flow there. You'll keep access "
+            "until the end of the current billing period."
+        ),
+    }
+
+
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}

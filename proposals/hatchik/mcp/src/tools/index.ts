@@ -27,16 +27,20 @@ import { listSandboxesTool } from "./list-sandboxes.js";
 import { servicesTool } from "./services.js";
 import { mobileBuildsListTool, mobileBuildTriggerTool } from "./mobile-builds.js";
 import { buildSignupTools } from "./signup.js";
+import { buildOpsAdvancedTools } from "./ops-advanced.js";
 import type { Tool } from "./types.js";
 
 export function buildToolList(config: Config, api: ApiClient): Tool[] {
   if (config.mode === "ops") {
     return [
+      // Read-only foundation (no destructive side-effects).
       projectInfoTool(api),
       listSandboxesTool(api),
       servicesTool(api),
       mobileBuildsListTool(api),
       mobileBuildTriggerTool(api),
+      // Advanced ops surface — five read-only + five confirm-required.
+      ...buildOpsAdvancedTools(api),
     ];
   }
   // signup mode: the eight conversational signup tools.

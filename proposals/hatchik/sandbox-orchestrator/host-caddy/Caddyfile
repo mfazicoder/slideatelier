@@ -54,6 +54,15 @@ hatchik.com, www.hatchik.com {
         file_server
     }
 
+    # Browser-confirmation page for destructive MCP-initiated actions.
+    # URL shape: /confirm/{token}. The static page is one file; the
+    # token is parsed in JS from location.pathname.
+    handle /confirm/* {
+        root * /var/www/hatchik
+        rewrite * /confirm.html
+        file_server
+    }
+
     # Everything else → static marketing files
     handle {
         root * /var/www/hatchik

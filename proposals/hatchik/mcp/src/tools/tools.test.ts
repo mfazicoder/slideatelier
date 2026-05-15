@@ -19,6 +19,12 @@ import {
   startSignupTool, suggestDomainsTool, checkDomainTool, setChoicesTool,
   quoteTool, checkoutTool, statusTool, completeTool,
 } from "./signup.js";
+import {
+  deployStatusTool, previewUrlTool, pendingMigrationsTool,
+  readLogsTool, recentErrorsTool,
+  deployToProdTool, applyMigrationTool, rollbackTool, teamInviteTool,
+  cancelSubscriptionTool,
+} from "./ops-advanced.js";
 
 function makeStubApi(responses: Record<string, unknown>): ApiClient {
   return {
@@ -390,4 +396,163 @@ test("complete: returns api_key + MCP config block", async () => {
   });
   assert.match(r.text, /HATCHIK_API_KEY=hk_live_abcdefghij/);
   assert.match(r.text, /MealMate/);
+});
+
+// ─── advanced ops tools (read-only) ────────────────────────────────────
+
+test("deploy_status: surfaces tenant status + live URL", async () => {
+  const api = makeStubApi({
+    "/api/ops/deploy-status/mealmate": {
+      slug: "mealmate", status: "live",
+      last_deploy_at: "2026-05-15T10:14:00Z",
+      live_url: "https://mealmate.hatchik.com",
+    },
+  });
+  const r = await deployStatusTool(api).handler({ slug: "mealmate" });
+  assert.match(r.text, /Status: live/);
+  assert.match(r.text, /mealmate\.hatchik\.com/);
+});
+
+test("preview_url: synthesises conventional URL", async () => {
+  const api = makeStubApi({
+    "/api/ops/preview-url/mealmate?branch=feat-x": {
+      slug: "mealmate", branch: "feat-x",
+      preview_url: "https://feat-x.mealmate.hatchik.com",
+      note: "Preview URLs activate only for branches with a push-to-deploy hook.",
+    },
+  });
+  const r = await previewUrlTool(api).handler({ slug: "mealmate", branch: "feat-x" });
+  assert.match(r.text, /feat-x\.mealmate\.hatchik\.com/);
+});
+
+test("pending_migrations: lists files when any are queued", async () => {
+  const api = makeStubApi({
+    "/api/ops/pending-migrations/mealmate": {
+      slug: "mealmate",
+      pending: [
+        { file: "003_add_orders.sql" }, { file: "004_index_email.sql" },
+      ],
+    },
+  });
+  const r = await pendingMigrationsTool(api).handler({ slug: "mealmate" });
+  assert.match(r.text, /2 pending migration/);
+  assert.match(r.text, /003_add_orders/);
+});
+
+test("pending_migrations: returns 'none' cleanly", async () => {
+  const api = makeStubApi({
+    "/api/ops/pending-migrations/mealmate": { slug: "mealmate", pending: [] },
+  });
+  const r = await pendingMigrationsTool(api).handler({ slug: "mealmate" });
+  assert.match(r.text, /No pending migrations/);
+});
+
+test("read_logs: builds the querystring + shows the lines", async () => {
+  const api = makeStubApi({
+    "/api/ops/logs/mealmate?service=api&since=2h&lines=50": {
+      slug: "mealmate", service: "api", since: "2h",
+      lines: ["[INFO] booted", "[INFO] 200 GET /"],
+    },
+  });
+  const r = await readLogsTool(api).handler({
+    slug: "mealmate", service: "api", since: "2h", lines: 50,
+  });
+  assert.match(r.text, /booted/);
+  assert.match(r.text, /200 GET/);
+});
+
+test("recent_errors: surfaces grep hits", async () => {
+  const api = makeStubApi({
+    "/api/ops/recent-errors/mealmate?since=24h": {
+      slug: "mealmate", since: "24h",
+      errors: [
+        { container: "mealmate-api-1", line: "[ERROR] db connection refused" },
+      ],
+    },
+  });
+  const r = await recentErrorsTool(api).handler({ slug: "mealmate", since: "24h" });
+  assert.match(r.text, /1 error/);
+  assert.match(r.text, /connection refused/);
+});
+
+// ─── advanced ops tools (confirm-required) ─────────────────────────────
+
+test("deploy_to_prod: returns the confirm URL and instructs the AI not to follow", async () => {
+  const api = makeStubApi({
+    "/api/ops/deploy-to-prod": {
+      status: "pending_confirmation",
+      summary: "Deploy branch 'main' of mealmate to production.",
+      confirm_url: "https://hatchik.com/confirm/tc_xyz",
+      token: "tc_xyz", expires_at: "2026-05-15T10:20:00Z",
+      expires_in_seconds: 300,
+    },
+  });
+  const r = await deployToProdTool(api).handler({ branch: "main" });
+  assert.match(r.text, /tc_xyz/);
+  assert.match(r.text, /Do NOT auto-follow/);
+});
+
+test("apply_migration: requires migration_file + emits confirm URL", async () => {
+  const api = makeStubApi({
+    "/api/ops/apply-migration": {
+      status: "pending_confirmation",
+      summary: "Apply migration 003.sql to the mealmate database.",
+      confirm_url: "https://hatchik.com/confirm/tc_yyy",
+      token: "tc_yyy", expires_at: "2026-05-15T10:20:00Z",
+      expires_in_seconds: 300,
+    },
+  });
+  const r = await applyMigrationTool(api).handler({ migration_file: "003.sql" });
+  assert.match(r.text, /tc_yyy/);
+  assert.match(r.text, /destructive action/);
+});
+
+test("rollback: stresses replaces-data in the summary", async () => {
+  const api = makeStubApi({
+    "/api/ops/rollback": {
+      status: "pending_confirmation",
+      summary: "Restore mealmate's database from snapshot snap_2026-05-14. Current data is replaced.",
+      confirm_url: "https://hatchik.com/confirm/tc_zzz",
+      token: "tc_zzz", expires_at: "2026-05-15T10:20:00Z",
+      expires_in_seconds: 300,
+    },
+  });
+  const r = await rollbackTool(api).handler({ snapshot_id: "snap_2026-05-14" });
+  assert.match(r.text, /replaced/);
+  assert.match(r.text, /tc_zzz/);
+});
+
+test("team_invite: confirm URL + role default", async () => {
+  const api = makeStubApi({
+    "/api/ops/team-invite": {
+      status: "pending_confirmation",
+      summary: "Invite alice@example.com to your Hatchik project as a 'developer'.",
+      confirm_url: "https://hatchik.com/confirm/tc_aaa",
+      token: "tc_aaa", expires_at: "2026-05-15T10:20:00Z",
+      expires_in_seconds: 300,
+    },
+  });
+  const r = await teamInviteTool(api).handler({ email: "alice@example.com" });
+  assert.match(r.text, /alice@example\.com/);
+  assert.match(r.text, /tc_aaa/);
+});
+
+test("cancel_subscription: hands back the Paddle portal URL", async () => {
+  const api = makeStubApi({
+    "/api/ops/cancel-subscription": {
+      portal_url: "https://buyer.paddle.com/customer/cus_123",
+      note: "Cancellation runs in Paddle's customer portal.",
+    },
+  });
+  const r = await cancelSubscriptionTool(api).handler({});
+  assert.match(r.text, /buyer\.paddle\.com/);
+  assert.match(r.text, /Paddle/);
+});
+
+test("cancel_subscription: no portal_url → fallback to email", async () => {
+  const api = makeStubApi({
+    "/api/ops/cancel-subscription": { portal_url: null, note: "—" },
+  });
+  const r = await cancelSubscriptionTool(api).handler({});
+  assert.match(r.text, /hello@hatchik\.com/);
 });
