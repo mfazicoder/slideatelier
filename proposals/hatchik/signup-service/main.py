@@ -1404,27 +1404,42 @@ def _record_paddle_transition(
         log.error("record_paddle_transition failed: %s", e)
 
 
-def _trigger_promote_subprocess(signup_id: int, event_id: str) -> None:
+def _trigger_promote_subprocess(
+    signup_id: int, event_id: str,
+    env_overrides: dict[str, str] | None = None,
+) -> None:
     """Fire promote.py in SAFE_MODE as a detached subprocess. Errors are
     logged but never crash the webhook — the script's own founder-email
-    handles the "you need to look at this" path."""
+    handles the "you need to look at this" path.
+
+    env_overrides lets the admin force-promote endpoint pass
+    ``HATCHIK_PROMOTE_EXECUTE=1`` so the subprocess drops SAFE_MODE.
+    """
     import subprocess as _subprocess
     cmd = [
         "python3", PROMOTE_SCRIPT,
         "--signup-id", str(signup_id),
         "--paddle-event-id", event_id,
     ]
+    if env_overrides and env_overrides.get("HATCHIK_PROMOTE_EXECUTE") == "1":
+        cmd.append("--execute")
     if not Path(PROMOTE_SCRIPT).exists():
         log.warning("promote.py not at %s — skipping subprocess fire", PROMOTE_SCRIPT)
         return
+    env = {**os.environ, **(env_overrides or {})}
     try:
         _subprocess.Popen(  # noqa: S603 — fixed argv, no shell
             cmd,
             stdout=_subprocess.DEVNULL,
             stderr=_subprocess.DEVNULL,
             start_new_session=True,
+            env=env,
         )
-        log.info("Triggered promote.py for signup #%s (event=%s)", signup_id, event_id)
+        log.info(
+            "Triggered promote.py for signup #%s (event=%s, execute=%s)",
+            signup_id, event_id,
+            (env_overrides or {}).get("HATCHIK_PROMOTE_EXECUTE", "0"),
+        )
     except Exception as e:  # noqa: BLE001
         log.error("Failed to spawn promote.py for signup #%s: %s", signup_id, e)
 
@@ -5034,6 +5049,152 @@ async def revoke_ai_token(
                      payload={"token_id": token_id},
                      remote_ip=_remote_ip(request), tool_caller="web")
     return Response(status_code=204)
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Admin force-promote endpoints — alpha-test the full lifecycle without
+# real Paddle webhooks or waiting for the customer's 15th end-user.
+# ─────────────────────────────────────────────────────────────────────────
+# Gated behind X-Admin-Token = HATCHIK_ADMIN_TOKEN. Both endpoints:
+#   1. Record a tier_transitions row noting the bypass (audit trail).
+#   2. Shell out to the matching promote*.py script in SAFE_MODE by
+#      default so a misclick can't accidentally provision a real CAX31.
+#      Pass ?execute=1 to drop SAFE_MODE and actually run.
+#   3. Emit an mcp_audit row so the action is visible in /account.
+
+import time as _time  # noqa: E402
+
+ADMIN_FORCE_PROMOTE_NOTE = "admin force-promote (bypassed Paddle)"
+ADMIN_FORCE_GROWTH_NOTE  = "admin force-graduate (bypassed end-user count)"
+
+
+@app.post("/api/admin/promote-to-launch")
+async def admin_promote_to_launch(
+    signup_id: int, request: Request, execute: int = 0,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Force a sandbox signup to Launch without a Paddle webhook.
+
+    Usage:
+      curl -X POST 'https://hatchik.com/api/admin/promote-to-launch?signup_id=42&execute=1' \
+        -H 'X-Admin-Token: $HATCHIK_ADMIN_TOKEN'
+
+    execute=0 (default): SAFE_MODE — promote.py emails the plan, no
+      Hetzner/Cloudflare API calls. Good for first dry run.
+    execute=1: drops SAFE_MODE. Requires Hetzner + Cloudflare keys on
+      the orchestrator host; otherwise the subprocess will error.
+    """
+    _require_admin(x_admin_token)
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        row = db.execute(
+            "SELECT id, email, tier, product_name, status FROM signups WHERE id = ?",
+            (signup_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"signup {signup_id} not found")
+    if (row["tier"] or "").lower() != "sandbox":
+        raise HTTPException(
+            status_code=409,
+            detail=f"signup {signup_id} is tier={row['tier']!r}, not sandbox",
+        )
+    event_id = f"admin-force-launch-{int(_time.time())}"
+    _record_paddle_transition(
+        signup_id=signup_id, from_tier="sandbox", to_tier="launch",
+        event_id=event_id, note=ADMIN_FORCE_PROMOTE_NOTE,
+    )
+    # Set HATCHIK_PROMOTE_EXECUTE=1 in the subprocess env when execute=1.
+    env_overrides = {"HATCHIK_PROMOTE_EXECUTE": "1"} if execute == 1 else None
+    _trigger_promote_subprocess(signup_id, event_id, env_overrides=env_overrides)
+    mcp_audit.record(
+        signup_id, "admin.force_promote_launch", "ok",
+        payload={"signup_id": signup_id, "execute": execute},
+        result={"event_id": event_id, "mode": "execute" if execute else "safe"},
+        remote_ip=_remote_ip(request), tool_caller="admin",
+    )
+    return {
+        "ok": True, "signup_id": signup_id, "event_id": event_id,
+        "mode": "execute" if execute else "safe",
+        "note": (
+            "Promote subprocess queued. Watch the journal: "
+            "`journalctl -u hatchik-signup -f` for the plan email + outcome. "
+            "Pass execute=1 to actually provision real infra (needs Hetzner + Cloudflare keys)."
+        ),
+    }
+
+
+@app.post("/api/admin/promote-to-growth")
+async def admin_promote_to_growth(
+    signup_id: int, request: Request, execute: int = 0,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Force a Launch signup to Growth without waiting for 15 end-user signups.
+
+    Same SAFE_MODE / execute semantics as promote-to-launch. Drops
+    straight into promote_to_growth.py with --force so the user-count
+    check is bypassed.
+    """
+    _require_admin(x_admin_token)
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        row = db.execute(
+            "SELECT id, tier, status FROM signups WHERE id = ?", (signup_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"signup {signup_id} not found")
+    if (row["tier"] or "").lower() not in ("launch", "sandbox"):
+        # Allow sandbox→growth too (rare but supported by the script).
+        raise HTTPException(
+            status_code=409,
+            detail=f"signup {signup_id} is tier={row['tier']!r}; expected sandbox or launch",
+        )
+    event_id = f"admin-force-growth-{int(_time.time())}"
+    _record_paddle_transition(
+        signup_id=signup_id,
+        from_tier=row["tier"] or "launch",
+        to_tier="growth",
+        event_id=event_id, note=ADMIN_FORCE_GROWTH_NOTE,
+    )
+    # promote_to_growth.py lives in launch-orchestrator/. Subprocess it
+    # directly — there's no dedicated _trigger helper for it yet.
+    import subprocess
+    promote_to_growth = Path(
+        os.environ.get("HATCHIK_PROMOTE_GROWTH_SCRIPT",
+                       "/opt/hatchik-launch-orchestrator/promote_to_growth.py")
+    )
+    env = {**os.environ}
+    if execute == 1:
+        env["HATCHIK_PROMOTE_EXECUTE"] = "1"
+    # promote_to_growth.py has no count check of its own (auto_graduate.py
+    # does); calling it directly IS the bypass.
+    try:
+        subprocess.Popen(
+            [_sys.executable, str(promote_to_growth),
+             "--signup-id", str(signup_id),
+             *(["--execute"] if execute == 1 else [])],
+            env=env,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=500,
+            detail=f"promote_to_growth.py not deployed at {promote_to_growth}",
+        )
+    mcp_audit.record(
+        signup_id, "admin.force_promote_growth", "ok",
+        payload={"signup_id": signup_id, "execute": execute},
+        result={"event_id": event_id, "mode": "execute" if execute else "safe"},
+        remote_ip=_remote_ip(request), tool_caller="admin",
+    )
+    return {
+        "ok": True, "signup_id": signup_id, "event_id": event_id,
+        "mode": "execute" if execute else "safe",
+        "note": (
+            "Growth promotion queued. Watch the journal for the plan/email. "
+            "execute=1 actually migrates the DB (3-hop rsync) and flips DNS."
+        ),
+    }
 
 
 @app.get("/healthz")
