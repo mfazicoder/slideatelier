@@ -5055,7 +5055,14 @@ async def revoke_ai_token(
 # Admin force-promote endpoints — alpha-test the full lifecycle without
 # real Paddle webhooks or waiting for the customer's 15th end-user.
 # ─────────────────────────────────────────────────────────────────────────
-# Gated behind X-Admin-Token = HATCHIK_ADMIN_TOKEN. Both endpoints:
+# Gated by TWO things:
+#   - X-Admin-Token = HATCHIK_ADMIN_TOKEN (shared admin secret)
+#   - HATCHIK_ALPHA_BYPASS = '1' (feature switch — flip OFF for prod)
+# When ALPHA_BYPASS is off both endpoints return 403 with a clear
+# message explaining how to re-enable. Going live = set
+# HATCHIK_ALPHA_BYPASS=0 (or unset) and restart the signup-service.
+#
+# Both endpoints:
 #   1. Record a tier_transitions row noting the bypass (audit trail).
 #   2. Shell out to the matching promote*.py script in SAFE_MODE by
 #      default so a misclick can't accidentally provision a real CAX31.
@@ -5064,8 +5071,29 @@ async def revoke_ai_token(
 
 import time as _time  # noqa: E402
 
+ALPHA_BYPASS_ENABLED = os.environ.get("HATCHIK_ALPHA_BYPASS", "0") == "1"
 ADMIN_FORCE_PROMOTE_NOTE = "admin force-promote (bypassed Paddle)"
 ADMIN_FORCE_GROWTH_NOTE  = "admin force-graduate (bypassed end-user count)"
+
+
+def _require_alpha_bypass() -> None:
+    """403 unless the alpha-test feature switch is on.
+
+    Flipping HATCHIK_ALPHA_BYPASS=1 enables the force-promote endpoints.
+    Unset / set to 0 = production mode, only real Paddle webhooks + the
+    daily auto_graduate.py timer can advance tiers.
+    """
+    if not ALPHA_BYPASS_ENABLED:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Alpha-bypass endpoints are disabled. Set "
+                "HATCHIK_ALPHA_BYPASS=1 and restart the signup-service "
+                "to re-enable. In production this stays off — real "
+                "Paddle webhooks + the daily auto_graduate timer drive "
+                "tier transitions."
+            ),
+        )
 
 
 @app.post("/api/admin/promote-to-launch")
@@ -5084,6 +5112,7 @@ async def admin_promote_to_launch(
     execute=1: drops SAFE_MODE. Requires Hetzner + Cloudflare keys on
       the orchestrator host; otherwise the subprocess will error.
     """
+    _require_alpha_bypass()
     _require_admin(x_admin_token)
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
@@ -5134,6 +5163,7 @@ async def admin_promote_to_growth(
     straight into promote_to_growth.py with --force so the user-count
     check is bypassed.
     """
+    _require_alpha_bypass()
     _require_admin(x_admin_token)
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
@@ -5193,6 +5223,30 @@ async def admin_promote_to_growth(
         "note": (
             "Growth promotion queued. Watch the journal for the plan/email. "
             "execute=1 actually migrates the DB (3-hop rsync) and flips DNS."
+        ),
+    }
+
+
+@app.get("/api/admin/feature-flags")
+async def admin_feature_flags(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Quick visibility into which side-doors are open. Read-only."""
+    _require_admin(x_admin_token)
+    return {
+        "alpha_bypass_enabled": ALPHA_BYPASS_ENABLED,
+        "paddle_configured": bool(PADDLE_LAUNCH_PRICE_ID),
+        "paddle_webhook_secret_set": bool(PADDLE_WEBHOOK_SECRET),
+        "promote_script_present": Path(PROMOTE_SCRIPT).exists(),
+        "anthropic_master_key_set": bool(os.environ.get("HATCHIK_ANTHROPIC_MASTER_KEY")),
+        "openai_master_key_set": bool(os.environ.get("HATCHIK_OPENAI_MASTER_KEY")),
+        "porkbun_keys_set": bool(
+            os.environ.get("HATCHIK_PORKBUN_API_KEY")
+            and os.environ.get("HATCHIK_PORKBUN_SECRET")
+        ),
+        "infomaniak_keys_set": bool(
+            os.environ.get("HATCHIK_INFOMANIAK_API_TOKEN")
+            and os.environ.get("HATCHIK_INFOMANIAK_MAIL_SERVICE_ID")
         ),
     }
 

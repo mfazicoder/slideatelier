@@ -14,6 +14,38 @@ different. Set `HATCHIK_ADMIN_TOKEN` on the signup-service host (any
 strong random string); same value goes in the `X-Admin-Token` header
 of every admin curl below.
 
+### Feature switch (this is the production safety net)
+
+Both bypass endpoints are gated by `HATCHIK_ALPHA_BYPASS`. **Off by
+default** — production hosts will refuse the bypass calls with a 403
+even with a valid admin token.
+
+```ini
+# /etc/hatchik/signup.env on the signup-service host
+
+# Alpha test phase — bypass endpoints active:
+HATCHIK_ALPHA_BYPASS=1
+
+# Going live — flip to 0 or remove the line and restart:
+# HATCHIK_ALPHA_BYPASS=0
+```
+
+Then `systemctl restart hatchik-signup`. Confirm the current state at
+any time:
+
+```bash
+curl -s 'https://hatchik.com/api/admin/feature-flags' \
+  -H "X-Admin-Token: $HATCHIK_ADMIN_TOKEN" | jq
+```
+
+Response shows `alpha_bypass_enabled: true|false` plus which
+provider credentials are wired (Paddle, Anthropic, OpenAI, Porkbun,
+Infomaniak) — useful as a launch-readiness checklist.
+
+When the switch is off, real Paddle webhooks + the daily
+`auto_graduate.py` timer are the only paths that advance tiers — which
+is exactly what you want in production.
+
 ### Credentials needed (real provisioning)
 
 For `execute=1` calls (which actually provision real Hetzner boxes,
