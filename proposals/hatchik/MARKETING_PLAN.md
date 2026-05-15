@@ -39,10 +39,11 @@ The filter is deliberately tight. It excludes:
 
 ### TAM in revenue
 
-- Sandbox £0, Launch £178 yr-1 / £108 ongoing, Growth £288/yr.
-- Blended ARPU assumption: **£180/year** (mix of Launch + Growth, mostly
-  Launch in early years).
-- **TAM today ≈ £56M/yr.**
+- Sandbox £0, Launch £89 setup + £168/yr (annual) or £204/yr (monthly),
+  Growth £468/yr.
+- Blended ARPU assumption: **£200/year** (mix of Launch + Growth,
+  mostly Launch annual in early years).
+- **TAM today ≈ £62M/yr.**
 - AI-coding-tool adoption is ~doubling annually. At 2× for two more years:
   **TAM 2027 ≈ £200M+/yr.**
 
@@ -154,74 +155,86 @@ For every 100 Sandbox signups:
 These need revalidation against actual signups; in a hype window
 conversion can be 2-3× higher than baseline SaaS.
 
-### Pricing recommendation: confirmed
+### Pricing recommendation: confirmed (v2 — May 2026 stack)
 
 The original £9/mo Launch / £24/mo Growth was founder-empathy
 underpricing for this window. **Final pricing**: Launch **£89 setup
-+ £14/mo**, Growth **£39/mo**. Comparable hype-window products
-(Cursor Pro $25/mo, Lovable $25-100/mo, Replit Core $25/mo) sit in
-the £20-30/mo entry band. We deliberately sit just under that band
-on Launch to keep the "first SaaS" affordability story while still
-clearing a real margin once the setup fee is folded in.
++ £14/mo annual prepay (£168/yr) or £17/mo monthly**, Growth
+**£39/mo** (auto-triggered at the customer's 15th end-user signup).
+Comparable hype-window products (Cursor Pro $25/mo, Lovable
+$25-100/mo, Replit Core $25/mo) sit in the £20-30/mo entry band. We
+deliberately sit just under that band on Launch annual to keep the
+"first SaaS" affordability story while clearing a real margin.
 
-Margin impact at the new pricing — **now with AI COGS + kept-sandbox
-cost subtracted** (cost-to-serve breakdown: infra £8.50/mo, **AI
-passthrough COGS £1.50/mo Launch / £5/mo Growth mid-range**,
-**kept-sandbox-as-dev-env £1.50/mo** for every promoted Launch/Growth
-customer — see note below, Paddle fees ~5%+£0.40/txn). The AI line is
-elastic — it scales with customer model mix (Haiku vs Sonnet vs
-GPT-4o), allowance utilisation, and the BYO-key share. The
-kept-sandbox line is structural — every paid customer comes from a
-Sandbox we now keep alive as their dev environment. Modelled
-end-to-end in `proposals/hatchik/AI_COGS_SENSITIVITY.xlsx`
-(named cell `kept_sandbox_cost`, default £1.50/mo).
+**Margin impact at the v2 stack** (cost-to-serve breakdown: shared
+multi-tenant Launch host on CAX41 + 3 mailboxes + backups +
+monitoring = **£2.46/mo**, **AI passthrough COGS £1.26/mo Launch /
+£4.20/mo Growth mid-range** at 60% allowance utilisation + 30% BYO,
+**kept-sandbox-as-dev-env £0.30/mo** for every promoted Launch/Growth
+customer, Paddle fees ~5%+£0.40/txn). The AI line scales with model
+mix, allowance utilisation, and BYO-key share. The kept-sandbox line
+is structural — every paid customer comes from a Sandbox we now keep
+alive as their dev environment (now £0.30/mo at 45 sandboxes/CAX31
+density: Studio dropped, memory overcommit, 2h idle-suspend).
+Modelled end-to-end in `AI_COGS_SENSITIVITY.xlsx`.
 
-- **Launch ongoing margin (mid-range): ~£0.64/mo at £14** (sensitivity
-  range −£2.24 pessimistic to £2.78 optimistic). Pessimistic = all
-  customers max allowance on expensive models; optimistic = high
-  BYO-key share + low utilisation + cheap-model mix. All scenarios
-  now include the £1.50/mo kept-sandbox burden.
-- **Growth ongoing margin (mid-range): ~£19.95/mo at £39** (sensitivity
-  range £11.29 pessimistic to £26.25 optimistic). Growth absorbs the
-  £1.50 with no real strategic impact.
-- Year-1 Launch revenue: £89 + 11 × £14 = £243 (with passthrough overage
-  uplift the realised figure is closer to £247 per customer).
-- Year-1 Launch net (mid-range, AI COGS + kept-sandbox included):
-  ~£91/customer (down from ~£108 pre-kept-sandbox).
-- Year-1 Growth net (mid-range, AI COGS + kept-sandbox included):
-  ~£239/customer (down from ~£257 pre-kept-sandbox, ~£338 pre-AI-COGS).
-- 1000-customer cohort at 80/20 Launch/Growth: Y1 gross margin
-  ~£121K (vs ~£137K pre-kept-sandbox / ~£154K pre-AI-COGS). The
-  kept-sandbox burden specifically is **£1500/mo (£18K/yr) at full
-  saturation** — a known infrastructure line item we're choosing to
-  eat because it buys us a genuine dev/prod split that competitors
-  in the £14-39 price band don't offer.
-- Blended LTV at 80/20 mix and 24-month tenure now in the £420–£480
-  range — AI COGS + kept-sandbox each trim a slice but neither kills
-  the CAC headroom.
-- CAC ceiling at 3:1 LTV:CAC: ~£140–£160 — still usable room for paid
-  acquisition.
+**Overage model: pass-through.** Customer pays provider cost ×
+**1.60** on tokens past the included allowance. The 60% nominal
+markup bakes in Paddle pass-through (5% + £0.40 fixed) on top of
+Hatchik's intended 40% net margin. Realised as **PAYG real-time
+top-up packs (£5 minimum) — no monthly settlement, no credit risk**.
 
-**Kept-sandbox-as-dev-env line item.** When a customer upgrades from
-Sandbox to Launch (or Growth), we now keep their original sandbox
+**AI-tool affiliate.** Cursor / Anthropic / Lovable / Bolt / Windsurf
+referrals at 5% take rate = **£0.10/mo amortised per Launch customer**.
+Conservative — most Hatchik customers come AI-tool-first (already
+subscribed before they find us).
+
+- **Launch ongoing margin (mid-range, blended 40% annual / 60% monthly):
+  ~£11.55/mo** (sensitivity range £9.08 pessimistic to £12.17 optimistic).
+  Pessimistic = full allowance burn, no overage capture (worst case under
+  pass-through). Optimistic = high BYO share + light usage. All scenarios
+  include the £0.30/mo kept-sandbox burden + £0.10/mo affiliate.
+- **Growth ongoing margin (mid-range): ~£31.74/mo** (sensitivity range
+  £24.12 pessimistic to £34.24 optimistic).
+- Year-1 Launch revenue: £89 setup + 11 × £15.80 (blended sub) +
+  realised overage = ~£280/customer.
+- **Year-1 Launch net (mid-range, full stack): ~£211/customer**
+  (vs ~£91 in the pre-v2 model).
+- **Year-1 Growth net (mid-range, full stack): ~£381/customer**
+  (vs ~£239 in the pre-v2 model).
+- **1000-customer cohort at 80/20 Launch/Growth: Y1 gross margin
+  ~£245K** (vs ~£121K in the pre-v2 model). Implied gross margin
+  ~70% (vs 41%).
+- Blended LTV at 80/20 mix and 24-month tenure now in the £550–£700
+  range. CAC ceiling at 3:1 LTV:CAC: **~£180–£230** — meaningful room
+  for paid acquisition.
+
+**Kept-sandbox-as-dev-env line item (v2).** When a customer upgrades
+from Sandbox to Launch (or Growth), we keep their original sandbox
 alive as a dev environment alongside the new production stack
 (option-A decision, implemented in `launch-orchestrator/promote.py`
-and `sandbox-orchestrator/lifecycle.py`). The marginal cost is ~£1.50
-per customer per month — a CAX21 Hetzner host (€8/mo) carries roughly
-5 active sandboxes, so each promoted-but-kept sandbox eats one slot.
-We're framing this as **the cost of giving promoted customers a real
-dev/prod split — a real product differentiator** rather than a hidden
-infrastructure tax. If the founder later decides to make the
-kept-alive sandbox opt-in or to bill it separately, set
-`kept_sandbox_cost=0` in the sensitivity workbook to model that world.
+and `sandbox-orchestrator/lifecycle.py`). The marginal cost is now
+**~£0.30/mo** per customer — a CAX31 Hetzner host (£11.30/mo)
+carries ~45 sandboxes with Studio dropped, memory overcommit, and
+2h idle-suspend on no-traffic. Studio is now a Launch+ feature only.
+Framing: **the cost of giving promoted customers a real dev/prod
+split — a real product differentiator** at a price point competitors
+in the £14-39 band can't match. If the founder later decides to make
+the kept-alive sandbox opt-in or to bill it separately, set
+`kept_sandbox_cost=0` in the sensitivity workbook.
 
-**Overage-margin uplift.** Once a customer is on Hatchik's passthrough,
-they're already in our billing flow; tokens past the included allowance
-flow through us at a markup rather than strict zero-margin passthrough.
-The spreadsheet models a 30% markup as default (tunable lever). This adds
-roughly £0.40–£1.00/customer/month on Launch and £1.00–£2.00 on Growth
-for heavy-usage customers — net contribution to margin already baked
-into the figures above.
+**Shared multi-tenant Launch host (v2).** Launch tier no longer ships
+on a dedicated VPS. New architecture: shared CAX41 host with ~25
+tenants/box (per-tenant compose stack, isolated network namespace,
+per-tenant Postgres). Dedicated VPS is now the **Growth tier**
+upgrade benefit (auto-triggered at customer 15th end-user signup).
+Marketing language updated from "Dedicated VPS in your region" to
+"Production hosting in your region" on Launch; "Dedicated VPS in
+your region" promoted to Growth tier feature.
+
+**Mailboxes (v2).** Launch ships with **3 mailboxes** (down from 5)
+— enough for a solo founder's `hello@` + `support@` + `founder@`.
+Growth bumps to 10 (or unlimited) as part of the dedicated-VPS step.
 
 ---
 
