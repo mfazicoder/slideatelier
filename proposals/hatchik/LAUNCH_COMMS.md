@@ -156,7 +156,7 @@ hide the meat.
 > already configured, on your own infrastructure.
 >
 > What "everything else" means: production-grade hosting in your chosen
-> region, your own domain with TLS, five mailboxes on that domain, Stripe
+> region, your own domain with TLS, three mailboxes on that domain, Stripe
 > live mode, iOS and Android shells, nightly backups, monitoring,
 > error-tracking. All standing up in minutes, all owned by you, no vendor
 > lock-in.
