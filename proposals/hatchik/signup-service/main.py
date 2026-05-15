@@ -4909,6 +4909,133 @@ async def ops_cancel_subscription(
     }
 
 
+# ═════════════════════════════════════════════════════════════════════════
+# AI passthrough proxy — POST /v1/messages, POST /v1/chat/completions
+# ─────────────────────────────────────────────────────────────────────────
+# Customer's AI SDK points at https://hatchik.com/v1 with an hk_ai_<…>
+# token. We forward to the real provider using the master key in env,
+# meter the response, and record usage via ai_credit.record_event.
+
+import ai_proxy  # noqa: E402
+
+
+def _extract_ai_token(authorization: str | None,
+                      x_api_key: str | None) -> str | None:
+    """Anthropic SDK sends `x-api-key: hk_ai_…`. OpenAI SDK sends
+    `Authorization: Bearer hk_ai_…`. Accept both."""
+    if x_api_key and x_api_key.startswith("hk_ai_"):
+        return x_api_key
+    if authorization:
+        parts = authorization.split(None, 1)
+        if len(parts) == 2 and parts[0].lower() == "bearer" and parts[1].startswith("hk_ai_"):
+            return parts[1]
+    return None
+
+
+@app.post("/v1/messages")
+async def proxy_anthropic_messages(
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None, alias="x-api-key"),
+) -> Response:
+    token = _extract_ai_token(authorization, x_api_key)
+    if not token:
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"type": "hatchik_proxy",
+                               "message": "Missing hk_ai_* token. Pass as "
+                                          "`x-api-key` or `Authorization: Bearer`."}},
+        )
+    body = await request.body()
+    headers = {k.decode(): v.decode() for k, v in request.headers.raw}
+    status, resp_headers, resp_body = await ai_proxy.proxy_anthropic_messages(
+        token, body, headers,
+    )
+    return Response(content=resp_body, status_code=status, headers=resp_headers)
+
+
+@app.post("/v1/chat/completions")
+async def proxy_openai_chat_completions(
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None, alias="x-api-key"),
+) -> Response:
+    token = _extract_ai_token(authorization, x_api_key)
+    if not token:
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"type": "hatchik_proxy",
+                               "message": "Missing hk_ai_* token."}},
+        )
+    body = await request.body()
+    headers = {k.decode(): v.decode() for k, v in request.headers.raw}
+    status, resp_headers, resp_body = await ai_proxy.proxy_openai_chat_completions(
+        token, body, headers,
+    )
+    return Response(content=resp_body, status_code=status, headers=resp_headers)
+
+
+# ─── AI token management ─────────────────────────────────────────────────
+class AiTokenCreateRequest(BaseModel):
+    label: str = Field(..., min_length=1, max_length=80)
+    cap_pence: int | None = Field(None, ge=0, le=1_000_000)
+
+
+@app.post("/api/account/ai-tokens", status_code=201)
+async def create_ai_token(
+    req: AiTokenCreateRequest, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    raw, meta = ai_proxy.issue_token(signup_id, req.label, req.cap_pence)
+    mcp_audit.record(signup_id, "ai_token.create", "ok",
+                     payload={"label": req.label, "cap_pence": req.cap_pence},
+                     result={"id": meta["id"], "prefix": meta["prefix"]},
+                     remote_ip=_remote_ip(request), tool_caller="web")
+    # raw is shown ONCE on creation; we never store cleartext.
+    return {**meta, "token": raw}
+
+
+@app.get("/api/account/ai-tokens")
+async def list_ai_tokens(
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        return {"tokens": []}
+    return {"tokens": ai_proxy.list_for_signup(signup_id)}
+
+
+@app.delete("/api/account/ai-tokens/{token_id}", status_code=204)
+async def revoke_ai_token(
+    token_id: int, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> Response:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    if not ai_proxy.revoke_token(signup_id, token_id):
+        raise HTTPException(status_code=404, detail="not found")
+    mcp_audit.record(signup_id, "ai_token.revoke", "ok",
+                     payload={"token_id": token_id},
+                     remote_ip=_remote_ip(request), tool_caller="web")
+    return Response(status_code=204)
+
+
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}

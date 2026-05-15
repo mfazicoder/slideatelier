@@ -509,6 +509,54 @@
         </div>
       </div>
     </div>
+
+    <!-- AI passthrough tokens -->
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8 max-w-2xl">
+      <h2 class="text-xl font-bold">AI passthrough tokens</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        Use Hatchik as a drop-in for the Anthropic or OpenAI API. Point your AI SDK at
+        <code class="mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">https://hatchik.com/v1</code>
+        and pass an <code class="mono text-xs">hk_ai_*</code> token instead of your provider key.
+        We forward to the real provider, meter the tokens, and bill your AI credit allowance
+        (pass-through cost &times; 1.6 once you cross the monthly included amount).
+      </p>
+      <p class="mt-3 text-xs text-slate-500 leading-relaxed">
+        Optional per-token spend cap stops a runaway script from burning the whole month.
+        Tokens are revocable any time; new-token plaintext shows once, like API keys above.
+      </p>
+
+      <form id="aiTokenCreateForm" class="mt-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+        <div class="flex-1">
+          <label for="aiTokenLabel" class="text-sm font-medium text-slate-700">Label</label>
+          <input id="aiTokenLabel" type="text" maxlength="80"
+            placeholder="e.g. MealMate production"
+            class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+        </div>
+        <div class="w-40">
+          <label for="aiTokenCap" class="text-sm font-medium text-slate-700">Cap (£, optional)</label>
+          <input id="aiTokenCap" type="number" min="0" max="10000" step="1"
+            placeholder="e.g. 20"
+            class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+        </div>
+        <button type="submit" class="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition shrink-0">Issue token</button>
+      </form>
+
+      <div id="aiTokenReveal" class="hidden mt-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200">
+        <p class="text-sm font-semibold text-amber-900">Copy this token now &mdash; you won&rsquo;t see it again.</p>
+        <div class="mt-3 flex items-stretch gap-2">
+          <code id="aiTokenPlaintext" class="flex-1 font-mono text-xs bg-white border border-amber-300 rounded-lg px-3 py-3 overflow-x-auto select-all" style="word-break:break-all;"></code>
+          <button id="aiTokenCopyBtn" type="button" class="shrink-0 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition">Copy</button>
+        </div>
+        <button id="aiTokenDismissBtn" type="button" class="mt-3 text-xs text-amber-800 underline">I&rsquo;ve copied it, hide this</button>
+      </div>
+
+      <div class="mt-8">
+        <p class="text-sm font-semibold text-slate-800">Your AI tokens</p>
+        <div id="aiTokenList" class="mt-3 space-y-2 text-sm">
+          <p class="text-slate-500 italic">Loading&hellip;</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Danger tab -->
@@ -1043,6 +1091,7 @@
       renderAiCredit(me.sandboxes || []);
       renderActivity();
       renderApiKeys();
+      renderAiTokens();
       show('dashboard');
     } catch (e) {
       if (e.status === 401) {
@@ -1395,6 +1444,93 @@
     apiKeyDismissBtn.addEventListener('click', () => {
       $('apiKeyReveal').classList.add('hidden');
       $('apiKeyPlaintext').textContent = '';
+    });
+  }
+
+  // ─── AI passthrough tokens ────────────────────────────────────────
+  async function renderAiTokens() {
+    const list = $('aiTokenList');
+    if (!list) return;
+    try {
+      const data = await fetchJSON('/api/account/ai-tokens');
+      const tokens = data.tokens || [];
+      if (!tokens.length) {
+        list.innerHTML = `<p class="text-slate-500">No AI tokens yet. Issue one above to use Hatchik as an Anthropic/OpenAI drop-in.</p>`;
+        return;
+      }
+      list.innerHTML = tokens.map(t => {
+        const revoked = !!t.revoked_at;
+        const cap = t.cap_pence ? `£${(t.cap_pence/100).toFixed(2)} cap` : 'no cap';
+        const used = t.last_used_at ? `used ${new Date(t.last_used_at).toLocaleString()}` : 'never used';
+        return `<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl ring-1 ring-slate-200 bg-white">
+          <div class="min-w-0 flex-1">
+            <p class="font-medium text-slate-900 truncate">${escapeHtml(t.label)} ${revoked ? '<span class="ml-2 text-xs text-rose-700">(revoked)</span>' : ''}</p>
+            <p class="mt-0.5 text-xs text-slate-500"><code class="mono">${escapeHtml(t.prefix)}…</code> &middot; ${cap} &middot; ${used}</p>
+          </div>
+          ${revoked ? '' : `<button data-revoke-ai="${t.id}" class="text-xs px-3 py-1.5 rounded-lg ring-1 ring-slate-300 hover:bg-rose-50 hover:text-rose-700 transition">Revoke</button>`}
+        </div>`;
+      }).join('');
+      list.querySelectorAll('[data-revoke-ai]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-revoke-ai');
+          if (!confirm('Revoke this AI token? Any calls using it will start failing immediately.')) return;
+          try {
+            const res = await fetch(`/api/account/ai-tokens/${encodeURIComponent(id)}`, {
+              method: 'DELETE', credentials: 'same-origin',
+            });
+            if (res.ok || res.status === 204) await renderAiTokens();
+          } catch (e) { /* leave list intact */ }
+        });
+      });
+    } catch (e) {
+      list.innerHTML = `<p class="text-rose-700">Couldn't load AI tokens.</p>`;
+    }
+  }
+
+  const aiTokenForm = $('aiTokenCreateForm');
+  if (aiTokenForm) {
+    aiTokenForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const label = ($('aiTokenLabel').value || '').trim();
+      const capGbp = parseFloat($('aiTokenCap').value);
+      const cap_pence = isFinite(capGbp) && capGbp > 0 ? Math.round(capGbp * 100) : null;
+      const reveal = $('aiTokenReveal');
+      reveal.classList.add('hidden');
+      try {
+        const data = await fetchJSON('/api/account/ai-tokens', {
+          method: 'POST', body: JSON.stringify({ label, cap_pence }),
+        });
+        $('aiTokenPlaintext').textContent = data.token || '';
+        reveal.classList.remove('hidden');
+        $('aiTokenLabel').value = '';
+        $('aiTokenCap').value = '';
+        await renderAiTokens();
+      } catch (e) {
+        alert("Couldn't issue that token — try again in a moment.");
+      }
+    });
+  }
+  const aiTokenCopyBtn = $('aiTokenCopyBtn');
+  if (aiTokenCopyBtn) {
+    aiTokenCopyBtn.addEventListener('click', async () => {
+      const text = $('aiTokenPlaintext').textContent || '';
+      try {
+        await navigator.clipboard.writeText(text);
+        aiTokenCopyBtn.textContent = 'Copied ✓';
+        setTimeout(() => { aiTokenCopyBtn.textContent = 'Copy'; }, 2000);
+      } catch (e) {
+        const range = document.createRange();
+        range.selectNodeContents($('aiTokenPlaintext'));
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+      }
+    });
+  }
+  const aiTokenDismissBtn = $('aiTokenDismissBtn');
+  if (aiTokenDismissBtn) {
+    aiTokenDismissBtn.addEventListener('click', () => {
+      $('aiTokenReveal').classList.add('hidden');
+      $('aiTokenPlaintext').textContent = '';
     });
   }
 

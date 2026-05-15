@@ -44,6 +44,19 @@ hatchik.com, www.hatchik.com {
         reverse_proxy localhost:8090
     }
 
+    # AI passthrough proxy — same FastAPI service. Customers point
+    # their Anthropic/OpenAI SDK at https://hatchik.com/v1 instead of
+    # the provider's host; we forward via ai_proxy.py + meter via
+    # ai_credit. The HTTP timeout is generous because AI calls can run
+    # 30-60s for long completions.
+    handle /v1/* {
+        reverse_proxy localhost:8090 {
+            transport http {
+                response_header_timeout 180s
+            }
+        }
+    }
+
     # Admin metrics dashboard → static page (single file at repo root,
     # deployed as /var/www/hatchik/admin-dashboard.html). Token-gated
     # in the client — the page only renders once a valid X-Admin-Token
