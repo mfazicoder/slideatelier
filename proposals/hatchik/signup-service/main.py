@@ -3718,6 +3718,86 @@ async def get_services(
         "repo_url": repo_url or None,
         **inventory,
     }
+
+
+# ─── AI credit balance ────────────────────────────────────────────────────
+# Powers the /account → AI credit panel. Returns this month's allowance,
+# spend so far, remaining + any overage. Read-only; usage is recorded by
+# the AI proxy service (out-of-band) into the ai_usage table.
+@app.get("/api/account/ai-credit/{slug}")
+async def get_ai_credit(
+    slug: str,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+
+    # Resolve to a signup_id and tier — Launch first (paid takes precedence).
+    launch = _launch_tenant_for_session(slug, session["email"])
+    if launch:
+        signup_id = launch.get("signup_id")
+        tier = launch.get("tier") or "launch"
+    else:
+        tenant = _tenant_for_session(slug, session["email"])
+        if not tenant:
+            raise HTTPException(status_code=404, detail="sandbox not found")
+        signup_id = tenant.get("signup_id")
+        tier = "sandbox"
+
+    if not signup_id:
+        # Missing signup_id is a registry-integrity bug — log + 404 so the
+        # UI shows the standard 'no data' card.
+        raise HTTPException(status_code=404, detail="signup not resolved")
+
+    try:
+        import ai_credit  # noqa: PLC0415 — module is in this dir
+        balance = ai_credit.get_balance(signup_id, tier)
+        return {
+            **ai_credit.to_json(balance),
+            "recent_events": ai_credit.recent_events(signup_id, limit=10),
+        }
+    except Exception as e:  # noqa: BLE001
+        # Defensive: balance is a 'nice-to-have' panel — never 500 the dashboard.
+        return {
+            "tier": tier,
+            "error": str(e)[:200],
+            "allowance_pence": 0,
+            "spent_pence": 0,
+            "remaining_pence": 0,
+            "overage_pence": 0,
+            "using_byo_key": False,
+        }
+
+
+@app.post("/api/account/ai-credit/{slug}/byo-key")
+async def set_byo_key(
+    slug: str,
+    payload: dict[str, Any],
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Toggle BYO-API-key vs Hatchik passthrough for this tenant."""
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    launch = _launch_tenant_for_session(slug, session["email"])
+    tenant = launch or _tenant_for_session(slug, session["email"])
+    if not tenant:
+        raise HTTPException(status_code=404, detail="sandbox not found")
+    signup_id = tenant.get("signup_id")
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="signup not resolved")
+    using_byo = bool(payload.get("using_byo"))
+    try:
+        import ai_credit
+        ai_credit.set_byo_key_flag(signup_id, using_byo)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"failed to update: {e}")
+    return {"ok": True, "using_byo": using_byo}
+
+
 @app.post("/api/account/sandboxes/{slug}/github-invite")
 async def reinvite_github_collaborator(
     slug: str,

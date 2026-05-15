@@ -310,6 +310,7 @@
   <nav class="mt-8 border-b border-slate-200 flex gap-6 text-sm font-medium overflow-x-auto">
     <button data-tab="sandbox"   class="active py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Sandbox</button>
     <button data-tab="services"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Services</button>
+    <button data-tab="ai-credit" class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">AI credit</button>
     <button data-tab="mobile"    class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Mobile</button>
     <button data-tab="upgrade"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Upgrade</button>
     <button data-tab="billing"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Billing</button>
@@ -337,6 +338,21 @@
       </p>
       <div id="servicesBody" class="mt-6">
         <p class="text-sm text-slate-500">Loading service inventory&hellip;</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI credit tab -->
+  <div data-tab-panel="ai-credit" class="mt-8 hidden">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8">
+      <h2 class="text-xl font-bold">AI credit</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        Your monthly allowance for AI calls routed through Hatchik. Pass-through
+        cost &times; 1.6 once you cross the included allowance &mdash; or skip
+        all of it by bringing your own API key.
+      </p>
+      <div id="aiCreditBody" class="mt-6">
+        <p class="text-sm text-slate-500">Loading balance&hellip;</p>
       </div>
     </div>
   </div>
@@ -793,6 +809,89 @@
     });
   }
 
+  async function renderAiCredit(sandboxes) {
+    const body = $('aiCreditBody');
+    const live = (sandboxes || []).filter(s => s.slug);
+    if (!live.length) {
+      body.innerHTML = `<div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 text-sm text-slate-600">Your AI credit appears here once a sandbox is live.</div>`;
+      return;
+    }
+    const sections = [];
+    for (const s of live) {
+      try {
+        const info = await fetchJSON(`/api/account/ai-credit/${encodeURIComponent(s.slug)}`);
+        const pctUsed = info.allowance_pence > 0
+          ? Math.min(100, Math.round(100 * info.spent_pence / info.allowance_pence))
+          : 0;
+        const overageBar = info.overage_pence > 0
+          ? `<div class="mt-2 text-xs text-amber-700">Overage: <span class="font-semibold">${info.overage_display}</span> &mdash; passed through at cost &times; 1.6.</div>`
+          : '';
+        const byoFlag = info.using_byo_key
+          ? `<span class="ml-2 inline-block px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">Using your own API key</span>`
+          : `<span class="ml-2 inline-block px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">Hatchik passthrough</span>`;
+        const recent = (info.recent_events || []).slice(0, 5);
+        const recentItems = recent.length
+          ? recent.map(ev => `<li class="py-2 flex justify-between gap-4 text-xs text-slate-600 border-b border-slate-100 last:border-0">
+              <span class="font-mono truncate">${escapeHtml(ev.model || ev.provider || '')}</span>
+              <span class="text-slate-500">£${(ev.billed_pence/100).toFixed(2)}</span>
+            </li>`).join('')
+          : `<li class="py-2 text-xs text-slate-500">No usage yet this month.</li>`;
+        sections.push(`
+          <section class="${sections.length ? 'mt-10 pt-8 border-t border-slate-200' : ''}">
+            <div class="flex items-baseline justify-between flex-wrap gap-2">
+              <h3 class="text-lg font-bold">${escapeHtml(s.product_name || s.slug)} ${byoFlag}</h3>
+              <span class="text-xs text-slate-500 uppercase tracking-wider">${escapeHtml(info.tier || 'sandbox')} tier</span>
+            </div>
+            <div class="mt-4">
+              <div class="flex justify-between items-baseline">
+                <span class="text-sm text-slate-600">Used this month</span>
+                <span class="text-sm"><span class="font-semibold text-slate-900">${info.spent_display || '£0.00'}</span> of ${info.allowance_display || '£0.00'} allowance</span>
+              </div>
+              <div class="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full ${info.overage_pence > 0 ? 'bg-amber-500' : 'bg-indigo-500'}" style="width: ${pctUsed}%"></div>
+              </div>
+              <div class="mt-2 flex justify-between text-xs text-slate-500">
+                <span>${info.remaining_display || '£0.00'} remaining</span>
+                <span>${pctUsed}% used</span>
+              </div>
+              ${overageBar}
+            </div>
+            <div class="mt-6">
+              <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Recent calls</h4>
+              <ul class="mt-2 rounded-xl ring-1 ring-slate-200 bg-white px-4">${recentItems}</ul>
+            </div>
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+              <button data-byo-slug="${escapeHtml(s.slug)}" data-byo-using="${info.using_byo_key ? '1' : '0'}" class="byo-toggle text-sm px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition">
+                ${info.using_byo_key ? 'Switch back to Hatchik passthrough' : 'Use my own API key instead'}
+              </button>
+              <span class="text-xs text-slate-500">${info.using_byo_key ? 'No allowance, no overage, no Hatchik invoice line.' : 'Allowance shown above; overage at cost &times; 1.6.'}</span>
+            </div>
+          </section>
+        `);
+      } catch (e) {
+        sections.push(`<div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 p-4 text-sm text-rose-700">Couldn&rsquo;t load AI credit balance for <span class="font-mono">${escapeHtml(s.slug)}</span>.</div>`);
+      }
+    }
+    body.innerHTML = sections.join('');
+    body.querySelectorAll('.byo-toggle').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const slug = btn.getAttribute('data-byo-slug');
+        const usingNow = btn.getAttribute('data-byo-using') === '1';
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+          await fetchJSON(`/api/account/ai-credit/${encodeURIComponent(slug)}/byo-key`, {
+            method: 'POST', body: JSON.stringify({ using_byo: !usingNow }),
+          });
+          renderAiCredit(sandboxes);
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = 'Try again';
+        }
+      });
+    });
+  }
+
   async function renderMobile(sandboxes) {
     const body = $('mobileBuildsBody');
     const live = (sandboxes || []).filter(s => s.slug);
@@ -883,6 +982,7 @@
       renderBilling();
       renderMobile(me.sandboxes || []);
       renderServices(me.sandboxes || []);
+      renderAiCredit(me.sandboxes || []);
       renderApiKeys();
       show('dashboard');
     } catch (e) {
