@@ -115,7 +115,7 @@ settings page, then retry.
 ### 3e. Quantified inclusions page
 
 Open `https://hatchik.com/docs/what-is-included.html`. Every entry should
-show a numerical limit (e.g. "Postgres 512 MB", "5 mailboxes", "3 mobile
+show a numerical limit (e.g. "Postgres 512 MB", "3 mailboxes", "3 mobile
 builds/hour"). No "TBD" or "soon" placeholders.
 
 ---

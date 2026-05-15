@@ -147,7 +147,7 @@ Time: 5 minutes if the orchestrator worked, ~15 if you need to debug.
 5. **Set up the customer's mailboxes**
    - Log into Infomaniak Mail console
    - Add the customer's domain
-   - Create 5 inboxes: `hello@`, `support@`, `noreply@`, `billing@`,
+   - Create 3 inboxes: `hello@`, `support@`, `noreply@`, `billing@`,
      plus one of the customer's choice
    - Set MX records on Cloudflare DNS
    - Configure SPF, DKIM, DMARC (Infomaniak Mail provides the values;

@@ -12,7 +12,7 @@ internal "which provider for X" conversation.
 |---|---|---|---|
 | Server | Hetzner CPX11 / Infomaniak Public Cloud A2 | £3.85 | Dedicated, smallest viable tier |
 | Database, Auth, Storage, Realtime | Supabase (self-hosted on customer VPS) | £0 | Runs in the same docker-compose as the app |
-| Mail (5 inboxes) | Infomaniak Mail | £0 | Free with domain registration |
+| Mail (3 inboxes) | Infomaniak Mail | £0 | Free with domain registration |
 | Transactional email | Resend free tier → Amazon SES at scale | £0 (Resend free covers ≤3k/mo) | Switch to SES at ~£0.10/1k beyond |
 | Backups | Backblaze B2 | £0.50 | Free 10GB tier covers most apps |
 | Edge / CDN / DNS / WAF | Cloudflare Free | £0 | Free tier comprehensive |
@@ -246,7 +246,7 @@ Why these choices:
 ### Mail
 
 **Inbound (customer's mailboxes)**
-- Infomaniak Mail, 5 inboxes per registered domain, free
+- Infomaniak Mail, 3 inboxes per registered domain, free
 - IMAP / SMTP / webmail
 - Anti-spam, anti-virus included
 

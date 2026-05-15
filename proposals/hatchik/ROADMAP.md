@@ -99,7 +99,7 @@ ends with a fully-provisioned customer instance.
 - [ ] Template rendering (substitute customer values into substrate)
 - [ ] SSH-deploy of substrate to customer VPS
 - [ ] Caddy + Supabase + Postgres bootstrap via docker-compose
-- [ ] Infomaniak Mail provisioning (5 inboxes + DKIM/SPF/DMARC)
+- [ ] Infomaniak Mail provisioning (3 inboxes + DKIM/SPF/DMARC)
 - [ ] Stripe OAuth + product creation
 - [ ] Resend domain verification
 - [ ] Backup destination setup (Backblaze B2 bucket per customer)

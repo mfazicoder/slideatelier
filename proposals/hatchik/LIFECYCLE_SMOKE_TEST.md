@@ -148,7 +148,7 @@ This:
 In a browser at `hatchik.com/account`:
 - Sandbox card no longer appears (or shows decommissioned)
 - "What's set up" tab shows Launch inventory (Postgres unlimited,
-  dedicated VPS, 5 mailboxes, etc.)
+  dedicated VPS, 3 mailboxes, etc.)
 - "Billing" tab opens the Paddle customer portal
 - "Upgrade" tab now says "Already on Launch" (or hides the button)
 
