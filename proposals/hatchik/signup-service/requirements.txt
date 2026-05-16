@@ -3,3 +3,8 @@ uvicorn[standard]>=0.30,<1.0
 httpx>=0.27,<1.0
 pydantic>=2.7,<3.0
 email-validator>=2.2,<3.0
+# Auto-loads ./.env on import — safe in production because systemd's
+# EnvironmentFile= is loaded before Python starts, and load_dotenv()
+# defaults to override=False. So systemd env always wins; .env is just
+# a developer convenience.
+python-dotenv>=1.0,<2.0

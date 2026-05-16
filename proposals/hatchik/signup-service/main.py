@@ -15,6 +15,19 @@ takes over and this service is retired.
 
 from __future__ import annotations
 
+# Load .env from the working directory BEFORE any other import reads
+# os.environ. python-dotenv defaults to override=False, so systemd's
+# EnvironmentFile= still wins in production — this only fills gaps for
+# local dev + the alpha host that runs the service by hand.
+try:
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
+    load_dotenv()
+except ImportError:
+    # python-dotenv is in requirements.txt; if it's missing here we're
+    # in a stripped test env and the os.environ values are expected
+    # to be set externally. No-op fallback.
+    pass
+
 import asyncio
 import hashlib
 import hmac
@@ -5350,23 +5363,53 @@ async def admin_agents_dispatch_event(
 async def admin_feature_flags(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ) -> dict[str, Any]:
-    """Quick visibility into which side-doors are open. Read-only."""
+    """Visibility into which side-doors are open + which credentials are
+    wired. Doubles as a launch-readiness checklist — flip all the
+    'set' booleans to True and you're ready for ``execute=1`` against
+    real infra.
+
+    Booleans NEVER expose the credential value; just whether the env
+    var is non-empty. Safe to return to any admin-tokened caller.
+    """
     _require_admin(x_admin_token)
     return {
         "alpha_bypass_enabled": ALPHA_BYPASS_ENABLED,
+        "admin_token_set": bool(ADMIN_TOKEN),
+
+        # Email
+        "resend_api_key_set": bool(os.environ.get("RESEND_API_KEY")),
+        "founder_email_set": bool(os.environ.get("HATCHIK_FOUNDER_EMAIL")),
+
+        # Paddle (MoR / checkout)
         "paddle_configured": bool(PADDLE_LAUNCH_PRICE_ID),
         "paddle_webhook_secret_set": bool(PADDLE_WEBHOOK_SECRET),
-        "promote_script_present": Path(PROMOTE_SCRIPT).exists(),
+
+        # AI passthrough proxy
         "anthropic_master_key_set": bool(os.environ.get("HATCHIK_ANTHROPIC_MASTER_KEY")),
         "openai_master_key_set": bool(os.environ.get("HATCHIK_OPENAI_MASTER_KEY")),
+
+        # Domain registrar (Launch tier promise)
         "porkbun_keys_set": bool(
             os.environ.get("HATCHIK_PORKBUN_API_KEY")
             and os.environ.get("HATCHIK_PORKBUN_SECRET")
         ),
+
+        # Mailbox provisioning (Launch tier promise)
         "infomaniak_keys_set": bool(
             os.environ.get("HATCHIK_INFOMANIAK_API_TOKEN")
             and os.environ.get("HATCHIK_INFOMANIAK_MAIL_SERVICE_ID")
         ),
+
+        # Infrastructure (needed for execute=1 real provisioning)
+        "hetzner_token_set": bool(os.environ.get("HETZNER_API_TOKEN")),
+        "cloudflare_token_set": bool(os.environ.get("CLOUDFLARE_API_TOKEN")),
+        "github_token_set": bool(
+            os.environ.get("HATCHIK_GITHUB_TOKEN")
+            or os.environ.get("GITHUB_TOKEN")
+        ),
+
+        # Scripts
+        "promote_script_present": Path(PROMOTE_SCRIPT).exists(),
     }
 
 
