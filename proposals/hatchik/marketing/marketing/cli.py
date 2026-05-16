@@ -21,10 +21,12 @@ from . import (
     content,
     db,
     distribute as distribute_mod,
+    jobs as jobs_mod,
     schema,
     seed as seed_mod,
     strategy,
     tenant,
+    worker as worker_mod,
 )
 
 
@@ -243,6 +245,82 @@ def cmd_distribute_due(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def cmd_jobs_list(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        rows = jobs_mod.list_jobs(conn, status=args.status, limit=args.limit)
+        if not rows:
+            print(f"no jobs (status={args.status or 'any'})")
+            return 0
+        for r in rows:
+            print(
+                f"  #{r['id']:>4}  {r['status']:<8}  {r['kind']:<24}  "
+                f"run_at={r['run_at']}  attempts={r['attempts']}/{r['max_attempts']}"
+            )
+            if r["last_error"]:
+                print(f"          ↳ error: {r['last_error']}")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_jobs_stats(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        s = jobs_mod.stats(conn)
+        if not s:
+            print("no jobs yet.")
+            return 0
+        for status in ("queued", "running", "done", "failed"):
+            if status in s:
+                print(f"  {status:<10} {s[status]}")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_scheduler_init(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        schema.ensure_schema(conn)
+        enqueued = worker_mod.seed_cron(conn)
+        if not enqueued:
+            print("cron seeds already present; nothing to enqueue.")
+        else:
+            print(f"enqueued {len(enqueued)} cron seed job(s): {enqueued}")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_scheduler_start(args: argparse.Namespace) -> int:
+    print(
+        f"scheduler/worker running. sleep_seconds={args.sleep}; ctrl-c to stop.",
+        file=sys.stderr,
+    )
+    worker_mod.run_forever(sleep_seconds=args.sleep)
+    return 0
+
+
+def cmd_worker_tick(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        job = worker_mod.tick(conn)
+        if job is None:
+            print("queue empty.")
+            return 0
+        # Re-fetch to see post-run state.
+        row = conn.execute(
+            "SELECT status, last_error FROM marketing_jobs WHERE id=?", (job.id,)
+        ).fetchone()
+        print(f"ran #{job.id} ({job.kind}) → {row['status']}")
+        if row["last_error"]:
+            print(f"  error: {row['last_error']}")
+        return 0
+    finally:
+        conn.close()
+
+
 def cmd_distributions_list(args: argparse.Namespace) -> int:
     conn = db.connect()
     try:
@@ -438,6 +516,32 @@ def main(argv: list[str] | None = None) -> int:
     dl.add_argument("--tenant", default="hatchik")
     dl.add_argument("--limit", type=int, default=20)
     dl.set_defaults(func=cmd_distributions_list)
+
+    jobs_p = sub.add_parser("jobs", help="inspect the marketing_jobs queue")
+    jobs_sub = jobs_p.add_subparsers(dest="jobs_cmd", required=True)
+    jl = jobs_sub.add_parser("list", help="list jobs")
+    jl.add_argument(
+        "--status",
+        choices=["queued", "running", "done", "failed"],
+        default=None,
+    )
+    jl.add_argument("--limit", type=int, default=20)
+    jl.set_defaults(func=cmd_jobs_list)
+    js = jobs_sub.add_parser("stats", help="count jobs by status")
+    js.set_defaults(func=cmd_jobs_stats)
+
+    sched_p = sub.add_parser("scheduler", help="cron seeds + foreground worker")
+    sched_sub = sched_p.add_subparsers(dest="sched_cmd", required=True)
+    si = sched_sub.add_parser("init", help="enqueue the self-rescheduling cron seeds")
+    si.set_defaults(func=cmd_scheduler_init)
+    ss = sched_sub.add_parser("start", help="run the worker drain loop in the foreground")
+    ss.add_argument("--sleep", type=float, default=10.0)
+    ss.set_defaults(func=cmd_scheduler_start)
+
+    work_p = sub.add_parser("worker", help="run the worker manually (debug)")
+    work_sub = work_p.add_subparsers(dest="worker_cmd", required=True)
+    wt = work_sub.add_parser("tick", help="run at most one job and exit")
+    wt.set_defaults(func=cmd_worker_tick)
 
     args = parser.parse_args(argv)
     return args.func(args)

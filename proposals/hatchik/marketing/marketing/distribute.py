@@ -26,6 +26,7 @@ from typing import Any
 
 from . import content as content_mod
 from .integrations import posthog as posthog_int
+from .integrations import resend as resend_int
 from .integrations import x as x_int
 
 
@@ -43,6 +44,7 @@ def distribute_item(
     tenant_id: int,
     item_id: int,
     x_client: x_int.XClient | None = None,
+    email_to: str | list[str] | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """Distribute one approved item. Returns a result dict including
@@ -59,6 +61,7 @@ def distribute_item(
     channel = row["channel"]
     body = row["body"]
     meta: dict[str, Any] = json.loads(row["metadata_json"])
+    provider = "x"  # overridden by per-channel branches that target something else
 
     if channel == "x_tweet":
         if dry_run:
@@ -81,9 +84,28 @@ def distribute_item(
             client = x_client or x_int.XClient.from_env()
             posted = client.post_thread(parts)
 
-    elif channel in ("linkedin", "blog", "email", "reddit_draft", "discord_draft"):
+    elif channel == "email":
+        if not email_to:
+            raise DistributionError(
+                f"item #{item_id} is email but no recipient passed "
+                "(pass email_to=…)"
+            )
+        subject = meta.get("subject") or "(no subject)"
+        if dry_run:
+            posted = [{"id": f"dry-email-{item_id}", "url": "(dry-run)"}]
+        else:
+            resp = resend_int.send_email(
+                to=email_to,
+                subject=subject,
+                text=body,
+            )
+            msg_id = str(resp.get("id") or "")
+            posted = [{"id": msg_id, "url": f"resend:{msg_id}"}]
+        provider = "resend"
+
+    elif channel in ("linkedin", "blog", "reddit_draft", "discord_draft"):
         raise NotYetImplemented(
-            f"channel {channel!r} not auto-posted in Phase 3a (X only). "
+            f"channel {channel!r} not auto-posted yet. "
             f"Reddit/Discord remain draft-only by design — copy/paste manually."
         )
     else:
@@ -102,7 +124,7 @@ def distribute_item(
         (
             tenant_id,
             item_id,
-            "x",
+            provider,
             primary["id"],
             primary["url"],
             now,
@@ -155,6 +177,7 @@ def distribute_due(
     tenant_id: int,
     limit: int = 10,
     x_client: x_int.XClient | None = None,
+    email_to: str | list[str] | None = None,
     dry_run: bool = False,
 ) -> list[dict[str, Any]]:
     """Distribute every currently-approved item (up to `limit`).
@@ -173,10 +196,17 @@ def distribute_due(
                     tenant_id=tenant_id,
                     item_id=row["id"],
                     x_client=x_client,
+                    email_to=email_to,
                     dry_run=dry_run,
                 )
             )
-        except (DistributionError, x_int.MissingXCredentials, RuntimeError) as exc:
+        except (
+            DistributionError,
+            x_int.MissingXCredentials,
+            resend_int.MissingResendKey,
+            resend_int.ResendError,
+            RuntimeError,
+        ) as exc:
             results.append(
                 {
                     "item_id": row["id"],

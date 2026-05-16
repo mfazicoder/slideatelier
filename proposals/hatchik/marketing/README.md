@@ -20,7 +20,8 @@ Layer 5  Self-Improvement      A/B + auto-promote winners, monthly
 | 2a | Layer 2 — content agent (Sonnet 4.6) + CLI approval queue | ✅ |
 | 2b | Mobile-friendly Next.js admin dashboard over the queue | — |
 | 3a | Layer 3 — X distribution (tweets + threads), PostHog tracking, dry-run | ✅ |
-| 3b | Resend email, blog auto-publish, scheduler + worker on `marketing_jobs` | — |
+| 3b | Resend email + self-rescheduling cron + worker drain loop on `marketing_jobs` | ✅ |
+| 3c | Blog auto-publish + IndexNow (deferred until a blog target exists) | — |
 | 4 | Layer 4 — weekly analysis loop, strategy auto-update | — |
 | 5 | Layer 5 — A/B experiments + multi-tenant onboarding | — |
 
@@ -67,6 +68,13 @@ python -m marketing.cli distribute due                # for real
 python -m marketing.cli distributions list            # log of every post sent
 python -m marketing.cli runs --limit=10               # last N agent runs (any layer)
 python -m marketing.cli spend                         # rolling 24h spend
+
+# ─── Phase 3b: cron + worker ─────────────────────────────────────────
+python -m marketing.cli scheduler init                # seed self-rescheduling cron jobs (daily content @ 09:00 UTC; hourly distribute)
+python -m marketing.cli scheduler start --sleep=10    # foreground drain loop; ctrl-c to stop
+python -m marketing.cli worker tick                   # run one job (debug)
+python -m marketing.cli jobs list [--status=queued]
+python -m marketing.cli jobs stats
 ```
 
 For Phase 3a (X distribution) you also need:
@@ -134,10 +142,13 @@ marketing/
 │   ├── seed.py                 # idempotent Hatchik tenant insert (+ competitors)
 │   ├── strategy.py             # Pydantic Strategy schema + marketing_strategies CRUD
 │   ├── content.py              # ContentDraft schemas + marketing_content_queue CRUD + state machine
-│   ├── distribute.py           # Phase-3a orchestrator: approved item → X → distribution log → posted
+│   ├── distribute.py           # Phase-3a/b orchestrator: approved item → X | Resend → distribution log → posted
+│   ├── jobs.py                 # Phase-3b: marketing_jobs CRUD + atomic claim_one (UPDATE … RETURNING)
+│   ├── worker.py               # Phase-3b: tick() + dispatch + self-rescheduling cron seeds
 │   ├── cli.py                  # `python -m marketing.cli …`
 │   ├── integrations/
 │   │   ├── x.py                # XClient (OAuth 1.0a, lazy tweepy import)
+│   │   ├── resend.py           # Phase-3b Resend transactional email
 │   │   └── posthog.py          # capture(); no-op if no key/lib
 │   └── agents/
 │       ├── hello.py            # Phase-0 smoke agent
@@ -151,7 +162,8 @@ marketing/
     ├── test_phase0.py          #  6 tests
     ├── test_phase1.py          #  8 tests
     ├── test_phase2.py          # 12 tests
-    └── test_phase3a.py         #  9 tests (X distribute happy + dry-run + state-machine + errors + posthog no-op)
+    ├── test_phase3a.py         #  9 tests
+    └── test_phase3b.py         # 13 tests (jobs CRUD, worker dispatch, cron self-reschedule, Resend email mocked)
 ```
 
 ## Tests
