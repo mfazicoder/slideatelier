@@ -19,6 +19,14 @@ dev = [
     "pytest-asyncio>=0.23,<1.0",
     "ruff>=0.6,<1.0",
 ]
+# `distribute` adds the runtime deps for the Phase 3 distribution
+# pipeline. Kept optional so the agent + queue can be tested and
+# iterated without pulling in tweepy/posthog. Install with:
+#   pip install -e ".[dev,distribute]"
+distribute = [
+    "tweepy>=4.14,<5.0",
+    "posthog>=3.0,<4.0",
+]
 
 [project.scripts]
 marketing = "marketing.cli:main"

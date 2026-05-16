@@ -19,7 +19,8 @@ Layer 5  Self-Improvement      A/B + auto-promote winners, monthly
 | 1 | Layer 1 — persona/strategy agent (Opus 4.7) + `marketing_strategies` versioning | ✅ |
 | 2a | Layer 2 — content agent (Sonnet 4.6) + CLI approval queue | ✅ |
 | 2b | Mobile-friendly Next.js admin dashboard over the queue | — |
-| 3 | Layer 3 — distribution (X API, Resend, PostHog, blog) + scheduler | — |
+| 3a | Layer 3 — X distribution (tweets + threads), PostHog tracking, dry-run | ✅ |
+| 3b | Resend email, blog auto-publish, scheduler + worker on `marketing_jobs` | — |
 | 4 | Layer 4 — weekly analysis loop, strategy auto-update | — |
 | 5 | Layer 5 — A/B experiments + multi-tenant onboarding | — |
 
@@ -59,9 +60,23 @@ python -m marketing.cli queue show 7                  # full body + metadata for
 python -m marketing.cli queue approve 7               # mark approved (pending → approved)
 python -m marketing.cli queue reject 8 --reason="too generic"
 python -m marketing.cli queue stats                   # counts by status
+python -m marketing.cli distribute item 7 --dry-run   # post item #7 without touching X (mark posted w/ synthetic ids)
+python -m marketing.cli distribute item 7             # real post via X API (needs X_API_* env vars + tweepy)
+python -m marketing.cli distribute due --dry-run      # distribute every approved item; dry-run first to verify
+python -m marketing.cli distribute due                # for real
+python -m marketing.cli distributions list            # log of every post sent
 python -m marketing.cli runs --limit=10               # last N agent runs (any layer)
 python -m marketing.cli spend                         # rolling 24h spend
 ```
+
+For Phase 3a (X distribution) you also need:
+
+```bash
+pip install -e ".[distribute]"   # adds tweepy + posthog
+```
+
+…plus the four `X_API_*` env vars from `.env.example`. The PostHog
+event call is a no-op when `POSTHOG_API_KEY` is blank.
 
 The persona agent reads `proposals/hatchik/PRODUCT_OFFERING.md` and
 `MARKETING_PLAN.md` as the product brief (paths configurable via the
@@ -119,7 +134,11 @@ marketing/
 │   ├── seed.py                 # idempotent Hatchik tenant insert (+ competitors)
 │   ├── strategy.py             # Pydantic Strategy schema + marketing_strategies CRUD
 │   ├── content.py              # ContentDraft schemas + marketing_content_queue CRUD + state machine
+│   ├── distribute.py           # Phase-3a orchestrator: approved item → X → distribution log → posted
 │   ├── cli.py                  # `python -m marketing.cli …`
+│   ├── integrations/
+│   │   ├── x.py                # XClient (OAuth 1.0a, lazy tweepy import)
+│   │   └── posthog.py          # capture(); no-op if no key/lib
 │   └── agents/
 │       ├── hello.py            # Phase-0 smoke agent
 │       ├── persona.py          # Phase-1 Layer-1 strategy agent (Opus 4.7, cached)
@@ -131,7 +150,8 @@ marketing/
 └── tests/
     ├── test_phase0.py          #  6 tests
     ├── test_phase1.py          #  8 tests
-    └── test_phase2.py          # 12 tests (content schemas, angle picker, queue state machine, mocked agent)
+    ├── test_phase2.py          # 12 tests
+    └── test_phase3a.py         #  9 tests (X distribute happy + dry-run + state-machine + errors + posthog no-op)
 ```
 
 ## Tests
@@ -148,8 +168,8 @@ exercise schema, seed, budget gate, prompt loader, and the
 ## What ships in later phases
 
 - **Phase 2b** — mobile-friendly Next.js admin dashboard sitting over the same queue (swipe approve/reject); for now the CLI does the same job
-- **Phase 3** — `integrations/x.py`, `integrations/resend.py`, `integrations/posthog.py`; scheduler/worker draining `marketing_jobs`; approved items auto-flow to distribution
-- **Phase 4** — `agents/analyze.py` (Layer 4); auto-updates the strategy from outcomes (signups attributed via PostHog, engagement from X API, etc.)
+- **Phase 3b** — `integrations/resend.py` for email; blog auto-publish + IndexNow; scheduler/worker draining `marketing_jobs` so approved items auto-distribute on a cron instead of by manual `distribute due` invocation
+- **Phase 4** — `agents/analyze.py` (Layer 4); auto-updates the strategy from outcomes (signups attributed via PostHog, engagement from X API metrics endpoint, etc.)
 - **Phase 5** — multi-tenant onboarding flow; encrypted per-tenant keys in `marketing_tenant_api_keys`; optional Notion mirror of strategy doc
 
 ## Non-negotiables

@@ -15,7 +15,17 @@ import argparse
 import json
 import sys
 
-from . import budget, config, content, db, schema, seed as seed_mod, strategy, tenant
+from . import (
+    budget,
+    config,
+    content,
+    db,
+    distribute as distribute_mod,
+    schema,
+    seed as seed_mod,
+    strategy,
+    tenant,
+)
 
 
 AGENTS = {
@@ -185,6 +195,73 @@ def cmd_queue_reject(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def cmd_distribute_item(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        try:
+            result = distribute_mod.distribute_item(
+                conn, tenant_id=t.id, item_id=args.item_id, dry_run=args.dry_run
+            )
+        except distribute_mod.DistributionError as exc:
+            print(f"distribution error: {exc}", file=sys.stderr)
+            return 1
+        prefix = "[DRY] " if result["dry_run"] else ""
+        print(
+            f"{prefix}item #{result['item_id']} → distribution #{result['distribution_id']} "
+            f"({result['channel']}, {len(result['external_ids'])} part(s))"
+        )
+        print(f"  primary: {result['primary_url']}")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_distribute_due(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        results = distribute_mod.distribute_due(
+            conn, tenant_id=t.id, limit=args.limit, dry_run=args.dry_run
+        )
+        if not results:
+            print(f"no approved items waiting (tenant={t.slug}).")
+            return 0
+        ok = [r for r in results if "error" not in r]
+        err = [r for r in results if "error" in r]
+        prefix = "[DRY] " if args.dry_run else ""
+        print(f"{prefix}{len(ok)} distributed, {len(err)} failed")
+        for r in ok:
+            print(
+                f"  ✓ #{r['item_id']} → dist #{r['distribution_id']} "
+                f"({r['channel']}) {r['primary_url']}"
+            )
+        for r in err:
+            print(f"  ✗ #{r['item_id']}: {r['error']}", file=sys.stderr)
+        return 0 if not err else 1
+    finally:
+        conn.close()
+
+
+def cmd_distributions_list(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        rows = distribute_mod.list_distributions(conn, tenant_id=t.id, limit=args.limit)
+        if not rows:
+            print(f"no distributions yet (tenant={t.slug}).")
+            return 0
+        for r in rows:
+            print(
+                f"  #{r['id']:>4}  item={r['content_queue_id']:<4}  "
+                f"{r['provider']:<6}  posted={r['posted_at']}  "
+                f"{r['url']}"
+            )
+        return 0
+    finally:
+        conn.close()
+
+
 def cmd_queue_stats(args: argparse.Namespace) -> int:
     conn = db.connect()
     try:
@@ -339,6 +416,28 @@ def main(argv: list[str] | None = None) -> int:
     q_stats = queue_sub.add_parser("stats", help="count items by status")
     q_stats.add_argument("--tenant", default="hatchik")
     q_stats.set_defaults(func=cmd_queue_stats)
+
+    dist_p = sub.add_parser("distribute", help="post approved items to their channel")
+    dist_sub = dist_p.add_subparsers(dest="dist_cmd", required=True)
+
+    d_item = dist_sub.add_parser("item", help="distribute one approved item by id")
+    d_item.add_argument("item_id", type=int)
+    d_item.add_argument("--tenant", default="hatchik")
+    d_item.add_argument("--dry-run", action="store_true", help="skip the real X call; mark posted with synthetic ids")
+    d_item.set_defaults(func=cmd_distribute_item)
+
+    d_due = dist_sub.add_parser("due", help="distribute every approved item (up to --limit)")
+    d_due.add_argument("--tenant", default="hatchik")
+    d_due.add_argument("--limit", type=int, default=10)
+    d_due.add_argument("--dry-run", action="store_true")
+    d_due.set_defaults(func=cmd_distribute_due)
+
+    dists_p = sub.add_parser("distributions", help="inspect distribution log")
+    dists_sub = dists_p.add_subparsers(dest="dists_cmd", required=True)
+    dl = dists_sub.add_parser("list", help="recent distributions")
+    dl.add_argument("--tenant", default="hatchik")
+    dl.add_argument("--limit", type=int, default=20)
+    dl.set_defaults(func=cmd_distributions_list)
 
     args = parser.parse_args(argv)
     return args.func(args)
