@@ -1,0 +1,55 @@
+{
+  "name": "hatchik-mcp",
+  "version": "0.1.0",
+  "description": "Hatchik MCP server — drive your Hatchik account from Claude / Cursor / Windsurf without leaving your AI chat.",
+  "license": "BSL-1.1",
+  "author": "Hatchik <hello@hatchik.com>",
+  "homepage": "https://hatchik.com",
+  "bugs": {
+    "url": "https://hatchik.com/support",
+    "email": "support@hatchik.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hatchik-tenants/mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "hatchik",
+    "ai",
+    "claude",
+    "cursor",
+    "windsurf"
+  ],
+  "type": "module",
+  "bin": {
+    "hatchik-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "node --test --import tsx src/config.test.ts src/api.test.ts src/tools/tools.test.ts",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0"
+  }
+}

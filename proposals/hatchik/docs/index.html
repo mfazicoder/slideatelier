@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hatchik docs — Overview</title>
+<meta name="description" content="Hatchik docs. Plain-English answers for getting your sandbox running, wiring up your AI tool, shipping changes and managing your account." />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Brand System v1: indigo → brand violet ramp; add paper/ink tokens.
+  if (typeof tailwind !== 'undefined') {
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper:   '#F7FAFC',
+            'paper-2': '#EEF2F7',
+            line:    '#DDE5EC',
+            ink:     '#0F1419',
+            'ink-2': '#2A3340',
+            mist:    '#6E6E78',
+            indigo: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+            violet: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+          },
+          fontFamily: {
+            sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['Geist Mono', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    };
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; --amber: #f59e0b; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.88em; }
+  .prose h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 0.75rem; letter-spacing: -0.01em; }
+  .prose h3 { font-size: 1.15rem; font-weight: 600; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+  .prose p { margin-top: 0.75rem; margin-bottom: 0.75rem; color: #334155; line-height: 1.7; }
+  .prose ul { list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; color: #334155; }
+  .prose ol { list-style: decimal; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; color: #334155; }
+  .prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.7; }
+  .prose a { color: #4f46e5; text-decoration: underline; text-underline-offset: 2px; }
+  .prose a:hover { color: #3730a3; }
+  .prose code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.88em; color: #1e293b; }
+  .prose pre { background: #0b1020; color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6; margin-top: 0.75rem; margin-bottom: 0.75rem; }
+  .prose pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .prose blockquote { border-left: 3px solid #c7d2fe; background: #eef2ff; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; color: #3730a3; }
+  .prose blockquote p { color: #3730a3; margin: 0.25rem 0; }
+  .prose hr { border: 0; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
+  .sidebar-link { display: block; padding: 0.45rem 0.75rem; border-radius: 6px; color: #475569; font-size: 0.9rem; text-decoration: none; line-height: 1.4; }
+  .sidebar-link:hover { background: #f1f5f9; color: #0b1020; }
+  .sidebar-link.is-active { background: #eef2ff; color: #3730a3; font-weight: 600; }
+  .sidebar-section { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; padding: 0.5rem 0.75rem; margin-top: 1rem; }
+  .note { border: 1px solid #e5e7eb; background: #f8fafc; border-radius: 10px; padding: 1rem 1.25rem; margin: 1rem 0; }
+  .note-warn { border-color: #fde68a; background: #fffbeb; }
+  .note-info { border-color: #c7d2fe; background: #eef2ff; }
+  .kbd { background: #f1f5f9; border: 1px solid #cbd5e1; border-bottom-width: 2px; border-radius: 5px; padding: 0.1rem 0.4rem; font-family: 'JetBrains Mono', monospace; font-size: 0.78em; color: #334155; }
+</style>
+<style id="brand-system-v1_2">
+  /* ── Hatchik Brand System v1.2 (May 2026) ──────────────────────────────
+     Overlay stylesheet — overrides legacy indigo/Inter look with brand
+     violet + Geist + warm paper. Loaded AFTER the page's own <style> so
+     these rules win on equal specificity. */
+  :root {
+    /* Paper + ink */
+    --paper:        #F7FAFC;
+    --paper-2:      #EEF2F7;
+    --line:         #DDE5EC;
+    --line-2:       #C5D0DC;
+    --ink:          #0F1419;
+    --ink-2:        #2A3340;
+    --mist:         #6E6E78;
+    /* Brand violet ramp */
+    --violet:       #5B47F0;
+    --violet-deep:  #4231CC;
+    --violet-tint:  #EEEBFD;
+    --violet-edge:  #C8C0F8;
+    /* Dark surfaces */
+    --slate:        #0C1118;
+    --slate-2:      #161D2A;
+    /* Accents */
+    --green:        #2DB47A;
+    --amber:        #F59E0B;
+    --rose:         #E14B5E;
+    /* Legacy aliases — old pages still reference these */
+    --indigo:       #5B47F0;
+  }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  body {
+    font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .mono, code, pre, [class*="font-mono"] {
+    font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Tighten display tracking to match brand system */
+  h1 { letter-spacing: -0.04em; }
+  h2, h3 { letter-spacing: -0.025em; }
+
+  /* Cards — paper-on-paper with line border (brand calls for warm tan
+     in some places; we keep white for content density but ground onto
+     paper bg via body) */
+  .card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .card:hover {
+    border-color: var(--violet-edge);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 8px 30px rgba(91,71,240,0.08);
+  }
+
+  /* Primary CTA — pill, brand violet */
+  .btn-primary {
+    background: var(--violet);
+    color: #FFFFFF;
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.18);
+  }
+  .btn-primary:hover { background: var(--violet-deep); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+  }
+  .btn-ghost:hover { border-color: var(--ink); }
+
+  /* Chips — brand mono + uppercase */
+  .chip {
+    background: var(--violet-tint);
+    color: var(--violet-deep);
+    border: 1.5px solid var(--violet-edge);
+    border-radius: 7px;
+    padding: 0.42rem 0.78rem;
+    font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .chip-amber {
+    background: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE68A;
+  }
+  .chip-slate {
+    background: var(--paper-2);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+
+  /* Grain / radial-gradient backgrounds — soften to brand colours */
+  .grain {
+    background-image:
+      radial-gradient(at 12% 8%, rgba(91,71,240,0.10) 0px, transparent 50%),
+      radial-gradient(at 88% 4%, rgba(245,158,11,0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(91,71,240,0.05) 0px, transparent 50%);
+  }
+
+  /* Selected-link colours */
+  a { color: var(--ink); }
+  a:hover { color: var(--violet); }
+
+  /* Tailwind-classname overrides that don't get re-themed via config (the
+     CDN re-runs but pages may have cached the old classes inline) */
+  .text-indigo-600, .text-indigo-700 { color: var(--violet) !important; }
+  .bg-indigo-600, .bg-indigo-500 { background-color: var(--violet) !important; }
+  .bg-indigo-400 { background-color: var(--violet-edge) !important; }
+  .border-indigo-600, .border-indigo-500 { border-color: var(--violet) !important; }
+  .hover\:text-indigo-600:hover { color: var(--violet) !important; }
+  .hover\:bg-indigo-400:hover { background-color: var(--violet-deep) !important; }
+  .hover\:bg-indigo-500:hover { background-color: var(--violet-deep) !important; }
+  .from-indigo-600 { --tw-gradient-from: var(--violet) !important; }
+
+  /* Subtle paper tint on previously-white sections */
+  .bg-white { background-color: #FFFFFF; }
+  .bg-slate-50 { background-color: var(--paper-2) !important; }
+  .bg-gray-50 { background-color: var(--paper-2) !important; }
+  .bg-neutral-50 { background-color: var(--paper-2) !important; }
+
+  /* v1.2 — generic surface-card helper for any new card-on-paper element */
+  .surface-card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .surface-card:hover {
+    border-color: var(--violet-edge);
+  }
+
+</style>
+</head>
+<body class="bg-white antialiased">
+
+<!-- HEADER -->
+<nav class="sticky top-0 z-50 backdrop-blur bg-white/85 border-b border-slate-100">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-base">
+      <svg width="28" height="28" viewBox="0 0 92 92" aria-hidden="true" class="inline-block align-middle"><path d="M46 8 C 24 8, 12 32, 12 56 C 12 76, 28 88, 46 88 C 64 88, 80 76, 80 56 C 80 32, 68 8, 46 8 Z" fill="#0F1419"/><rect x="28" y="40" width="36" height="4" fill="#F7FAFC"/><circle cx="46" cy="42" r="3.4" fill="#5B47F0"/></svg>
+      Hatchik <span class="text-slate-400 font-normal hidden sm:inline">/ docs</span>
+    </a>
+    <div class="flex items-center gap-5 text-sm font-medium text-slate-700">
+      <a href="https://hatchik.com" class="hover:text-indigo-600">Home</a>
+      <a href="https://status.hatchik.com" class="hover:text-indigo-600 hidden sm:inline">Status</a>
+      <a href="https://hatchik.com/account" class="hover:text-indigo-600">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<!-- BODY -->
+<div class="max-w-7xl mx-auto px-6 py-10 grid md:grid-cols-[220px_1fr] gap-10">
+
+  <!-- SIDEBAR -->
+  <aside class="md:sticky md:top-20 self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto pb-4">
+    <div class="sidebar-section">Start here</div>
+    <a href="/" class="sidebar-link is-active">Overview</a>
+    <a href="/getting-started" class="sidebar-link">Getting started</a>
+
+    <div class="sidebar-section">Build</div>
+    <a href="/ai-tool-setup" class="sidebar-link">AI tool setup</a>
+    <a href="/deploying-changes" class="sidebar-link">Deploying changes</a>
+    <a href="/what-is-included" class="sidebar-link">What's included</a>
+
+    <div class="sidebar-section">Manage</div>
+    <a href="/account-management" class="sidebar-link">Account management</a>
+    <a href="/faq" class="sidebar-link">FAQ</a>
+    <a href="/troubleshooting" class="sidebar-link">Troubleshooting</a>
+
+    <div class="sidebar-section">Need a human?</div>
+    <a href="mailto:hello@hatchik.com" class="sidebar-link">hello@hatchik.com</a>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="prose max-w-3xl">
+    <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Overview</p>
+    <h1 class="text-3xl md:text-4xl font-bold tracking-tight mt-2">Welcome to Hatchik</h1>
+    <p class="text-lg text-slate-600 mt-4 leading-relaxed">
+      Hatchik gives you a working app on its own URL within minutes, then gets out of the way so you can build the actual product with your AI tool of choice. These docs cover the bits that aren't obvious from the website — what's wired up, how to ship a change, and where to look when something breaks.
+    </p>
+
+    <h2>What Hatchik is</h2>
+    <p>
+      A ready-made software substrate. When you sign up, we provision a sandbox at <span class="mono">yoursubdomain.hatchik.com</span> with the boring infrastructure already wired in: sign-in by email, a Postgres database, file storage, transactional mail, payments in test mode, a mobile shell, and admin tooling. You get a private GitHub repo and an <code>AI_CONTEXT.md</code> file that any AI coding tool can read to understand the layout. You add your product on top.
+    </p>
+
+    <h2>Who it's for</h2>
+    <p>
+      Non-tech founders who can describe what they want clearly and are happy to drive a tool like Cursor, Windsurf, Claude Code, Cline, Codex, or Antigravity. You don't need to know what a Dockerfile is, but you do need to be comfortable copying a magic-link email, opening a folder in a coding tool, and pressing Enter on a prompt. If you've ever opened ChatGPT, Gemini, or Grok and asked it to write something for you, you've already done the hardest bit.
+    </p>
+
+    <h2>The three core flows</h2>
+
+    <h3>1. Sign up</h3>
+    <p>
+      You go to <a href="https://hatchik.com">hatchik.com</a>, describe what you want to build in one line, get a magic-link email in a few mins, and click through. Behind the scenes we provision a full stack on Hetzner (auth, database, mail, the lot) and create a private GitHub repo under your account. Total time: a few mins. No card needed for the Sandbox tier.
+    </p>
+
+    <h3>2. Build</h3>
+    <p>
+      Clone the repo (the welcome email tells you how), open it in your AI tool, and start a conversation about the first feature. The <code>AI_CONTEXT.md</code> file in the repo root tells your AI where the substrate ends and your product begins — so it edits the right files, doesn't break the plumbing, and knows your live sandbox URL. We've put a copy-paste-ready first prompt in <a href="/ai-tool-setup">AI tool setup</a>.
+    </p>
+
+    <h3>3. Ship</h3>
+    <p>
+      <code>git push</code>. That's it. A webhook on your repo triggers Hatchik to pull, rebuild and restart your sandbox — usually within thirty seconds. Refresh your sandbox URL and your change is live. If your AI tool prefers to deploy directly without going via GitHub, it can POST to your per-tenant deploy endpoint instead. See <a href="/deploying-changes">Deploying changes</a> for both.
+    </p>
+
+    <h2>Where to start</h2>
+    <p>
+      If this is your first time, read <a href="/getting-started">Getting started</a> end to end. It walks you from the signup form through to a deployed first change, with the exact prompts to paste into your AI tool.
+    </p>
+    <p>
+      If you're already logged in and your sandbox is live, jump to <a href="/ai-tool-setup">AI tool setup</a> for the per-tool wiring instructions, or <a href="/deploying-changes">Deploying changes</a> to understand the push-to-deploy flow in detail.
+    </p>
+
+    <h2>What's not here</h2>
+    <p>
+      These docs cover Hatchik itself — the substrate, the deploy loop, account management. They do <em>not</em> cover how to build your specific product, or how to use Cursor / Windsurf / Claude Code / Cline / Codex / Antigravity in general. For that, your AI tool's own docs are better. We give you the foundation; what you build on it is up to you (and your AI tool).
+    </p>
+
+    <div class="note note-info">
+      <p class="text-sm leading-relaxed text-slate-700"><strong class="text-indigo-700">Want a quick win?</strong> Skip ahead to <a href="/getting-started#first-change">Making your first change</a> — it's a fifteen-minute walkthrough that ends with a deployed tweak you can show someone.</p>
+    </div>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="border-t border-slate-100 py-10 bg-white mt-16">
+  <div class="max-w-7xl mx-auto px-6 flex flex-col gap-6 text-sm text-slate-500">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="flex items-center gap-2 font-bold text-slate-700">
+        <svg width="28" height="28" viewBox="0 0 92 92" aria-hidden="true" class="inline-block align-middle"><path d="M46 8 C 24 8, 12 32, 12 56 C 12 76, 28 88, 46 88 C 64 88, 80 76, 80 56 C 80 32, 68 8, 46 8 Z" fill="#0F1419"/><rect x="28" y="40" width="36" height="4" fill="#F7FAFC"/><circle cx="46" cy="42" r="3.4" fill="#5B47F0"/></svg>
+        Hatchik
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <a href="https://hatchik.com/account" class="hover:text-indigo-600">My account</a>
+        <a href="https://hatchik.com/privacy" class="hover:text-indigo-600">Privacy</a>
+        <a href="https://hatchik.com/terms" class="hover:text-indigo-600">Terms</a>
+        <a href="https://status.hatchik.com" class="hover:text-indigo-600">Status</a>
+        <a href="/" class="hover:text-indigo-600">Docs</a>
+        <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+        <a href="https://hatchik.com/restore-sandbox" class="hover:text-indigo-600">Restore sandbox</a>
+        <a href="https://hatchik.com/delete-sandbox" class="hover:text-indigo-600">Delete sandbox</a>
+      </div>
+      <div class="text-xs text-slate-400">Host anywhere · You own your code · Built for founders</div>
+    </div>
+    <div class="border-t border-slate-100 pt-6 text-xs text-slate-400 leading-relaxed max-w-3xl">
+      Hatchik is operated globally as a service of a company registered in Muscat, Sultanate of Oman.
+      Payments are processed by Paddle (Paddle.com Market Ltd) as Merchant of Record — Paddle handles
+      VAT, GST and local sales tax in your jurisdiction and appears on your statement as
+      "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle support.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

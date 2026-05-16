@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FAQ — Hatchik docs</title>
+<meta name="description" content="Common questions about Hatchik. Honest answers about ownership, data, exit, support and what's behind each tier." />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Brand System v1: indigo → brand violet ramp; add paper/ink tokens.
+  if (typeof tailwind !== 'undefined') {
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper:   '#F7FAFC',
+            'paper-2': '#EEF2F7',
+            line:    '#DDE5EC',
+            ink:     '#0F1419',
+            'ink-2': '#2A3340',
+            mist:    '#6E6E78',
+            indigo: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+            violet: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+          },
+          fontFamily: {
+            sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['Geist Mono', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    };
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; --amber: #f59e0b; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.88em; }
+  .prose h2 { font-size: 1.25rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 0.5rem; letter-spacing: -0.01em; scroll-margin-top: 5rem; }
+  .prose p { margin-top: 0.5rem; margin-bottom: 0.5rem; color: #334155; line-height: 1.7; }
+  .prose ul { list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; color: #334155; }
+  .prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.7; }
+  .prose a { color: #4f46e5; text-decoration: underline; text-underline-offset: 2px; }
+  .prose a:hover { color: #3730a3; }
+  .prose code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.88em; color: #1e293b; }
+  .prose hr { border: 0; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
+  .sidebar-link { display: block; padding: 0.45rem 0.75rem; border-radius: 6px; color: #475569; font-size: 0.9rem; text-decoration: none; line-height: 1.4; }
+  .sidebar-link:hover { background: #f1f5f9; color: #0b1020; }
+  .sidebar-link.is-active { background: #eef2ff; color: #3730a3; font-weight: 600; }
+  .sidebar-section { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; padding: 0.5rem 0.75rem; margin-top: 1rem; }
+  .note { border: 1px solid #e5e7eb; background: #f8fafc; border-radius: 10px; padding: 1rem 1.25rem; margin: 1rem 0; }
+  .note-info { border-color: #c7d2fe; background: #eef2ff; }
+  .qa { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem 1.5rem; margin: 0.75rem 0; background: white; transition: border-color .15s; }
+  .qa:hover { border-color: #c7d2fe; }
+  .qa h3 { font-size: 1.05rem; font-weight: 700; color: #0b1020; margin: 0; line-height: 1.4; scroll-margin-top: 5rem; }
+  .qa p { color: #475569; }
+  .toc { font-size: 0.85rem; color: #475569; line-height: 1.7; }
+  .toc a { color: #475569; text-decoration: none; }
+  .toc a:hover { color: #4f46e5; text-decoration: underline; }
+</style>
+<style id="brand-system-v1_2">
+  /* ── Hatchik Brand System v1.2 (May 2026) ──────────────────────────────
+     Overlay stylesheet — overrides legacy indigo/Inter look with brand
+     violet + Geist + warm paper. Loaded AFTER the page's own <style> so
+     these rules win on equal specificity. */
+  :root {
+    /* Paper + ink */
+    --paper:        #F7FAFC;
+    --paper-2:      #EEF2F7;
+    --line:         #DDE5EC;
+    --line-2:       #C5D0DC;
+    --ink:          #0F1419;
+    --ink-2:        #2A3340;
+    --mist:         #6E6E78;
+    /* Brand violet ramp */
+    --violet:       #5B47F0;
+    --violet-deep:  #4231CC;
+    --violet-tint:  #EEEBFD;
+    --violet-edge:  #C8C0F8;
+    /* Dark surfaces */
+    --slate:        #0C1118;
+    --slate-2:      #161D2A;
+    /* Accents */
+    --green:        #2DB47A;
+    --amber:        #F59E0B;
+    --rose:         #E14B5E;
+    /* Legacy aliases — old pages still reference these */
+    --indigo:       #5B47F0;
+  }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  body {
+    font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .mono, code, pre, [class*="font-mono"] {
+    font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Tighten display tracking to match brand system */
+  h1 { letter-spacing: -0.04em; }
+  h2, h3 { letter-spacing: -0.025em; }
+
+  /* Cards — paper-on-paper with line border (brand calls for warm tan
+     in some places; we keep white for content density but ground onto
+     paper bg via body) */
+  .card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .card:hover {
+    border-color: var(--violet-edge);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 8px 30px rgba(91,71,240,0.08);
+  }
+
+  /* Primary CTA — pill, brand violet */
+  .btn-primary {
+    background: var(--violet);
+    color: #FFFFFF;
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.18);
+  }
+  .btn-primary:hover { background: var(--violet-deep); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+  }
+  .btn-ghost:hover { border-color: var(--ink); }
+
+  /* Chips — brand mono + uppercase */
+  .chip {
+    background: var(--violet-tint);
+    color: var(--violet-deep);
+    border: 1.5px solid var(--violet-edge);
+    border-radius: 7px;
+    padding: 0.42rem 0.78rem;
+    font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .chip-amber {
+    background: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE68A;
+  }
+  .chip-slate {
+    background: var(--paper-2);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+
+  /* Grain / radial-gradient backgrounds — soften to brand colours */
+  .grain {
+    background-image:
+      radial-gradient(at 12% 8%, rgba(91,71,240,0.10) 0px, transparent 50%),
+      radial-gradient(at 88% 4%, rgba(245,158,11,0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(91,71,240,0.05) 0px, transparent 50%);
+  }
+
+  /* Selected-link colours */
+  a { color: var(--ink); }
+  a:hover { color: var(--violet); }
+
+  /* Tailwind-classname overrides that don't get re-themed via config (the
+     CDN re-runs but pages may have cached the old classes inline) */
+  .text-indigo-600, .text-indigo-700 { color: var(--violet) !important; }
+  .bg-indigo-600, .bg-indigo-500 { background-color: var(--violet) !important; }
+  .bg-indigo-400 { background-color: var(--violet-edge) !important; }
+  .border-indigo-600, .border-indigo-500 { border-color: var(--violet) !important; }
+  .hover\:text-indigo-600:hover { color: var(--violet) !important; }
+  .hover\:bg-indigo-400:hover { background-color: var(--violet-deep) !important; }
+  .hover\:bg-indigo-500:hover { background-color: var(--violet-deep) !important; }
+  .from-indigo-600 { --tw-gradient-from: var(--violet) !important; }
+
+  /* Subtle paper tint on previously-white sections */
+  .bg-white { background-color: #FFFFFF; }
+  .bg-slate-50 { background-color: var(--paper-2) !important; }
+  .bg-gray-50 { background-color: var(--paper-2) !important; }
+  .bg-neutral-50 { background-color: var(--paper-2) !important; }
+
+  /* v1.2 — generic surface-card helper for any new card-on-paper element */
+  .surface-card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .surface-card:hover {
+    border-color: var(--violet-edge);
+  }
+
+</style>
+</head>
+<body class="bg-white antialiased">
+
+<!-- HEADER -->
+<nav class="sticky top-0 z-50 backdrop-blur bg-white/85 border-b border-slate-100">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-base">
+      <svg width="28" height="28" viewBox="0 0 92 92" aria-hidden="true" class="inline-block align-middle"><path d="M46 8 C 24 8, 12 32, 12 56 C 12 76, 28 88, 46 88 C 64 88, 80 76, 80 56 C 80 32, 68 8, 46 8 Z" fill="#0F1419"/><rect x="28" y="40" width="36" height="4" fill="#F7FAFC"/><circle cx="46" cy="42" r="3.4" fill="#5B47F0"/></svg>
+      Hatchik <span class="text-slate-400 font-normal hidden sm:inline">/ docs</span>
+    </a>
+    <div class="flex items-center gap-5 text-sm font-medium text-slate-700">
+      <a href="https://hatchik.com" class="hover:text-indigo-600">Home</a>
+      <a href="https://status.hatchik.com" class="hover:text-indigo-600 hidden sm:inline">Status</a>
+      <a href="https://hatchik.com/account" class="hover:text-indigo-600">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<!-- BODY -->
+<div class="max-w-7xl mx-auto px-6 py-10 grid md:grid-cols-[220px_1fr] gap-10">
+
+  <!-- SIDEBAR -->
+  <aside class="md:sticky md:top-20 self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto pb-4">
+    <div class="sidebar-section">Start here</div>
+    <a href="/" class="sidebar-link">Overview</a>
+    <a href="/getting-started" class="sidebar-link">Getting started</a>
+
+    <div class="sidebar-section">Build</div>
+    <a href="/ai-tool-setup" class="sidebar-link">AI tool setup</a>
+    <a href="/deploying-changes" class="sidebar-link">Deploying changes</a>
+    <a href="/what-is-included" class="sidebar-link">What's included</a>
+
+    <div class="sidebar-section">Manage</div>
+    <a href="/account-management" class="sidebar-link">Account management</a>
+    <a href="/faq" class="sidebar-link is-active">FAQ</a>
+    <a href="/troubleshooting" class="sidebar-link">Troubleshooting</a>
+
+    <div class="sidebar-section">Need a human?</div>
+    <a href="mailto:hello@hatchik.com" class="sidebar-link">hello@hatchik.com</a>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="prose max-w-3xl">
+    <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Manage</p>
+    <h1 class="text-3xl md:text-4xl font-bold tracking-tight mt-2">Frequently asked questions</h1>
+    <p class="text-lg text-slate-600 mt-4 leading-relaxed">
+      Honest, slightly-too-long answers. If yours isn't here, email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a>.
+    </p>
+
+    <div class="note note-info">
+      <p class="toc">
+        Jump to: <a href="#outgrow">Outgrow Hatchik?</a> · <a href="#take-code">Take my code?</a> · <a href="#my-data">My data?</a> · <a href="#help">Help?</a> · <a href="#two-logins">Two logins?</a> · <a href="#redeploy-time">30-second deploys?</a> · <a href="#own-domain">Own domain?</a> · <a href="#idle">Stop using it?</a> · <a href="#own-app">Own the app?</a> · <a href="#licence">Licence?</a> · <a href="#leave">Leaving?</a> · <a href="#not-dev">Not a developer?</a> · <a href="#data-region">Region?</a> · <a href="#paddle">Paddle?</a> · <a href="#app-store">App Store?</a>
+      </p>
+    </div>
+
+    <h2>Ownership and exit</h2>
+
+    <div class="qa">
+      <h3 id="outgrow">What if I outgrow Hatchik?</h3>
+      <p>A single Hatchik server comfortably handles an app with several thousand paying users — we've stress-tested. When you need more, the substrate is plain Docker + Postgres + Caddy, so moving to a bigger server (or splitting across several) is a job of hours, not weeks. By that point you've likely hired your first developer; we hand over the keys and help with the migration. No exit fee.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="take-code">Can I take my code somewhere else?</h3>
+      <p>Yes. The code lives in <em>your</em> GitHub repo, under your own account — not ours. You can <code>git clone</code> it, host it anywhere that runs Docker, point your DNS at the new server, and you're off. Nothing in the substrate is locked to Hatchik's infrastructure (it's a stock Supabase + Caddy + Node stack). If you'd like a walkthrough on moving to a non-Hatchik VPS, email us and we'll write you the runbook — that's free, regardless of whether you're moving away.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="own-app">Do I really own my app and the code behind it?</h3>
+      <p>Yes. The code repository is created under your GitHub account on day one. The domain is registered in your name (Launch tier). The server is rented on Hetzner, which we resell to you. If you cancel, you walk away with all of it. No obfuscation, no hostage situations.</p>
+      <p class="mt-3">Specifically: your product code (anything you build in <code>apps/web/src/product/</code>, <code>apps/api/app/product/</code> and your own database migrations) is <strong>yours</strong>, no licence inherited. The substrate code Hatchik provides is released under Business Source License 1.1 — see the <a href="#licence">licence question</a> for details.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="licence">What licence is my code under?</h3>
+      <p>Your product code is yours, full stop — licence it however you want. The substrate code Hatchik provides is released under <strong>Business Source License 1.1</strong>. Plain English: you can use it for your own product anywhere forever, modify it, fork it, share it with your team, hire developers, and sell to your own customers — all fine. The only thing you can't do is offer it to third parties as a competing "Hatchik-like service". After three years the substrate converts to Apache 2.0 automatically — fully open, no strings, no exceptions. The full text lives in the <code>LICENSE</code> file inside your sandbox repo.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="leave">What if I want to leave?</h3>
+      <p>Cancel any time. We hand over the server keys, you keep the GitHub repo, the domain stays in your name, and your customers' data is yours. You can keep running everything yourself afterwards for roughly £10–15/month total (a small Hetzner box, the domain renewal, transactional email). No exit fee, no data extraction charges.</p>
+    </div>
+
+    <h2>Data and hosting</h2>
+
+    <div class="qa">
+      <h3 id="my-data">Do you have my data?</h3>
+      <p>Yes, in the sense that the Postgres database and file storage run on a server we rent on your behalf. We can technically read it because we have the host's SSH keys. In practice we only do that to help you (e.g. when you email us for support). We are subject to UK data-protection rules and a strict internal policy: no support engineer touches a customer database without a written ticket reference. We don't sell anything, we don't train AI on customer data, and we keep all your data inside the region you picked.</p>
+      <p>If that's not the right answer for your use case, you can <strong>request a Postgres dump at any time</strong> — email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> with subject "Data export" and we'll send you a <code>.sql.gz</code> within one working day. Free, regardless of tier.</p>
+      <p>Hosting is on Hetzner (Germany / Finland / US East / US West / Singapore). Snapshot backups stay within Hetzner Cloud, in the same region as your server. All encrypted at rest.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="data-region">Where is my data hosted?</h3>
+      <p>You pick at signup. Hetzner datacentres: Falkenstein and Nuremberg (Germany), Helsinki (Finland), Ashburn (US East), Hillsboro (US West), and Singapore — 6 cities across 5 regions. Your server is provisioned in your name, backups go to the same region, and an edge network sits in front so the page loads fast worldwide. If you have rules to meet (GDPR for EU, HIPAA for US healthcare) pick the matching region and we'll send the paperwork.</p>
+    </div>
+
+    <h2>Support and getting unstuck</h2>
+
+    <div class="qa">
+      <h3 id="help">How do I get help?</h3>
+      <p>Email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a>, or reply to any Hatchik email you've received from us. Email support — typically same business day on Growth, 1 business day on Launch, community-style on Sandbox. Most queries we can answer in one round-trip; trickier ones we'll dig into and get back to you the next day.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="two-logins">What's the difference between hatchik.com/account and my sandbox's login?</h3>
+      <p>Two completely separate sign-in surfaces. <a href="https://hatchik.com/account">hatchik.com/account</a> is the <strong>Hatchik account dashboard</strong> — billing, lifecycle, account settings. The login inside your sandbox at <span class="mono">yoursubdomain.hatchik.com</span> is for <strong>your end users</strong> — the people using the app you're building. The Hatchik dashboard has one account: you. Your sandbox can have thousands of accounts. They never talk to each other directly.</p>
+      <p>See <a href="/account-management#two-auth-surfaces">Account management → The two logins</a> for a longer explainer.</p>
+    </div>
+
+    <h2>Deploy mechanics</h2>
+
+    <div class="qa">
+      <h3 id="redeploy-time">Why does my sandbox redeploy take ~30 seconds?</h3>
+      <p>Most of that is Docker Compose stopping and restarting the affected service. A typical redeploy: ~2 seconds for the webhook to fire, ~5 seconds for Git pull, ~15 seconds for <code>docker compose up -d --build</code> on the changed service, ~5 seconds for the new container to pass its health check. Total: about 25–35 seconds.</p>
+      <p>If you've changed a dependency (Python or Node), add another 30 seconds for the install step. If you've touched the Dockerfile, the entire image rebuilds from scratch — could be two minutes.</p>
+      <p>It's slower than Vercel (which is sub-second for static and a few seconds for serverless) because Hatchik runs the whole substrate in containers, not edge-deployed functions. That's what makes the database, Studio, mail and storage all live in one place — at the cost of redeploys being a bit longer.</p>
+    </div>
+
+    <h2>Domains and lifecycle</h2>
+
+    <div class="qa">
+      <h3 id="own-domain">Can I bring my own domain?</h3>
+      <p>Yes, on the Launch tier (£89 one-off then £14/month on annual prepay or £17/month rolling). You either bring an existing domain (point its nameservers at Cloudflare and we'll wire the rest), or we register a new one in your name (year 1 included* in the £89). The free Sandbox tier always lives at <span class="mono">yoursubdomain.hatchik.com</span> — we don't offer custom domains on the free tier.</p>
+      <p class="text-sm text-slate-600 mt-2">
+        <strong>* Which TLDs are covered?</strong>
+        Year 1 free for the popular TLDs (<span class="mono">.com .co .net .org .uk .co.uk .app .dev .tech .online</span>) — anything ≤ £14/yr at retail.
+        Premium TLDs we still register on request &mdash; you cover the balance above £14/yr at checkout. Current passthrough list (ballpark 2026 retail, verified live at checkout):
+        <span class="mono">.ai</span> ~£90/yr (you cover ~£76),
+        <span class="mono">.io</span> ~£30 (~£16),
+        <span class="mono">.tv</span> ~£30 (~£16),
+        <span class="mono">.gg</span> ~£70 (~£56),
+        <span class="mono">.so</span> ~£25 (~£11),
+        <span class="mono">.me</span> ~£15 (~£1),
+        <span class="mono">.xyz</span> ~£20 (~£6).
+        Want something outside both lists? Email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> and we'll quote it.
+      </p>
+    </div>
+
+    <div class="qa">
+      <h3 id="idle">What happens if I stop using my sandbox?</h3>
+      <p>On the Sandbox tier: after 30 days of no traffic and no commits, we archive your sandbox automatically — the Docker stack is stopped, volumes are tarred up, and the subdomain becomes available again. We email you on day 28 with a heads-up, and again on day 29 as a second chance to keep it active; day 30 is when the archive happens. After another 7 days in archived state with no restore request, the archive is purged.</p>
+      <p>To restore an archived sandbox, go to <a href="https://hatchik.com/restore-sandbox">hatchik.com/restore-sandbox</a>, sign in, and click "Restore". The sandbox is unpacked and brought back to its previous URL within a few mins. Code, data and customers come back intact.</p>
+      <p>On Launch: your sandbox is never auto-archived. It runs until you cancel.</p>
+    </div>
+
+    <h2>The non-tech side</h2>
+
+    <div class="qa">
+      <h3 id="not-dev">What if I'm not a developer?</h3>
+      <p>Hatchik is built for you. The product owners we have in mind are lawyers, restaurateurs, consultants, designers — people with a clear app idea but no infrastructure background. You'll drive an AI helper (Cursor, Windsurf, Claude Code, Cline, Codex, Antigravity or similar) to build the actual features, and we make sure that experience is safe — your AI can't accidentally break the substrate. If you've never used an AI coding tool before, see <a href="/ai-tool-setup">AI tool setup</a>.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="which-ai">Does it work with GPT, Gemini, Grok? What about Copilot, Codex, or Antigravity?</h3>
+      <p>Yes to all. Hatchik gives you a normal GitHub repo and a file called <code>AI_CONTEXT.md</code> that explains your stack — any AI coding tool can read that file and start helping.</p>
+      <p><strong>Named and tested</strong> (these open the repo folder and edit files autonomously): Cursor, Windsurf, Claude Code, Cline, Codex (OpenAI's CLI), Antigravity (Google's IDE). Continue, Aider, and Copilot agent mode also work via the standard MCP config — see <a href="/install">install</a>.</p>
+      <p><strong>Browser AIs work too</strong>: ChatGPT, Gemini, Grok, Claude.ai, Perplexity Comet — you copy-paste between the chat and your editor instead of letting the AI edit files directly. Comet can also run shell commands and <code>git push</code> for you if you grant access.</p>
+      <p><strong>And the AI <em>inside</em> your app</strong> (for features like chatbots or summaries) is a separate question — that can use any provider: Anthropic, OpenAI, Google, xAI (Grok), Mistral, OpenRouter, or open-source models. Drop your provider key in your app's <code>.env</code> file and the substrate routes calls there.</p>
+      <p>If your tool isn't on this list, try it anyway — most of them just work. If it doesn't, email us at <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> and we'll add wiring instructions.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="app-store">Will you submit my app to the App Store or Google Play?</h3>
+      <p>No — and this is the same on every tier. We <em>build</em> the iOS and Android shells from your code, ready to submit. You handle the submission itself, because the apps live on <strong>your</strong> store accounts under your legal identity. That means an Apple Developer Program account (~£99/year), a Google Play Console account (~£25 one-time), and you take responsibility for listing metadata, review responses and store compliance. We're happy to advise on common rejection reasons; we don't press submit.</p>
+    </div>
+
+    <h2>Billing</h2>
+
+    <div class="qa">
+      <h3 id="paddle">Why does my statement say "Paddle.com Market Ltd · Hatchik"?</h3>
+      <p>Hatchik uses Paddle as our Merchant of Record — a well-trodden model used by many global SaaS products. Paddle is the legal seller, which means they handle all the global tax compliance so we don't pass that cost or complexity on to you. The practical effect: your bank statement reads "Paddle.com Market Ltd · Hatchik". Your subscription, login, app and support all stay with Hatchik — only the billing entity differs. Refunds run through Paddle and usually land within 5–10 days.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="refund">Can I get a refund?</h3>
+      <p>Yes — within 14 days of signup. If we haven't yet provisioned your stack, it's a full refund. If you've already been provisioned and we've registered a new domain for you, we prorate the refund minus the domain registration cost (typically £12–15). After 14 days the setup fee is non-refundable, but you can cancel any time and we'll pro-rate the unused portion of your monthly. No questions asked.</p>
+    </div>
+
+    <div class="qa">
+      <h3 id="sla">How fast do you reply to support emails?</h3>
+      <p>Launch tier: <strong>within 1 business day</strong>. Growth tier: <strong>same business day</strong>. Sandbox is community-style (no individual SLA). Most queries we answer in one round-trip; trickier ones we'll dig into and come back. No on-call, no phone support.</p>
+    </div>
+
+    <hr>
+
+    <p class="text-sm text-slate-500 italic">
+      Didn't find your question here? Email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a>. We'd rather over-explain than under-explain, so don't worry about asking something "stupid".
+    </p>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="border-t border-slate-100 py-10 bg-white mt-16">
+  <div class="max-w-7xl mx-auto px-6 flex flex-col gap-6 text-sm text-slate-500">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="flex items-center gap-2 font-bold text-slate-700">
+        <svg width="28" height="28" viewBox="0 0 92 92" aria-hidden="true" class="inline-block align-middle"><path d="M46 8 C 24 8, 12 32, 12 56 C 12 76, 28 88, 46 88 C 64 88, 80 76, 80 56 C 80 32, 68 8, 46 8 Z" fill="#0F1419"/><rect x="28" y="40" width="36" height="4" fill="#F7FAFC"/><circle cx="46" cy="42" r="3.4" fill="#5B47F0"/></svg>
+        Hatchik
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <a href="https://hatchik.com/account" class="hover:text-indigo-600">My account</a>
+        <a href="https://hatchik.com/privacy" class="hover:text-indigo-600">Privacy</a>
+        <a href="https://hatchik.com/terms" class="hover:text-indigo-600">Terms</a>
+        <a href="https://status.hatchik.com" class="hover:text-indigo-600">Status</a>
+        <a href="/" class="hover:text-indigo-600">Docs</a>
+        <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+        <a href="https://hatchik.com/restore-sandbox" class="hover:text-indigo-600">Restore sandbox</a>
+        <a href="https://hatchik.com/delete-sandbox" class="hover:text-indigo-600">Delete sandbox</a>
+      </div>
+      <div class="text-xs text-slate-400">Host anywhere · You own your code · Built for founders</div>
+    </div>
+    <div class="border-t border-slate-100 pt-6 text-xs text-slate-400 leading-relaxed max-w-3xl">
+      Hatchik is operated globally as a service of a company registered in Muscat, Sultanate of Oman.
+      Payments are processed by Paddle (Paddle.com Market Ltd) as Merchant of Record — Paddle handles
+      VAT, GST and local sales tax in your jurisdiction and appears on your statement as
+      "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle support.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

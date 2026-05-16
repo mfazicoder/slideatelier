@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Account management — Hatchik docs</title>
+<meta name="description" content="Manage your Hatchik subscription, name, GitHub connection, and sandbox lifecycle from hatchik.com/account. Plus the two-auth-surface explainer." />
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; --amber: #f59e0b; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.88em; }
+  .prose h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 0.75rem; letter-spacing: -0.01em; scroll-margin-top: 5rem; }
+  .prose h3 { font-size: 1.15rem; font-weight: 600; margin-top: 1.75rem; margin-bottom: 0.5rem; scroll-margin-top: 5rem; }
+  .prose p { margin-top: 0.75rem; margin-bottom: 0.75rem; color: #334155; line-height: 1.7; }
+  .prose ul { list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; color: #334155; }
+  .prose ol { list-style: decimal; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; color: #334155; }
+  .prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.7; }
+  .prose a { color: #4f46e5; text-decoration: underline; text-underline-offset: 2px; }
+  .prose a:hover { color: #3730a3; }
+  .prose code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.88em; color: #1e293b; }
+  .prose pre { background: #0b1020; color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6; margin-top: 0.75rem; margin-bottom: 0.75rem; }
+  .prose pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .prose blockquote { border-left: 3px solid #c7d2fe; background: #eef2ff; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; color: #3730a3; }
+  .prose blockquote p { color: #3730a3; margin: 0.25rem 0; }
+  .prose hr { border: 0; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
+  .sidebar-link { display: block; padding: 0.45rem 0.75rem; border-radius: 6px; color: #475569; font-size: 0.9rem; text-decoration: none; line-height: 1.4; }
+  .sidebar-link:hover { background: #f1f5f9; color: #0b1020; }
+  .sidebar-link.is-active { background: #eef2ff; color: #3730a3; font-weight: 600; }
+  .sidebar-section { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; padding: 0.5rem 0.75rem; margin-top: 1rem; }
+  .note { border: 1px solid #e5e7eb; background: #f8fafc; border-radius: 10px; padding: 1rem 1.25rem; margin: 1rem 0; }
+  .note-warn { border-color: #fde68a; background: #fffbeb; }
+  .note-info { border-color: #c7d2fe; background: #eef2ff; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+  .auth-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem; background: white; }
+  .auth-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .auth-card .lbl { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+</style>
+</head>
+<body class="bg-white antialiased">
+
+<!-- HEADER -->
+<nav class="sticky top-0 z-50 backdrop-blur bg-white/85 border-b border-slate-100">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-base">
+      <span class="inline-block w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+      Hatchik <span class="text-slate-400 font-normal hidden sm:inline">/ docs</span>
+    </a>
+    <div class="flex items-center gap-5 text-sm font-medium text-slate-700">
+      <a href="https://hatchik.com" class="hover:text-indigo-600">Home</a>
+      <a href="https://status.hatchik.com" class="hover:text-indigo-600 hidden sm:inline">Status</a>
+      <a href="https://hatchik.com/account" class="hover:text-indigo-600">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<!-- BODY -->
+<div class="max-w-7xl mx-auto px-6 py-10 grid md:grid-cols-[220px_1fr] gap-10">
+
+  <!-- SIDEBAR -->
+  <aside class="md:sticky md:top-20 self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto pb-4">
+    <div class="sidebar-section">Start here</div>
+    <a href="/" class="sidebar-link">Overview</a>
+    <a href="/getting-started" class="sidebar-link">Getting started</a>
+
+    <div class="sidebar-section">Build</div>
+    <a href="/ai-tool-setup" class="sidebar-link">AI tool setup</a>
+    <a href="/deploying-changes" class="sidebar-link">Deploying changes</a>
+    <a href="/what-is-included" class="sidebar-link">What's included</a>
+
+    <div class="sidebar-section">Manage</div>
+    <a href="/account-management" class="sidebar-link is-active">Account management</a>
+    <a href="/faq" class="sidebar-link">FAQ</a>
+    <a href="/troubleshooting" class="sidebar-link">Troubleshooting</a>
+
+    <div class="sidebar-section">Need a human?</div>
+    <a href="mailto:hello@hatchik.com" class="sidebar-link">hello@hatchik.com</a>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="prose max-w-3xl">
+    <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Manage</p>
+    <h1 class="text-3xl md:text-4xl font-bold tracking-tight mt-2">Account management</h1>
+    <p class="text-lg text-slate-600 mt-4 leading-relaxed">
+      Your Hatchik account lives at <a href="https://hatchik.com/account">hatchik.com/account</a>. Sign in with the email you signed up with — we'll send a one-time link, no password.
+    </p>
+
+    <h2 id="two-auth-surfaces">The two logins (important)</h2>
+    <p>
+      This trips up almost everyone on day one. Hatchik has <strong>two completely separate sign-in surfaces</strong>, and they have nothing to do with each other.
+    </p>
+
+    <div class="two-col">
+      <div class="auth-card">
+        <div class="lbl">Surface 1</div>
+        <h4>Your Hatchik account</h4>
+        <p class="text-sm text-slate-600 mt-2">Lives at <span class="mono">hatchik.com/account</span>. The email here is <strong>your email as a Hatchik customer</strong>. It controls billing, sandbox lifecycle, GitHub connection, and account details. There's one of these per founder.</p>
+      </div>
+      <div class="auth-card">
+        <div class="lbl">Surface 2</div>
+        <h4>Your end-users' login</h4>
+        <p class="text-sm text-slate-600 mt-2">Lives inside your sandbox at <span class="mono">yoursubdomain.hatchik.com</span>. The accounts here are <strong>your customers' accounts</strong> — the people using the app you're building. There can be thousands of these.</p>
+      </div>
+    </div>
+
+    <p>
+      A useful mental model: surface 1 is "Hatchik's customer table" (you and other founders). Surface 2 is "<em>your</em> customer table" (your end-users). The two never talk to each other directly. You don't sign in to your own sandbox as the owner via surface 2 — when you click your sandbox magic link, you're going in as the owner-user record we provisioned for you, which is part of surface 2 but happens to be you.
+    </p>
+
+    <div class="note note-warn">
+      <p class="text-sm leading-relaxed text-slate-700"><strong>Tip.</strong> If you ever get confused, the rule of thumb is: <span class="mono">hatchik.com/...</span> means surface 1; <span class="mono">yoursubdomain.hatchik.com/...</span> means surface 2.</p>
+    </div>
+
+    <h2 id="signing-in">Signing in</h2>
+    <p>
+      Head to <a href="https://hatchik.com/account">hatchik.com/account</a>, type your email, and we'll send a sign-in link. The link expires in 30 minutes and is single-use. If you've lost the email, just request another.
+    </p>
+
+    <h2 id="update-name">Updating your name</h2>
+    <p>
+      Settings tab → First name. Used when we greet you in emails. Saved instantly.
+    </p>
+    <p>
+      Email is read-only — changing it would mean moving your sandbox to a new owner record. If you need to change the email on file, email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> and we'll migrate it for you.
+    </p>
+
+    <h2 id="connect-github">Connecting GitHub</h2>
+    <p>
+      Settings tab → Connect GitHub. Enter your GitHub username (without the <code>@</code>) and we'll add you as a collaborator on the sandbox repo we created for you. From that moment, you can clone the repo to your laptop and push to it.
+    </p>
+    <p>
+      You can leave this blank if you'd rather not connect GitHub — we'll keep the repo under our org and email you a link. You can still push if we add you as an outside collaborator. Most people just give us the username at signup; it takes seconds.
+    </p>
+
+    <h2 id="signing-out">Signing out</h2>
+    <p>
+      "Sign out" link in the header. That ends your <em>Hatchik account</em> session (surface 1). Your sandbox session (surface 2) is independent — you'd need to sign out separately from inside the sandbox if you wanted to clear that one.
+    </p>
+
+    <h2 id="archive-restore">Pausing, archiving and restoring</h2>
+    <p>
+      Hatchik does no manual pause/resume. Instead, the lifecycle is automatic:
+    </p>
+    <ul>
+      <li><strong>Active</strong> — running normally. The default state for everything.</li>
+      <li><strong>Archived</strong> — if a Sandbox-tier sandbox has had no traffic and no commits for 30 days, we archive it. The Docker stack is stopped and the volumes are tarred up, freeing host resources. You'll get an email a few days before this happens so you can keep it active by pushing a commit or hitting the URL.</li>
+      <li><strong>Deleted</strong> — after another 7 days in archived state with no restore request, the archive is purged.</li>
+    </ul>
+    <p>
+      To restore an archived sandbox, head to <a href="https://hatchik.com/restore-sandbox">hatchik.com/restore-sandbox</a>, sign in with your email, and click "Restore". The sandbox is unpacked, started, and brought back to its previous URL within a couple of minutes. All your data, code, and customers are intact — archiving doesn't lose anything, only frees a server while you're not using it.
+    </p>
+
+    <div class="note note-info">
+      <p class="text-sm leading-relaxed text-slate-700"><strong class="text-indigo-700">Once you've upgraded, your sandbox stays alive as your dev environment.</strong> When you move from the free Sandbox tier to Launch or Growth, we don't tear down your original sandbox &mdash; it keeps running alongside your new production stack so you have a real dev/prod split. We cover the infrastructure cost as part of your monthly fee; the 30-day idle-archive policy doesn't apply once you've upgraded. Paid stacks (and the dev sandbox that goes with them) stay running until you tell us otherwise.</p>
+    </div>
+
+    <h2 id="delete-sandbox">Deleting your sandbox</h2>
+    <p>
+      Danger tab → Start deletion, or go directly to <a href="https://hatchik.com/delete-sandbox">hatchik.com/delete-sandbox</a>. We send a confirmation email; nothing is removed until you click the link in that email. Once confirmed:
+    </p>
+    <ul>
+      <li>The tenant Docker stack is stopped and removed.</li>
+      <li>The sandbox subdomain becomes available again to other users.</li>
+      <li>Your Postgres volume, file storage and config are wiped after a 14-day grace period (during which you can email us and we'll restore from backup).</li>
+      <li>Your GitHub repo is <strong>not</strong> touched. It's yours; you can keep it, delete it, archive it.</li>
+    </ul>
+
+    <h2 id="billing">Billing</h2>
+    <p>
+      Billing tab → manage invoices, payment methods, and subscription. Payment processing runs through Paddle, our Merchant of Record, so the "Manage subscription" link opens Paddle's customer portal in a new tab.
+    </p>
+    <p>
+      For invoices, refund requests or billing questions, contact <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> and we'll handle it (we work with Paddle on the back end, you only talk to us).
+    </p>
+
+    <h2 id="data-export">Getting your data out</h2>
+    <p>
+      Email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> with the subject "Data export". We'll send you a Postgres dump (<code>.sql.gz</code>) of your sandbox database within one working day, free of charge, any time you want one. No exit fee, no extraction fee. Your code is already on GitHub under your account. Your customers' data is yours.
+    </p>
+
+    <h2 id="next-steps">Next</h2>
+    <ul>
+      <li><a href="/what-is-included">What's included</a> — the Sandbox-vs-Launch boundary.</li>
+      <li><a href="/faq">FAQ</a> — common questions about ownership, exit and data.</li>
+    </ul>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="border-t border-slate-100 py-10 bg-white mt-16">
+  <div class="max-w-7xl mx-auto px-6 flex flex-col gap-6 text-sm text-slate-500">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="flex items-center gap-2 font-bold text-slate-700">
+        <span class="inline-block w-6 h-6 rounded-md bg-gradient-to-br from-indigo-600 to-amber-500"></span>
+        Hatchik
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <a href="https://hatchik.com/account" class="hover:text-indigo-600">My account</a>
+        <a href="https://hatchik.com/privacy" class="hover:text-indigo-600">Privacy</a>
+        <a href="https://hatchik.com/terms" class="hover:text-indigo-600">Terms</a>
+        <a href="https://status.hatchik.com" class="hover:text-indigo-600">Status</a>
+        <a href="/" class="hover:text-indigo-600">Docs</a>
+        <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+        <a href="https://hatchik.com/restore-sandbox" class="hover:text-indigo-600">Restore sandbox</a>
+        <a href="https://hatchik.com/delete-sandbox" class="hover:text-indigo-600">Delete sandbox</a>
+      </div>
+      <div class="text-xs text-slate-400">Host anywhere · You own your code · Built for founders</div>
+    </div>
+    <div class="border-t border-slate-100 pt-6 text-xs text-slate-400 leading-relaxed max-w-3xl">
+      Hatchik is operated globally as a service of a company registered in Muscat, Sultanate of Oman.
+      Payments are processed by Paddle (Paddle.com Market Ltd) as Merchant of Record — Paddle handles
+      VAT, GST and local sales tax in your jurisdiction and appears on your statement as
+      "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle support.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

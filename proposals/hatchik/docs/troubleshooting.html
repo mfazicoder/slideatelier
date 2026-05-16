@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Troubleshooting — Hatchik docs</title>
+<meta name="description" content="What to do when your Hatchik sandbox doesn't behave: pushes not deploying, magic links not working, AI tools missing AI_CONTEXT.md, accidental deletions." />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Brand System v1: indigo → brand violet ramp; add paper/ink tokens.
+  if (typeof tailwind !== 'undefined') {
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper:   '#F7FAFC',
+            'paper-2': '#EEF2F7',
+            line:    '#DDE5EC',
+            ink:     '#0F1419',
+            'ink-2': '#2A3340',
+            mist:    '#6E6E78',
+            indigo: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+            violet: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+          },
+          fontFamily: {
+            sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['Geist Mono', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    };
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<style>
+  :root { --ink: #0b1020; --indigo: #4f46e5; --amber: #f59e0b; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: var(--ink); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.88em; }
+  .prose h2 { font-size: 1.25rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 0.5rem; letter-spacing: -0.01em; scroll-margin-top: 5rem; }
+  .prose h3 { font-size: 1.05rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+  .prose p { margin-top: 0.5rem; margin-bottom: 0.5rem; color: #334155; line-height: 1.7; }
+  .prose ul { list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; color: #334155; }
+  .prose ol { list-style: decimal; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem; color: #334155; }
+  .prose li { margin-top: 0.25rem; margin-bottom: 0.25rem; line-height: 1.7; }
+  .prose a { color: #4f46e5; text-decoration: underline; text-underline-offset: 2px; }
+  .prose a:hover { color: #3730a3; }
+  .prose code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.88em; color: #1e293b; }
+  .prose pre { background: #0b1020; color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 10px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6; margin-top: 0.75rem; margin-bottom: 0.75rem; }
+  .prose pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .sidebar-link { display: block; padding: 0.45rem 0.75rem; border-radius: 6px; color: #475569; font-size: 0.9rem; text-decoration: none; line-height: 1.4; }
+  .sidebar-link:hover { background: #f1f5f9; color: #0b1020; }
+  .sidebar-link.is-active { background: #eef2ff; color: #3730a3; font-weight: 600; }
+  .sidebar-section { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; padding: 0.5rem 0.75rem; margin-top: 1rem; }
+  .note { border: 1px solid #e5e7eb; background: #f8fafc; border-radius: 10px; padding: 1rem 1.25rem; margin: 1rem 0; }
+  .note-warn { border-color: #fde68a; background: #fffbeb; }
+  .note-info { border-color: #c7d2fe; background: #eef2ff; }
+  .problem { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1rem 0; background: white; }
+  .problem h2 { margin-top: 0 !important; }
+  .check-list { list-style: none !important; margin-left: 0 !important; padding-left: 0 !important; }
+  .check-list li { padding-left: 1.6rem; position: relative; }
+  .check-list li:before { content: "✓"; position: absolute; left: 0; top: 0.05rem; color: #10b981; font-weight: 700; }
+</style>
+<style id="brand-system-v1_2">
+  /* ── Hatchik Brand System v1.2 (May 2026) ──────────────────────────────
+     Overlay stylesheet — overrides legacy indigo/Inter look with brand
+     violet + Geist + warm paper. Loaded AFTER the page's own <style> so
+     these rules win on equal specificity. */
+  :root {
+    /* Paper + ink */
+    --paper:        #F7FAFC;
+    --paper-2:      #EEF2F7;
+    --line:         #DDE5EC;
+    --line-2:       #C5D0DC;
+    --ink:          #0F1419;
+    --ink-2:        #2A3340;
+    --mist:         #6E6E78;
+    /* Brand violet ramp */
+    --violet:       #5B47F0;
+    --violet-deep:  #4231CC;
+    --violet-tint:  #EEEBFD;
+    --violet-edge:  #C8C0F8;
+    /* Dark surfaces */
+    --slate:        #0C1118;
+    --slate-2:      #161D2A;
+    /* Accents */
+    --green:        #2DB47A;
+    --amber:        #F59E0B;
+    --rose:         #E14B5E;
+    /* Legacy aliases — old pages still reference these */
+    --indigo:       #5B47F0;
+  }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  body {
+    font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .mono, code, pre, [class*="font-mono"] {
+    font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Tighten display tracking to match brand system */
+  h1 { letter-spacing: -0.04em; }
+  h2, h3 { letter-spacing: -0.025em; }
+
+  /* Cards — paper-on-paper with line border (brand calls for warm tan
+     in some places; we keep white for content density but ground onto
+     paper bg via body) */
+  .card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .card:hover {
+    border-color: var(--violet-edge);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 8px 30px rgba(91,71,240,0.08);
+  }
+
+  /* Primary CTA — pill, brand violet */
+  .btn-primary {
+    background: var(--violet);
+    color: #FFFFFF;
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.18);
+  }
+  .btn-primary:hover { background: var(--violet-deep); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+  }
+  .btn-ghost:hover { border-color: var(--ink); }
+
+  /* Chips — brand mono + uppercase */
+  .chip {
+    background: var(--violet-tint);
+    color: var(--violet-deep);
+    border: 1.5px solid var(--violet-edge);
+    border-radius: 7px;
+    padding: 0.42rem 0.78rem;
+    font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .chip-amber {
+    background: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE68A;
+  }
+  .chip-slate {
+    background: var(--paper-2);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+
+  /* Grain / radial-gradient backgrounds — soften to brand colours */
+  .grain {
+    background-image:
+      radial-gradient(at 12% 8%, rgba(91,71,240,0.10) 0px, transparent 50%),
+      radial-gradient(at 88% 4%, rgba(245,158,11,0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(91,71,240,0.05) 0px, transparent 50%);
+  }
+
+  /* Selected-link colours */
+  a { color: var(--ink); }
+  a:hover { color: var(--violet); }
+
+  /* Tailwind-classname overrides that don't get re-themed via config (the
+     CDN re-runs but pages may have cached the old classes inline) */
+  .text-indigo-600, .text-indigo-700 { color: var(--violet) !important; }
+  .bg-indigo-600, .bg-indigo-500 { background-color: var(--violet) !important; }
+  .bg-indigo-400 { background-color: var(--violet-edge) !important; }
+  .border-indigo-600, .border-indigo-500 { border-color: var(--violet) !important; }
+  .hover\:text-indigo-600:hover { color: var(--violet) !important; }
+  .hover\:bg-indigo-400:hover { background-color: var(--violet-deep) !important; }
+  .hover\:bg-indigo-500:hover { background-color: var(--violet-deep) !important; }
+  .from-indigo-600 { --tw-gradient-from: var(--violet) !important; }
+
+  /* Subtle paper tint on previously-white sections */
+  .bg-white { background-color: #FFFFFF; }
+  .bg-slate-50 { background-color: var(--paper-2) !important; }
+  .bg-gray-50 { background-color: var(--paper-2) !important; }
+  .bg-neutral-50 { background-color: var(--paper-2) !important; }
+
+  /* v1.2 — generic surface-card helper for any new card-on-paper element */
+  .surface-card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .surface-card:hover {
+    border-color: var(--violet-edge);
+  }
+
+</style>
+</head>
+<body class="bg-white antialiased">
+
+<!-- HEADER -->
+<nav class="sticky top-0 z-50 backdrop-blur bg-white/85 border-b border-slate-100">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-base">
+      <svg width="28" height="28" viewBox="0 0 92 92" aria-hidden="true" class="inline-block align-middle"><path d="M46 8 C 24 8, 12 32, 12 56 C 12 76, 28 88, 46 88 C 64 88, 80 76, 80 56 C 80 32, 68 8, 46 8 Z" fill="#0F1419"/><rect x="28" y="40" width="36" height="4" fill="#F7FAFC"/><circle cx="46" cy="42" r="3.4" fill="#5B47F0"/></svg>
+      Hatchik <span class="text-slate-400 font-normal hidden sm:inline">/ docs</span>
+    </a>
+    <div class="flex items-center gap-5 text-sm font-medium text-slate-700">
+      <a href="https://hatchik.com" class="hover:text-indigo-600">Home</a>
+      <a href="https://status.hatchik.com" class="hover:text-indigo-600 hidden sm:inline">Status</a>
+      <a href="https://hatchik.com/account" class="hover:text-indigo-600">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<!-- BODY -->
+<div class="max-w-7xl mx-auto px-6 py-10 grid md:grid-cols-[220px_1fr] gap-10">
+
+  <!-- SIDEBAR -->
+  <aside class="md:sticky md:top-20 self-start md:max-h-[calc(100vh-6rem)] md:overflow-y-auto pb-4">
+    <div class="sidebar-section">Start here</div>
+    <a href="/" class="sidebar-link">Overview</a>
+    <a href="/getting-started" class="sidebar-link">Getting started</a>
+
+    <div class="sidebar-section">Build</div>
+    <a href="/ai-tool-setup" class="sidebar-link">AI tool setup</a>
+    <a href="/deploying-changes" class="sidebar-link">Deploying changes</a>
+    <a href="/what-is-included" class="sidebar-link">What's included</a>
+
+    <div class="sidebar-section">Manage</div>
+    <a href="/account-management" class="sidebar-link">Account management</a>
+    <a href="/faq" class="sidebar-link">FAQ</a>
+    <a href="/troubleshooting" class="sidebar-link is-active">Troubleshooting</a>
+
+    <div class="sidebar-section">Need a human?</div>
+    <a href="mailto:hello@hatchik.com" class="sidebar-link">hello@hatchik.com</a>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="prose max-w-3xl">
+    <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Manage</p>
+    <h1 class="text-3xl md:text-4xl font-bold tracking-tight mt-2">Troubleshooting</h1>
+    <p class="text-lg text-slate-600 mt-4 leading-relaxed">
+      What to try first when things break. If none of these help, email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> and tell us your sandbox slug — we can dig in from the host side.
+    </p>
+
+    <div class="note note-info">
+      <p class="text-sm leading-relaxed text-slate-700"><strong class="text-indigo-700">Before anything else.</strong> Check <a href="https://status.hatchik.com">status.hatchik.com</a>. If we're showing a wider outage there, sit tight — we're on it. Most of the issues below assume the platform itself is fine.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="push-not-updating">"I pushed but my sandbox didn't update"</h2>
+      <p>Roughly fifteen seconds after a successful push you should see your change. If thirty seconds in nothing's changed, work through these:</p>
+
+      <h3>1. Check you actually pushed</h3>
+      <p>Run <code>git log origin/main -1</code> and confirm the latest commit is the one you expect. If it shows an older commit, your push didn't go through. Push again.</p>
+
+      <h3>2. Check GitHub received the webhook</h3>
+      <p>In your repo on GitHub: Settings → Webhooks. Click the Hatchik webhook. Recent deliveries should show your last push with a green tick. A red cross means the webhook failed — click it for the response body, it usually says why.</p>
+
+      <h3>3. Check the rate limit</h3>
+      <p>If you've been pushing rapidly (more than six times in five minutes for the same sandbox), you've hit the redeploy rate limit. Wait a few minutes and try again.</p>
+
+      <h3>4. Trigger a redeploy directly</h3>
+      <p>Pull your deploy URL and token from <code>AI_CONTEXT.md</code> and POST to it manually:</p>
+      <pre><code>curl -X POST https://hatchik.com/api/tenants/&lt;your-slug&gt;/redeploy \
+  -H "X-Deploy-Token: &lt;your-deploy-token&gt;"</code></pre>
+      <p>If this returns a 200, the issue was the GitHub webhook (not the deploy itself). If it returns 500, the deploy is failing — the response includes the last 50 lines of the redeploy log, paste it into your AI tool and let it debug.</p>
+
+      <h3>5. Check status</h3>
+      <p>If <a href="https://status.hatchik.com">status.hatchik.com</a> shows the sandbox host degraded, that's us — we'll be on it.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="ai-tool-cant-read">"My AI tool can't read AI_CONTEXT.md"</h2>
+      <p>Symptom: your AI tool keeps editing the wrong files, or it doesn't know where your sandbox is, or it asks you for things that are in <code>AI_CONTEXT.md</code>.</p>
+
+      <h3>Cursor, Windsurf, Cline, Antigravity</h3>
+      <p>These auto-index the open folder. Make sure you've opened the <em>cloned repo root</em> (the folder with <code>AI_CONTEXT.md</code> at the top), not a parent or a child. Open the chat and ask "what's in AI_CONTEXT.md?" — if it answers correctly, you're set.</p>
+
+      <h3>Claude Code or Codex</h3>
+      <p>Drag <code>AI_CONTEXT.md</code> into the chat at the start of your conversation, or type <code>@AI_CONTEXT.md</code> to reference it. These terminal tools don't auto-read every file — they need an explicit pin.</p>
+
+      <h3>ChatGPT, Gemini, Grok, or Comet (browser)</h3>
+      <p>These need an explicit file upload. Use the attach button next to the prompt box, pick <code>AI_CONTEXT.md</code> from your repo folder, and ask "summarise what you see in this file" before doing anything else.</p>
+
+      <h3>Universal fallback</h3>
+      <p>Copy-paste the entire contents of <code>AI_CONTEXT.md</code> into your AI tool's chat as a single message, with the text "Read this carefully before answering anything else. Then say 'understood' and wait for my first prompt." That works in every AI tool that's ever existed.</p>
+
+      <p>See <a href="/ai-tool-setup">AI tool setup</a> for the per-tool detail.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="magic-link-broken">"I got the magic-link email but the link doesn't work"</h2>
+      <p>Magic links are single-use and expire in 30 minutes. The most common reasons they "don't work":</p>
+      <ul class="check-list">
+        <li>You clicked it once already (some email clients pre-fetch links to scan them — Outlook, Gmail's spam scanner — consuming the token before you click).</li>
+        <li>You opened it more than 30 minutes after receiving it.</li>
+        <li>You're on a different device or browser to where you requested it (rare, but some browsers strip the token).</li>
+      </ul>
+      <p><strong>Fix:</strong> go to <a href="https://hatchik.com/account">hatchik.com/account</a> and request a new sign-in link. They're free and unlimited. If three new links in a row all fail, email us — there's something else going on.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="deleted-by-accident">"I deleted my sandbox by accident"</h2>
+      <p>Don't panic. We keep a 14-day grace period before fully purging a deleted sandbox.</p>
+      <ol>
+        <li>Go to <a href="https://hatchik.com/restore-sandbox">hatchik.com/restore-sandbox</a>.</li>
+        <li>Sign in with the email on your account.</li>
+        <li>Click "Restore" on the sandbox you want back. The Docker stack is rebuilt and your data, code and customers come back to the same subdomain.</li>
+      </ol>
+      <p>If 14 days have passed since deletion, the volumes are gone. Even then, email us — we keep encrypted backups for Launch-tier sandboxes for 14 days beyond the purge, so we may still be able to restore the last good snapshot.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="sandbox-slow">"My sandbox feels slow"</h2>
+      <p>There are a few common reasons:</p>
+
+      <h3>You're on the free Sandbox tier</h3>
+      <p>The free tier shares a Hetzner CAX31 host with ~45 other sandboxes (we run 2h idle-suspend, so most are dormant at any given moment, but during peak hours you'll occasionally see queueing on writes). The fix is to upgrade to Launch — your stack moves onto a production-hosting cluster with isolated compute. That's the right step once you've got real users.</p>
+
+      <h3>Your AI tool added an unindexed query</h3>
+      <p>Common pattern: your AI added a feature that runs a Postgres query with no index. On Launch and Growth tiers, open Studio at <span class="mono">yourdomain.com/studio</span> and run <code>EXPLAIN ANALYZE</code> on the slow query. On Sandbox (no Studio), ask your AI tool to run the same query via <code>psql</code> through the substrate. Either way, ask your AI to add the missing index migration.</p>
+
+      <h3>Your app is making a lot of round-trips</h3>
+      <p>If your front end is doing twenty separate Supabase queries on page load, that's twenty network round-trips. Ask your AI tool to batch into a single query or to use a database view.</p>
+
+      <p>If none of those, email us with the slug and a typical slow URL. We can pull the per-tenant <code>caddy</code> logs and the Docker stats from the host side.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="ai-broke-substrate">"My AI tool edited a substrate file and now nothing works"</h2>
+      <p>Most common one we see in week one. Symptoms: deploys 500, the sandbox doesn't come back up. On Launch/Growth, also: Supabase Studio is unreachable. Almost always caused by an AI edit to <code>docker-compose.yml</code>, <code>Caddyfile</code>, or something under <code>supabase/volumes/</code>.</p>
+      <p><strong>Fix:</strong></p>
+      <ol>
+        <li>Run <code>git log --oneline -10</code> in your repo. Find the last commit that <em>didn't</em> touch substrate files.</li>
+        <li><code>git revert &lt;bad-commit-sha&gt;</code> — this creates a new commit that undoes the bad one.</li>
+        <li><code>git push</code> — Hatchik redeploys with the substrate back to a known-good state.</li>
+      </ol>
+      <p>Then go back to your AI tool and explicitly tell it: "AI_CONTEXT.md lists the substrate files. Don't edit any of them. Re-read AI_CONTEXT.md if you need to." That usually sorts it.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="domain-not-working">"My domain isn't showing my sandbox" (Launch tier)</h2>
+      <p>If your Launch sandbox is on a custom domain and the site shows a Hatchik 404 or "tenant not found":</p>
+      <ul class="check-list">
+        <li>Check the domain's DNS points to Cloudflare (the nameservers we gave you when you signed up). Use <a href="https://www.whatsmydns.net">whatsmydns.net</a> to confirm.</li>
+        <li>Wait up to 24 hours after a DNS change for global propagation.</li>
+        <li>Confirm the TLS certificate has issued — your domain should load on HTTPS without warnings. If you see a cert warning, the wildcard hasn't covered your domain yet (rare; usually self-heals within an hour).</li>
+      </ul>
+      <p>If still broken after 24 hours, email us. Probably a Cloudflare-Caddy DNS-01 hiccup we can fix in a minute.</p>
+    </div>
+
+    <div class="problem">
+      <h2 id="payments-not-real">"My Stripe charges are showing as test mode"</h2>
+      <p>Sandbox tier always runs Stripe in test mode. To accept real payments, upgrade to Launch and replace the test keys in your sandbox's <code>.env</code> with the live keys from your Stripe dashboard. Push and redeploy.</p>
+      <p>If you're on Launch and still seeing test charges, double-check your <code>.env</code> contains <code>STRIPE_SECRET_KEY=sk_live_...</code> (not <code>sk_test_...</code>) and that you've pushed since updating it.</p>
+    </div>
+
+    <h2 id="last-resort">Still stuck?</h2>
+    <p>Email <a href="mailto:hello@hatchik.com">hello@hatchik.com</a> with:</p>
+    <ul>
+      <li>Your sandbox slug (the bit before <span class="mono">.hatchik.com</span>).</li>
+      <li>What you tried.</li>
+      <li>What you saw (screenshots are great).</li>
+      <li>The rough time it happened.</li>
+    </ul>
+    <p>That's enough for us to pull the right logs and reply with a useful answer rather than a back-and-forth.</p>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="border-t border-slate-100 py-10 bg-white mt-16">
+  <div class="max-w-7xl mx-auto px-6 flex flex-col gap-6 text-sm text-slate-500">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="flex items-center gap-2 font-bold text-slate-700">
+        <svg width="28" height="28" viewBox="0 0 92 92" aria-hidden="true" class="inline-block align-middle"><path d="M46 8 C 24 8, 12 32, 12 56 C 12 76, 28 88, 46 88 C 64 88, 80 76, 80 56 C 80 32, 68 8, 46 8 Z" fill="#0F1419"/><rect x="28" y="40" width="36" height="4" fill="#F7FAFC"/><circle cx="46" cy="42" r="3.4" fill="#5B47F0"/></svg>
+        Hatchik
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <a href="https://hatchik.com/account" class="hover:text-indigo-600">My account</a>
+        <a href="https://hatchik.com/privacy" class="hover:text-indigo-600">Privacy</a>
+        <a href="https://hatchik.com/terms" class="hover:text-indigo-600">Terms</a>
+        <a href="https://status.hatchik.com" class="hover:text-indigo-600">Status</a>
+        <a href="/" class="hover:text-indigo-600">Docs</a>
+        <a href="mailto:hello@hatchik.com" class="hover:text-indigo-600">Contact</a>
+        <a href="https://hatchik.com/restore-sandbox" class="hover:text-indigo-600">Restore sandbox</a>
+        <a href="https://hatchik.com/delete-sandbox" class="hover:text-indigo-600">Delete sandbox</a>
+      </div>
+      <div class="text-xs text-slate-400">Host anywhere · You own your code · Built for founders</div>
+    </div>
+    <div class="border-t border-slate-100 pt-6 text-xs text-slate-400 leading-relaxed max-w-3xl">
+      Hatchik is operated globally as a service of a company registered in Muscat, Sultanate of Oman.
+      Payments are processed by Paddle (Paddle.com Market Ltd) as Merchant of Record — Paddle handles
+      VAT, GST and local sales tax in your jurisdiction and appears on your statement as
+      "Paddle.com Market Ltd · Hatchik". Refunds and billing enquiries route through Paddle support.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

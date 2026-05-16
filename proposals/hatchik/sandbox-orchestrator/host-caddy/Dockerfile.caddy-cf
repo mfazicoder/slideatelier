@@ -1,0 +1,14 @@
+# Caddy with the Cloudflare DNS module compiled in.
+# Used by host-level Caddy to solve DNS-01 challenges for the wildcard
+# *.hatchik.com cert.
+#
+# Must be Caddy 2.9+ — Caddy 2.8.4 + cloudflare-dns trips on a
+# zapslog.HandlerOptions API change in newer go.uber.org/zap that the
+# DNS module's transitive deps force-upgrade.
+
+FROM caddy:2.10-builder-alpine AS builder
+RUN xcaddy build \
+    --with github.com/caddy-dns/cloudflare
+
+FROM caddy:2.10-alpine
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy

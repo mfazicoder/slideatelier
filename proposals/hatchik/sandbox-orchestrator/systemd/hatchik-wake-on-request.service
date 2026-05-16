@@ -1,0 +1,26 @@
+[Unit]
+Description=Hatchik wake-on-request HTTP shim (port 18999)
+Documentation=file:///opt/hatchik-orchestrator/runbooks/idle-suspend.md
+After=network.target docker.service
+Requires=docker.service
+# Caddy fronts this; we don't need to block on Caddy starting first —
+# Caddy's handle_errors will just 502 if the shim is briefly unavailable
+# during boot, which is acceptable.
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hatchik-orchestrator
+EnvironmentFile=-/opt/hatchik-orchestrator/.env
+ExecStart=/usr/bin/python3 /opt/hatchik-orchestrator/wake_on_request.py --listen 127.0.0.1:18999
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

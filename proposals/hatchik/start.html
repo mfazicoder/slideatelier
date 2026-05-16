@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Launch your Hatchik</title>
+  <meta name="description" content="Spin up your own SaaS in minutes. Pick your plan, name your idea, and we'll take care of the rest." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🪺%3C/text%3E%3C/svg%3E">
+  <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Brand System v1: indigo → brand violet ramp; add paper/ink tokens.
+  if (typeof tailwind !== 'undefined') {
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper:   '#F7FAFC',
+            'paper-2': '#EEF2F7',
+            line:    '#DDE5EC',
+            ink:     '#0F1419',
+            'ink-2': '#2A3340',
+            mist:    '#6E6E78',
+            indigo: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+            violet: {
+              50:  '#F4F1FE', 100: '#EEEBFD', 200: '#DCD5FC',
+              300: '#C8C0F8', 400: '#A89BF5', 500: '#7C68F3',
+              600: '#5B47F0', 700: '#4231CC', 800: '#2F22A8', 900: '#1F1577',
+            },
+          },
+          fontFamily: {
+            sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['Geist Mono', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    };
+  }
+</script>
+  <!-- NOTE: deploy script overwrites this value with the real Cloudflare
+       Turnstile sitekey before publishing. Until then the widget renders
+       a "site key invalid" warning, which is the expected dev behaviour. -->
+  <script>window.HATCHIK_TURNSTILE_SITEKEY = "<TURNSTILE_SITEKEY_HERE>";</script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: linear-gradient(135deg, #f6f5f1 0%, #faf5ff 100%); }
+    .field-label { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+    .mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+    .gradient-text { background-image: linear-gradient(90deg,#4f46e5 0%,#f59e0b 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+    /* Plan toggle */
+    .plan-card { transition: all .15s ease; cursor: pointer; }
+    .plan-card[data-active="true"] { border-color: #4f46e5; background: #eef2ff; box-shadow: 0 0 0 1px #4f46e5; }
+    .plan-card[data-active="false"]:hover { border-color: #cbd5e1; }
+
+    /* Success step reveal — each li fades in 600ms after the previous */
+    .step { opacity: 0; transform: translateY(4px); transition: opacity .4s ease, transform .4s ease; }
+    .step.in { opacity: 1; transform: translateY(0); }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style id="brand-system-v1_2">
+  /* ── Hatchik Brand System v1.2 (May 2026) ──────────────────────────────
+     Overlay stylesheet — overrides legacy indigo/Inter look with brand
+     violet + Geist + warm paper. Loaded AFTER the page's own <style> so
+     these rules win on equal specificity. */
+  :root {
+    /* Paper + ink */
+    --paper:        #F7FAFC;
+    --paper-2:      #EEF2F7;
+    --line:         #DDE5EC;
+    --line-2:       #C5D0DC;
+    --ink:          #0F1419;
+    --ink-2:        #2A3340;
+    --mist:         #6E6E78;
+    /* Brand violet ramp */
+    --violet:       #5B47F0;
+    --violet-deep:  #4231CC;
+    --violet-tint:  #EEEBFD;
+    --violet-edge:  #C8C0F8;
+    /* Dark surfaces */
+    --slate:        #0C1118;
+    --slate-2:      #161D2A;
+    /* Accents */
+    --green:        #2DB47A;
+    --amber:        #F59E0B;
+    --rose:         #E14B5E;
+    /* Legacy aliases — old pages still reference these */
+    --indigo:       #5B47F0;
+  }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  body {
+    font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+  .mono, code, pre, [class*="font-mono"] {
+    font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Tighten display tracking to match brand system */
+  h1 { letter-spacing: -0.04em; }
+  h2, h3 { letter-spacing: -0.025em; }
+
+  /* Cards — paper-on-paper with line border (brand calls for warm tan
+     in some places; we keep white for content density but ground onto
+     paper bg via body) */
+  .card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .card:hover {
+    border-color: var(--violet-edge);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 8px 30px rgba(91,71,240,0.08);
+  }
+
+  /* Primary CTA — pill, brand violet */
+  .btn-primary {
+    background: var(--violet);
+    color: #FFFFFF;
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.18);
+  }
+  .btn-primary:hover { background: var(--violet-deep); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    font-weight: 500;
+    padding: 0.75rem 1.4rem;
+  }
+  .btn-ghost:hover { border-color: var(--ink); }
+
+  /* Chips — brand mono + uppercase */
+  .chip {
+    background: var(--violet-tint);
+    color: var(--violet-deep);
+    border: 1.5px solid var(--violet-edge);
+    border-radius: 7px;
+    padding: 0.42rem 0.78rem;
+    font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .chip-amber {
+    background: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE68A;
+  }
+  .chip-slate {
+    background: var(--paper-2);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+
+  /* Grain / radial-gradient backgrounds — soften to brand colours */
+  .grain {
+    background-image:
+      radial-gradient(at 12% 8%, rgba(91,71,240,0.10) 0px, transparent 50%),
+      radial-gradient(at 88% 4%, rgba(245,158,11,0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(91,71,240,0.05) 0px, transparent 50%);
+  }
+
+  /* Selected-link colours */
+  a { color: var(--ink); }
+  a:hover { color: var(--violet); }
+
+  /* Tailwind-classname overrides that don't get re-themed via config (the
+     CDN re-runs but pages may have cached the old classes inline) */
+  .text-indigo-600, .text-indigo-700 { color: var(--violet) !important; }
+  .bg-indigo-600, .bg-indigo-500 { background-color: var(--violet) !important; }
+  .bg-indigo-400 { background-color: var(--violet-edge) !important; }
+  .border-indigo-600, .border-indigo-500 { border-color: var(--violet) !important; }
+  .hover\:text-indigo-600:hover { color: var(--violet) !important; }
+  .hover\:bg-indigo-400:hover { background-color: var(--violet-deep) !important; }
+  .hover\:bg-indigo-500:hover { background-color: var(--violet-deep) !important; }
+  .from-indigo-600 { --tw-gradient-from: var(--violet) !important; }
+
+  /* Subtle paper tint on previously-white sections */
+  .bg-white { background-color: #FFFFFF; }
+  .bg-slate-50 { background-color: var(--paper-2) !important; }
+  .bg-gray-50 { background-color: var(--paper-2) !important; }
+  .bg-neutral-50 { background-color: var(--paper-2) !important; }
+
+  /* v1.2 — generic surface-card helper for any new card-on-paper element */
+  .surface-card {
+    background: linear-gradient(155deg, #FFFFFF 0%, var(--paper-2) 100%);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255,255,255,0.7),
+      0 1px 3px 0 rgba(15,20,25,0.04);
+  }
+  .surface-card:hover {
+    border-color: var(--violet-edge);
+  }
+
+</style>
+</head>
+<body class="min-h-screen text-slate-900">
+
+<header class="bg-white/70 backdrop-blur border-b border-slate-200">
+  <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-slate-800">
+      <svg width="28" height="28" viewBox="0 0 92 92" aria-hidden="true" class="inline-block align-middle"><path d="M46 8 C 24 8, 12 32, 12 56 C 12 76, 28 88, 46 88 C 64 88, 80 76, 80 56 C 80 32, 68 8, 46 8 Z" fill="#0F1419"/><rect x="28" y="40" width="36" height="4" fill="#F7FAFC"/><circle cx="46" cy="42" r="3.4" fill="#5B47F0"/></svg>
+      Hatchik
+    </a>
+    <a href="/account" class="text-sm text-slate-600 hover:text-slate-900">My account</a>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 py-10 md:py-16">
+  <div class="text-center">
+    <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">
+      Launch your <span class="gradient-text">Hatchik</span>.
+    </h1>
+    <p class="mt-3 text-slate-600">Four questions and we'll start building.</p>
+  </div>
+
+  <!-- Wizard -->
+  <section id="wizard" class="mt-10 bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-6 md:p-8">
+    <!-- Window chrome to match the marketing mockup -->
+    <div class="flex items-center gap-3 pb-5 mb-5 border-b border-slate-100 text-xs text-slate-500">
+      <span class="flex gap-1.5">
+        <span class="inline-block w-3 h-3 rounded-full bg-rose-400"></span>
+        <span class="inline-block w-3 h-3 rounded-full bg-amber-400"></span>
+        <span class="inline-block w-3 h-3 rounded-full bg-emerald-400"></span>
+      </span>
+      <span class="mono">hatchik.com · launch wizard</span>
+    </div>
+
+    <form id="wizardForm" class="space-y-6" novalidate>
+      <!-- Idea -->
+      <div>
+        <label for="idea" class="field-label">What's your idea?</label>
+        <textarea
+          id="idea"
+          name="idea"
+          rows="2"
+          required
+          placeholder="A meal prep app for my PT clients"
+          class="mt-1 mono w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none"
+        ></textarea>
+      </div>
+
+      <!-- Working name -->
+      <div>
+        <label for="productName" class="field-label">Working name</label>
+        <input
+          id="productName"
+          name="product_name"
+          type="text"
+          required
+          placeholder="PrepSheet"
+          class="mt-1 mono w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+        />
+      </div>
+
+      <!-- Plan picker -->
+      <div>
+        <p class="field-label">Pick your plan</p>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            class="plan-card text-left px-4 py-3 rounded-xl border border-slate-300 bg-white"
+            data-plan="sandbox"
+            data-active="true"
+          >
+            <span class="inline-block text-[10px] font-bold tracking-wide text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 px-1.5 py-0.5 rounded">FREE</span>
+            <span class="ml-2 font-semibold">Sandbox</span>
+            <p class="mt-1 text-xs text-slate-600">Works at <span class="mono">yoursubdomain.hatchik.com</span>. Mobile scaffold + cloud builds wired. No card. Upgrade any time.</p>
+          </button>
+          <button
+            type="button"
+            class="plan-card text-left px-4 py-3 rounded-xl border border-slate-300 bg-white"
+            data-plan="launch"
+            data-active="false"
+          >
+            <span class="inline-block text-[10px] font-bold tracking-wide text-indigo-700 bg-indigo-50 ring-1 ring-indigo-200 px-1.5 py-0.5 rounded">£89</span>
+            <span class="ml-2 font-semibold">Launch</span>
+            <p class="mt-1 text-xs text-slate-600">Your own domain, mailboxes, live payments, dedicated VPS. £14/mo from month 2.</p>
+            <p class="mt-1 text-[11px] text-slate-500">Domain year 1 included* &mdash; popular TLDs (<span class="mono">.com .co .net .org .uk .app .dev .tech</span>). Premium TLDs (<span class="mono">.ai .io .tv .gg .so .me .xyz</span>) we'll still register on request, you cover the balance above £14/yr.</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- First name + Email -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="firstName" class="field-label">First name</label>
+          <input
+            id="firstName"
+            name="first_name"
+            type="text"
+            autocomplete="given-name"
+            placeholder="Alex"
+            class="mt-1 mono w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+          />
+        </div>
+        <div>
+          <label for="email" class="field-label">Your email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="alex@example.com"
+            class="mt-1 mono w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+          />
+        </div>
+      </div>
+
+      <!-- Optional GitHub handle so we can give them owner access on the per-tenant repo -->
+      <div>
+        <label for="githubUsername" class="field-label">Your GitHub handle <span class="font-normal lowercase tracking-normal text-slate-400">(optional)</span></label>
+        <input
+          id="githubUsername"
+          name="github_username"
+          type="text"
+          autocomplete="off"
+          placeholder="alexcoder"
+          pattern="[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}"
+          class="mt-1 mono w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+        />
+        <p class="mt-1 text-xs text-slate-500">We make you a GitHub repository &mdash; that&rsquo;s where your code lives. Drop your handle in if you have one and we&rsquo;ll give you owner access; skip it and we&rsquo;ll email you the link to view it. Don&rsquo;t have a GitHub account yet? You can <a href="https://github.com/signup" target="_blank" rel="noopener" class="underline hover:text-slate-700">create one free</a> in 30 seconds (or skip this &mdash; we&rsquo;ll get you set up properly later).</p>
+      </div>
+
+      <!-- Cloudflare Turnstile — managed mode (low-friction). The widget
+           runs invisibly for most visitors and only surfaces a challenge
+           if it spots automation. -->
+      <div id="turnstileWidget" class="flex justify-center"></div>
+
+      <!-- Required T&Cs consent. Submit stays disabled until this is
+           ticked and the rest of the form is valid. Captured server-side
+           in the signups table (accepted_terms_at) for audit. -->
+      <div class="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+        <input
+          id="acceptedTerms"
+          name="accepted_terms"
+          type="checkbox"
+          required
+          class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <label for="acceptedTerms" class="text-sm text-slate-700 leading-snug">
+          I agree to Hatchik&rsquo;s
+          <a href="/terms" target="_blank" rel="noopener" class="underline hover:text-slate-900">Terms of Service</a>
+          and
+          <a href="/privacy" target="_blank" rel="noopener" class="underline hover:text-slate-900">Privacy Policy</a>.
+        </label>
+      </div>
+
+      <button
+        id="submitBtn"
+        type="submit"
+        disabled
+        class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span id="submitLabel">Start free Sandbox &rarr;</span>
+      </button>
+
+      <p id="wizardError" class="text-xs text-rose-600 text-center hidden"></p>
+      <div id="wizardSandboxExists" class="hidden rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"></div>
+
+      <p class="text-center text-xs text-slate-500">
+        Already have an account?
+        <a href="/account" class="underline hover:text-slate-700">Sign in</a>.
+      </p>
+    </form>
+  </section>
+
+  <!-- Success state -->
+  <section id="successView" class="mt-10 bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-6 md:p-8 hidden">
+    <div class="flex items-center gap-3 pb-5 mb-5 border-b border-slate-100 text-xs text-slate-500">
+      <span class="flex gap-1.5">
+        <span class="inline-block w-3 h-3 rounded-full bg-rose-400"></span>
+        <span class="inline-block w-3 h-3 rounded-full bg-amber-400"></span>
+        <span class="inline-block w-3 h-3 rounded-full bg-emerald-400"></span>
+      </span>
+      <span class="mono">hatchik.com · launching <span id="successSlug">your idea</span>…</span>
+    </div>
+    <ul class="space-y-3 text-sm">
+      <li class="step flex items-start gap-3"><span class="text-emerald-600 mt-0.5">✓</span><span>signup recorded — we're on it.</span></li>
+      <li class="step flex items-start gap-3"><span class="text-emerald-600 mt-0.5">✓</span><span>sandbox being built at <span id="successUrl" class="mono text-indigo-600">prepsheet.hatchik.com</span></span></li>
+      <li class="step flex items-start gap-3"><span class="text-emerald-600 mt-0.5">✓</span><span>your owner sign-in link is on its way to <span id="successEmail" class="mono">alex@example.com</span> &mdash; should land in a few mins.</span></li>
+      <li class="step flex items-start gap-3"><span class="text-emerald-600 mt-0.5">✓</span><span>ready in a few mins — keep an eye on your inbox.</span></li>
+    </ul>
+    <div class="mt-6 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-xs text-slate-600 space-y-1">
+      <p><strong class="text-slate-700">A few things to know about your free Sandbox:</strong></p>
+      <p>&bull; Archived if idle for 30 days (we email you first &mdash; restorable any time).</p>
+      <p>&bull; Capped at 3 users and 100 MB of database storage &mdash; plenty for kicking the tyres.</p>
+      <p>&bull; Includes a one-off &pound;0.50 of AI credit to wire up your first AI-powered feature.</p>
+    </div>
+    <div class="mt-8 flex flex-col sm:flex-row gap-3">
+      <a href="/account" class="flex-1 text-center px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition">Track your sandbox in your account &rarr;</a>
+      <a href="/" class="flex-1 text-center px-5 py-3 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium transition">Back to home</a>
+    </div>
+  </section>
+
+  <p class="mt-8 text-center text-xs text-slate-500">
+    <a href="/privacy" class="underline hover:text-slate-700">Privacy</a> · <a href="/terms" class="underline hover:text-slate-700">Terms</a>
+  </p>
+</main>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const form = $('wizardForm');
+  const submitBtn = $('submitBtn');
+  const submitLabel = $('submitLabel');
+  const errorEl = $('wizardError');
+  const sandboxExistsEl = $('wizardSandboxExists');
+  const planCards = document.querySelectorAll('[data-plan]');
+  const successView = $('successView');
+
+  let plan = 'sandbox';
+  let turnstileWidgetId = null;
+  let turnstileToken = '';
+
+  // Render Turnstile once the script has loaded. ``window.turnstile`` is
+  // attached by Cloudflare's api.js — we poll briefly in case the widget
+  // script is still in-flight when the page initialises.
+  function renderTurnstile() {
+    const sitekey = window.HATCHIK_TURNSTILE_SITEKEY || '';
+    if (!sitekey || sitekey.indexOf('TURNSTILE_SITEKEY_HERE') !== -1) {
+      // Dev / pre-deploy: no real key configured. Server will skip
+      // verification when its secret is also unset.
+      return;
+    }
+    if (!window.turnstile) {
+      setTimeout(renderTurnstile, 200);
+      return;
+    }
+    turnstileWidgetId = window.turnstile.render('#turnstileWidget', {
+      sitekey: sitekey,
+      callback: (token) => { turnstileToken = token; },
+      'error-callback': () => { turnstileToken = ''; },
+      'expired-callback': () => { turnstileToken = ''; },
+    });
+  }
+  renderTurnstile();
+
+  // Preselect plan from ?plan=launch URL param.
+  const urlPlan = new URLSearchParams(location.search).get('plan');
+  if (urlPlan === 'launch' || urlPlan === 'sandbox') {
+    selectPlan(urlPlan);
+  }
+
+  function selectPlan(next) {
+    plan = next;
+    planCards.forEach(card => card.dataset.active = String(card.dataset.plan === next));
+    submitLabel.innerHTML = next === 'sandbox'
+      ? 'Start free Sandbox &rarr;'
+      : 'Continue to checkout (£89) &rarr;';
+  }
+  planCards.forEach(card => {
+    card.addEventListener('click', () => selectPlan(card.dataset.plan));
+  });
+
+  // Submit stays disabled until required text fields are non-empty AND
+  // the T&Cs checkbox is ticked. Mirrors the server-side gate so the
+  // customer can't tab past the checkbox and get a confusing 422.
+  const acceptedTerms = $('acceptedTerms');
+  function updateSubmitState() {
+    const email = ($('email').value || '').trim();
+    const idea = ($('idea').value || '').trim();
+    const ok = !!email && !!idea && acceptedTerms.checked;
+    submitBtn.disabled = !ok;
+  }
+  ['email', 'idea', 'productName', 'firstName', 'githubUsername'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('input', updateSubmitState);
+  });
+  acceptedTerms.addEventListener('change', updateSubmitState);
+  updateSubmitState();
+
+  function slugify(s) {
+    return (s || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'untitled';
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.add('hidden');
+    sandboxExistsEl.classList.add('hidden');
+    const firstName = ($('firstName').value || '').trim();
+    const email = ($('email').value || '').trim();
+    const idea = ($('idea').value || '').trim();
+    const productName = ($('productName').value || '').trim() || idea.slice(0, 80);
+    const githubUsername = ($('githubUsername').value || '').trim().replace(/^@/, '');
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return showError('Please enter a valid email address.');
+    }
+    if (!idea) {
+      return showError('Tell us one line about your idea.');
+    }
+    if (!productName) {
+      return showError('Give your idea a working name.');
+    }
+    if (githubUsername && !/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(githubUsername)) {
+      return showError("That doesn't look like a GitHub username. Leave it blank if you'd rather we handle it.");
+    }
+    if (!acceptedTerms.checked) {
+      return showError("Please tick the box to accept our Terms of Service and Privacy Policy.");
+    }
+
+    submitBtn.disabled = true;
+    submitLabel.textContent = 'Launching…';
+
+    try {
+      const res = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: firstName,
+          email,
+          idea,
+          product_name: productName,
+          tier: plan,
+          github_username: githubUsername,
+          accepted_terms: true,
+          turnstile_token: turnstileToken,
+          source: 'launch-wizard',
+        })
+      });
+      // 409 = the customer already has an active Sandbox. The API returns
+      // {ok:false, error:'sandbox_exists', message:'...'} — surface the
+      // message verbatim with a link to /delete-sandbox.
+      if (res.status === 409) {
+        let body = {};
+        try { body = await res.json(); } catch (_) { /* fall through */ }
+        const msg = (body && body.message)
+          ? body.message
+          : 'You already have a Sandbox. Delete it first if you want to start fresh.';
+        showError(msg, { linkSandboxDelete: true });
+        return;
+      }
+      if (res.status === 422) {
+        // Structured abuse-protection rejection (disposable email,
+        // turnstile fail, blocked region). Surface the server's message
+        // inline rather than silently optimistic-completing.
+        let serverMsg = 'Please check the form and try again.';
+        try {
+          const body = await res.json();
+          serverMsg = (body && body.detail && body.detail.message) || serverMsg;
+        } catch (_) { /* fall through to default */ }
+        if (turnstileWidgetId !== null && window.turnstile) {
+          window.turnstile.reset(turnstileWidgetId);
+          turnstileToken = '';
+        }
+        submitBtn.disabled = false;
+        submitLabel.innerHTML = plan === 'sandbox' ? 'Start free Sandbox &rarr;' : 'Continue to checkout (£89) &rarr;';
+        return showError(serverMsg);
+      }
+      if (!res.ok && res.status !== 201) {
+        throw new Error('Bad response');
+      }
+      showSuccess(email, productName);
+    } catch (err) {
+      // Optimistic: still show success if the endpoint is misbehaving — the
+      // founder is hand-onboarding as a fallback and a hard error here just
+      // costs us a signup. (Same anti-friction posture as the inline form.)
+      showSuccess(email, productName);
+    }
+  });
+
+  function showError(msg, opts) {
+    opts = opts || {};
+    submitBtn.disabled = false;
+    submitLabel.innerHTML = plan === 'sandbox'
+      ? 'Start free Sandbox &rarr;'
+      : 'Continue to checkout (£89) &rarr;';
+    if (opts.linkSandboxDelete) {
+      // The 409-sandbox-exists case gets its own red banner — the message
+      // is multi-sentence and needs an actionable link to /delete-sandbox.
+      sandboxExistsEl.innerHTML = '';
+      const p = document.createElement('p');
+      p.textContent = msg;
+      sandboxExistsEl.appendChild(p);
+      const linkRow = document.createElement('p');
+      linkRow.className = 'mt-2';
+      const a = document.createElement('a');
+      a.href = '/delete-sandbox';
+      a.className = 'inline-block font-semibold underline hover:no-underline';
+      a.textContent = 'Delete the existing Sandbox →';
+      linkRow.appendChild(a);
+      sandboxExistsEl.appendChild(linkRow);
+      sandboxExistsEl.classList.remove('hidden');
+      errorEl.classList.add('hidden');
+    } else {
+      errorEl.textContent = msg;
+      errorEl.classList.remove('hidden');
+    }
+    return false;
+  }
+
+  function showSuccess(email, productName) {
+    const slug = slugify(productName);
+    $('successSlug').textContent = productName;
+    $('successUrl').textContent = slug + '.hatchik.com';
+    $('successEmail').textContent = email;
+    form.parentElement.classList.add('hidden');
+    successView.classList.remove('hidden');
+    // Reveal steps one-by-one for a "wizard" feel.
+    const steps = successView.querySelectorAll('.step');
+    steps.forEach((s, i) => setTimeout(() => s.classList.add('in'), 200 + i * 500));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+})();
+</script>
+
+</body>
+</html>

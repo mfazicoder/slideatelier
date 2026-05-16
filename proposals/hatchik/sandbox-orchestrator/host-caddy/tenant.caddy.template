@@ -1,0 +1,49 @@
+# Tenant route template (wake-on-request enabled).
+#
+# provision.py renders this into /etc/caddy/tenants.d/<slug>.caddy.
+# Substituted vars:
+#   {{SLUG}}          → prepsheet
+#   {{TENANT_PORT}}   → 18000
+#
+# This template SUPERSEDES the earlier always-on tenant.caddy.template
+# from when sandboxes were perma-running. The reverse_proxy still targets
+# the tenant's localhost port first; only when that port is unreachable
+# (warm-suspended) does Caddy fall through to the wake shim.
+
+{{SLUG}}.hatchik.com {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    encode gzip zstd
+
+    # ── Primary path: hit the tenant directly. ──────────────────────────
+    # Caddy returns 502 if the upstream connection is refused (warm-
+    # suspended) or times out. We tighten timeouts so the wake fallback
+    # fires within ~2s rather than the 30s default — customer perceived
+    # latency on first hit matters here.
+    reverse_proxy localhost:{{TENANT_PORT}} {
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+        transport http {
+            dial_timeout 2s
+            response_header_timeout 5s
+        }
+    }
+
+    # ── Fallback: tenant is suspended — wake it. ────────────────────────
+    # The wake shim (hatchik-wake-on-request.service) lives on :18999 and
+    # reads the original Host header (preserved by reverse_proxy by
+    # default) to identify which slug to start. It returns 200 with a
+    # meta-refresh splash on success, 503 with Retry-After on failure.
+    handle_errors {
+        @upstream_down expression `{err.status_code} == 502`
+        reverse_proxy @upstream_down localhost:18999
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
