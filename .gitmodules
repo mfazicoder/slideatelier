@@ -1,4 +1,0 @@
-[submodule "proposals/hatchik/substrate-template"]
-	path = proposals/hatchik/substrate-template
-	url = https://github.com/mfazicoder/hatchik-substrate-template.git
-	branch = main
