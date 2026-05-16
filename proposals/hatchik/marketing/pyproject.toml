@@ -1,0 +1,50 @@
+[project]
+name = "hatchik-marketing"
+version = "0.1.0"
+description = "Autonomous marketing-agent service for Hatchik (and the productized Autonomous Growth tier)."
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = [
+    "anthropic>=0.40,<1.0",
+    "pydantic>=2.7,<3.0",
+    "python-dotenv>=1.0,<2.0",
+    "httpx>=0.27,<1.0",
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9.0",
+    "pytest-asyncio>=0.23,<1.0",
+    "ruff>=0.6,<1.0",
+]
+# `distribute` adds the runtime deps for the Phase 3 distribution
+# pipeline. Kept optional so the agent + queue can be tested and
+# iterated without pulling in tweepy/posthog. Install with:
+#   pip install -e ".[dev,distribute]"
+distribute = [
+    "tweepy>=4.14,<5.0",
+    "posthog>=3.0,<4.0",
+]
+# `multitenant` enables Phase 5 per-tenant encrypted API keys.
+# Optional because the founder tenant (id=1) can run on env vars
+# alone. Customer tenants supplied their own keys need this.
+multitenant = [
+    "cryptography>=42,<46",
+]
+
+[project.scripts]
+marketing = "marketing.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["marketing*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
