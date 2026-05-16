@@ -312,6 +312,7 @@
     <button data-tab="services"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Services</button>
     <button data-tab="ai-credit" class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">AI credit</button>
     <button data-tab="activity"  class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Activity</button>
+    <button data-tab="agents"    class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Agents</button>
     <button data-tab="mobile"    class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Mobile</button>
     <button data-tab="upgrade"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Upgrade</button>
     <button data-tab="billing"   class="py-3 -mb-px border-b-2 border-transparent text-slate-600 hover:text-slate-900">Billing</button>
@@ -339,6 +340,40 @@
       </p>
       <div id="servicesBody" class="mt-6">
         <p class="text-sm text-slate-500">Loading service inventory&hellip;</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agents tab -->
+  <div data-tab-panel="agents" class="mt-8 hidden">
+    <div class="bg-white rounded-2xl ring-1 ring-slate-200 p-8 mb-6">
+      <h2 class="text-xl font-bold">Operator agents</h2>
+      <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+        AI agents that handle your back-office &mdash; support triage, cohort analytics,
+        AR chasing &mdash; on a schedule. Some actions run automatically (auto-replies
+        to FAQ questions, day-1 payment reminders). Others wait for your sign-off
+        below before they execute (escalations, day-7+ chases, anything destructive).
+      </p>
+
+      <div class="mt-6">
+        <p class="text-sm font-semibold text-slate-800">Pending your approval</p>
+        <div id="agentPending" class="mt-3">
+          <p class="text-sm text-slate-500 italic">Loading&hellip;</p>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <p class="text-sm font-semibold text-slate-800">Available agents</p>
+        <div id="agentList" class="mt-3 space-y-3">
+          <p class="text-sm text-slate-500 italic">Loading&hellip;</p>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <p class="text-sm font-semibold text-slate-800">Recent runs</p>
+        <div id="agentRuns" class="mt-3">
+          <p class="text-sm text-slate-500 italic">Loading&hellip;</p>
+        </div>
       </div>
     </div>
   </div>
@@ -872,6 +907,117 @@
     });
   }
 
+  async function renderAgents() {
+    const list = $('agentList');
+    const pending = $('agentPending');
+    const runs = $('agentRuns');
+    if (!list || !pending || !runs) return;
+    try {
+      const data = await fetchJSON('/api/account/agents');
+      // ── Available agents
+      const agents = data.agents || [];
+      if (!agents.length) {
+        list.innerHTML = `<p class="text-sm text-slate-500">No agents available on your tier yet.</p>`;
+      } else {
+        list.innerHTML = agents.map(a => `
+          <div class="flex items-start justify-between gap-4 p-4 rounded-xl ring-1 ring-slate-200 bg-white">
+            <div class="min-w-0 flex-1">
+              <p class="font-mono text-sm font-semibold text-slate-900">${escapeHtml(a.agent_name)}</p>
+              <p class="mt-1 text-sm text-slate-600">${escapeHtml(a.description)}</p>
+              <p class="mt-1 text-xs text-slate-500">Schedule: <span class="mono">${escapeHtml(a.schedule)}</span></p>
+            </div>
+            <label class="inline-flex items-center cursor-pointer shrink-0">
+              <input type="checkbox" data-agent-toggle="${escapeHtml(a.agent_name)}" ${a.enabled ? 'checked' : ''}
+                class="sr-only peer" />
+              <div class="relative w-11 h-6 bg-slate-200 peer-checked:bg-indigo-600 rounded-full transition">
+                <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-5"></div>
+              </div>
+            </label>
+          </div>
+        `).join('');
+        list.querySelectorAll('[data-agent-toggle]').forEach(cb => {
+          cb.addEventListener('change', async () => {
+            const name = cb.getAttribute('data-agent-toggle');
+            try {
+              await fetchJSON('/api/account/agents/enable', {
+                method: 'POST',
+                body: JSON.stringify({ agent_name: name, enabled: cb.checked }),
+              });
+            } catch (e) {
+              cb.checked = !cb.checked;
+            }
+          });
+        });
+      }
+      // ── Pending approvals
+      const pendList = data.pending_actions || [];
+      if (!pendList.length) {
+        pending.innerHTML = `<p class="text-sm text-slate-500">Nothing waiting for you. Agents will surface drafts here when they need your sign-off.</p>`;
+      } else {
+        pending.innerHTML = pendList.map(a => {
+          const conf = a.confidence ? `${Math.round(a.confidence * 100)}%` : '—';
+          const payloadStr = a.payload && Object.keys(a.payload).length
+            ? `<details class="mt-2"><summary class="text-xs text-slate-500 cursor-pointer">payload</summary>
+                 <pre class="mt-2 text-xs mono bg-slate-50 ring-1 ring-slate-200 rounded p-2 overflow-x-auto">${escapeHtml(JSON.stringify(a.payload, null, 2))}</pre></details>`
+            : '';
+          return `<div class="p-4 rounded-xl ring-1 ring-amber-200 bg-amber-50/50 mb-3">
+            <div class="flex items-baseline justify-between gap-2 flex-wrap">
+              <p class="font-medium text-slate-900">${escapeHtml(a.summary)}</p>
+              <span class="text-xs text-slate-500 mono">${escapeHtml(a.agent_name)} &middot; conf ${conf}</span>
+            </div>
+            ${a.rationale ? `<p class="mt-2 text-xs text-slate-600 italic">${escapeHtml(a.rationale)}</p>` : ''}
+            ${payloadStr}
+            <div class="mt-3 flex gap-2">
+              <button data-approve="${a.id}" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium">Approve &amp; run</button>
+              <button data-reject="${a.id}" class="px-3 py-1.5 rounded-lg ring-1 ring-slate-300 hover:bg-slate-50 text-xs text-slate-700">Skip</button>
+            </div>
+          </div>`;
+        }).join('');
+        pending.querySelectorAll('[data-approve], [data-reject]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-approve') || btn.getAttribute('data-reject');
+            const decision = btn.hasAttribute('data-approve') ? 'approve' : 'reject';
+            btn.disabled = true;
+            try {
+              await fetchJSON(`/api/account/agents/actions/${encodeURIComponent(id)}/decide`, {
+                method: 'POST', body: JSON.stringify({ decision }),
+              });
+              await renderAgents();
+            } catch (e) {
+              btn.disabled = false;
+            }
+          });
+        });
+      }
+      // ── Recent runs
+      const r = data.recent_runs || [];
+      if (!r.length) {
+        runs.innerHTML = `<p class="text-sm text-slate-500">No agent runs yet.</p>`;
+      } else {
+        runs.innerHTML = `<ul class="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200 bg-white px-4">${
+          r.map(run => {
+            const when = new Date(run.started_at).toLocaleString();
+            const dur = run.finished_at ? (new Date(run.finished_at) - new Date(run.started_at))/1000 + 's' : 'running';
+            const statusCls = run.status === 'ok' ? 'text-emerald-700'
+              : run.status === 'error' ? 'text-rose-700' : 'text-amber-700';
+            const cost = run.llm_cost_pence ? ` · £${(run.llm_cost_pence/100).toFixed(3)}` : '';
+            return `<li class="py-3 first:pt-0 last:pb-0">
+              <div class="flex items-baseline justify-between gap-2 flex-wrap">
+                <span class="font-mono text-sm">${escapeHtml(run.agent_name)}</span>
+                <span class="text-xs ${statusCls}">${escapeHtml(run.status)} &middot; ${dur}${cost}</span>
+              </div>
+              <p class="mt-0.5 text-xs text-slate-500">${escapeHtml(when)}</p>
+              ${run.notes ? `<p class="mt-1 text-sm text-slate-700">${escapeHtml(run.notes)}</p>` : ''}
+            </li>`;
+          }).join('')
+        }</ul>`;
+      }
+    } catch (e) {
+      list.innerHTML = pending.innerHTML = runs.innerHTML =
+        `<p class="text-sm text-rose-700">Couldn't load agents.</p>`;
+    }
+  }
+
   async function renderActivity() {
     const body = $('activityBody');
     try {
@@ -1090,6 +1236,7 @@
       renderServices(me.sandboxes || []);
       renderAiCredit(me.sandboxes || []);
       renderActivity();
+      renderAgents();
       renderApiKeys();
       renderAiTokens();
       show('dashboard');
