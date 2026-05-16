@@ -15,12 +15,13 @@ import argparse
 import json
 import sys
 
-from . import budget, config, db, schema, seed as seed_mod, strategy, tenant
+from . import budget, config, content, db, schema, seed as seed_mod, strategy, tenant
 
 
 AGENTS = {
     "hello": "marketing.agents.hello",
     "persona": "marketing.agents.persona",
+    "content": "marketing.agents.content",
 }
 
 
@@ -40,10 +41,22 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"unknown agent {args.agent!r}. known: {sorted(AGENTS)}", file=sys.stderr)
         return 2
     module = __import__(AGENTS[args.agent], fromlist=["run"])
-    result = module.run(tenant_slug=args.tenant)
+
+    if args.agent == "content":
+        from .agents.content import BatchPlan
+        plan = BatchPlan(
+            x_tweet=args.tweets,
+            x_thread=args.threads,
+            linkedin=args.linkedin,
+            blog=args.blog,
+            email=args.email,
+        )
+        result = module.run(tenant_slug=args.tenant, plan=plan, seed=args.seed)
+    else:
+        result = module.run(tenant_slug=args.tenant)
 
     # Agents either return one-shot text (hello) or a structured summary
-    # (persona) — print whichever shape we got.
+    # (persona, content) — print whichever shape we got.
     if "text" in result:
         print(result["text"].strip())
     elif args.agent == "persona":
@@ -52,6 +65,18 @@ def cmd_run(args: argparse.Namespace) -> int:
             f"{result['pillars']} pillars, {result['sub_personas']} sub-personas, "
             f"{result['total_angles']} angles. Use `strategy show` to inspect."
         )
+    elif args.agent == "content":
+        print(
+            f"queued {result['items_queued']}/{result['items_planned']} drafts "
+            f"(strategy v{result['strategy_version']}):"
+        )
+        for it in result["items"]:
+            print(f"  #{it['item_id']:>4}  {it['channel']:<10}  {it['pillar']}")
+            print(f"          ↳ {it['angle']}")
+        if result.get("errors"):
+            print(f"\n{len(result['errors'])} error(s):", file=sys.stderr)
+            for e in result["errors"]:
+                print(f"  - {e}", file=sys.stderr)
     else:
         print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
 
@@ -67,6 +92,115 @@ def cmd_run(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     return 0
+
+
+def cmd_queue_list(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        rows = content.list_queue(
+            conn, tenant_id=t.id, status=args.status, limit=args.limit
+        )
+        if not rows:
+            print(f"queue empty (tenant={t.slug}, status={args.status or 'any'})")
+            return 0
+        for r in rows:
+            meta = json.loads(r["metadata_json"])
+            angle = meta.get("angle_hook", "")
+            preview = r["body"][:80].replace("\n", " ")
+            print(
+                f"  #{r['id']:>4}  {r['status']:<9}  {r['channel']:<10}  {preview!r}"
+            )
+            if angle:
+                print(f"          ↳ {angle[:100]}")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_queue_show(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        row = content.get_item(conn, tenant_id=t.id, item_id=args.item_id)
+        if row is None:
+            print(f"no item id={args.item_id} for tenant {t.slug!r}", file=sys.stderr)
+            return 1
+        meta = json.loads(row["metadata_json"])
+        print(f"=== item #{row['id']}  ({row['channel']}, {row['status']}) ===")
+        print(f"created_at:   {row['created_at']}")
+        if row["posted_at"]:
+            print(f"posted_at:    {row['posted_at']}")
+        if row["scheduled_for"]:
+            print(f"scheduled:    {row['scheduled_for']}")
+        if row["rejection_reason"]:
+            print(f"rejected:     {row['rejection_reason']}")
+        print(f"pillar:       {meta.get('pillar', '?')}")
+        print(f"angle:        {meta.get('angle_hook', '?')}")
+        print()
+        print(row["body"])
+        # Print structured metadata that isn't pillar/angle.
+        extra = {k: v for k, v in meta.items() if k not in ("pillar", "angle_hook")}
+        if extra:
+            print("\n--- metadata ---")
+            print(json.dumps(extra, indent=2, ensure_ascii=False))
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_queue_approve(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        ok = content.approve(conn, tenant_id=t.id, item_id=args.item_id)
+        if ok:
+            print(f"#{args.item_id} approved.")
+            return 0
+        print(
+            f"#{args.item_id} not transitioned — already non-pending, or wrong tenant.",
+            file=sys.stderr,
+        )
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_queue_reject(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        ok = content.reject(
+            conn, tenant_id=t.id, item_id=args.item_id, reason=args.reason
+        )
+        if ok:
+            print(f"#{args.item_id} rejected.")
+            return 0
+        print(
+            f"#{args.item_id} not transitioned — already non-pending, or wrong tenant.",
+            file=sys.stderr,
+        )
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_queue_stats(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        stats = content.queue_stats(conn, tenant_id=t.id)
+        total = sum(stats.values())
+        if total == 0:
+            print(f"queue empty (tenant={t.slug})")
+            return 0
+        print(f"queue (tenant={t.slug}, total={total}):")
+        for s in ("pending", "approved", "rejected", "scheduled", "posted", "failed"):
+            if s in stats:
+                print(f"  {s:<10} {stats[s]}")
+        return 0
+    finally:
+        conn.close()
 
 
 def cmd_strategy_show(args: argparse.Namespace) -> int:
@@ -148,6 +282,13 @@ def main(argv: list[str] | None = None) -> int:
     run_p = sub.add_parser("run", help="invoke a named agent")
     run_p.add_argument("agent", choices=sorted(AGENTS))
     run_p.add_argument("--tenant", default="hatchik")
+    # `content` knobs — ignored by other agents
+    run_p.add_argument("--tweets", type=int, default=3, help="x_tweet count (content)")
+    run_p.add_argument("--threads", type=int, default=1, help="x_thread count (content)")
+    run_p.add_argument("--linkedin", type=int, default=1, help="linkedin count (content)")
+    run_p.add_argument("--blog", type=int, default=0, help="blog outline count (content)")
+    run_p.add_argument("--email", type=int, default=0, help="email count (content)")
+    run_p.add_argument("--seed", type=int, default=None, help="rng seed for reproducible angle picks")
     run_p.set_defaults(func=cmd_run)
 
     runs_p = sub.add_parser("runs", help="recent agent runs")
@@ -165,6 +306,39 @@ def main(argv: list[str] | None = None) -> int:
     strat_show.add_argument("--tenant", default="hatchik")
     strat_show.add_argument("--json", action="store_true", help="emit full JSON instead of a summary")
     strat_show.set_defaults(func=cmd_strategy_show)
+
+    queue_p = sub.add_parser("queue", help="content approval queue")
+    queue_sub = queue_p.add_subparsers(dest="queue_cmd", required=True)
+
+    q_list = queue_sub.add_parser("list", help="list items in the queue")
+    q_list.add_argument("--tenant", default="hatchik")
+    q_list.add_argument(
+        "--status",
+        choices=["pending", "approved", "rejected", "scheduled", "posted", "failed"],
+        default=None,
+    )
+    q_list.add_argument("--limit", type=int, default=20)
+    q_list.set_defaults(func=cmd_queue_list)
+
+    q_show = queue_sub.add_parser("show", help="show one item by id")
+    q_show.add_argument("item_id", type=int)
+    q_show.add_argument("--tenant", default="hatchik")
+    q_show.set_defaults(func=cmd_queue_show)
+
+    q_approve = queue_sub.add_parser("approve", help="approve a pending item")
+    q_approve.add_argument("item_id", type=int)
+    q_approve.add_argument("--tenant", default="hatchik")
+    q_approve.set_defaults(func=cmd_queue_approve)
+
+    q_reject = queue_sub.add_parser("reject", help="reject a pending item")
+    q_reject.add_argument("item_id", type=int)
+    q_reject.add_argument("--reason", required=True)
+    q_reject.add_argument("--tenant", default="hatchik")
+    q_reject.set_defaults(func=cmd_queue_reject)
+
+    q_stats = queue_sub.add_parser("stats", help="count items by status")
+    q_stats.add_argument("--tenant", default="hatchik")
+    q_stats.set_defaults(func=cmd_queue_stats)
 
     args = parser.parse_args(argv)
     return args.func(args)

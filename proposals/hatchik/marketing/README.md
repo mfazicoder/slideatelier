@@ -17,7 +17,8 @@ Layer 5  Self-Improvement      A/B + auto-promote winners, monthly
 |---|---|---|
 | 0 | foundation: schema, tenants, budget gate, runs, prompts, hello agent | ✅ |
 | 1 | Layer 1 — persona/strategy agent (Opus 4.7) + `marketing_strategies` versioning | ✅ |
-| 2 | Layer 2 — content agent (Sonnet 4.6) + approval queue (Next.js admin) | — |
+| 2a | Layer 2 — content agent (Sonnet 4.6) + CLI approval queue | ✅ |
+| 2b | Mobile-friendly Next.js admin dashboard over the queue | — |
 | 3 | Layer 3 — distribution (X API, Resend, PostHog, blog) + scheduler | — |
 | 4 | Layer 4 — weekly analysis loop, strategy auto-update | — |
 | 5 | Layer 5 — A/B experiments + multi-tenant onboarding | — |
@@ -45,13 +46,21 @@ pip install -e ".[dev]"
 cp .env.example .env
 # edit .env and set HATCHIK_ANTHROPIC_MASTER_KEY (see "Where the API key lives" below)
 
-python -m marketing.cli init                  # schema + seeds 'hatchik' tenant w/ competitors
-python -m marketing.cli run hello             # smoke: one-sentence Hatchik positioning
-python -m marketing.cli run persona           # Layer 1: full strategy (ICP, voice, 5 pillars × 8-10 angles)
-python -m marketing.cli strategy show         # human-readable summary of current strategy
-python -m marketing.cli strategy show --json  # full strategy as JSON
-python -m marketing.cli runs --limit=5        # last 5 agent runs (any layer)
-python -m marketing.cli spend                 # rolling 24h spend
+python -m marketing.cli init                          # schema + seeds 'hatchik' tenant w/ competitors
+python -m marketing.cli run hello                     # smoke: one-sentence Hatchik positioning
+python -m marketing.cli run persona                   # Layer 1: full strategy (ICP, voice, 5 pillars × 8-10 angles)
+python -m marketing.cli strategy show                 # human-readable summary of current strategy
+python -m marketing.cli strategy show --json          # full strategy as JSON
+python -m marketing.cli run content                   # Layer 2: daily content batch (default 3 tweets + 1 thread + 1 LinkedIn)
+python -m marketing.cli run content --blog=1          # also drop a blog outline this run
+python -m marketing.cli queue list                    # all queued drafts, newest first
+python -m marketing.cli queue list --status=pending   # filter
+python -m marketing.cli queue show 7                  # full body + metadata for item #7
+python -m marketing.cli queue approve 7               # mark approved (pending → approved)
+python -m marketing.cli queue reject 8 --reason="too generic"
+python -m marketing.cli queue stats                   # counts by status
+python -m marketing.cli runs --limit=10               # last N agent runs (any layer)
+python -m marketing.cli spend                         # rolling 24h spend
 ```
 
 The persona agent reads `proposals/hatchik/PRODUCT_OFFERING.md` and
@@ -109,16 +118,20 @@ marketing/
 │   ├── anthropic_client.py     # SDK wrapper: budget gate → call → log
 │   ├── seed.py                 # idempotent Hatchik tenant insert (+ competitors)
 │   ├── strategy.py             # Pydantic Strategy schema + marketing_strategies CRUD
+│   ├── content.py              # ContentDraft schemas + marketing_content_queue CRUD + state machine
 │   ├── cli.py                  # `python -m marketing.cli …`
 │   └── agents/
 │       ├── hello.py            # Phase-0 smoke agent
-│       └── persona.py          # Phase-1 Layer-1 strategy agent (Opus 4.7, cached)
+│       ├── persona.py          # Phase-1 Layer-1 strategy agent (Opus 4.7, cached)
+│       └── content.py          # Phase-2 Layer-2 content agent (Sonnet 4.6, cached batch)
 ├── prompts/
 │   ├── hello/v1.md
-│   └── persona/v1.md
+│   ├── persona/v1.md
+│   └── content/v1.md
 └── tests/
-    ├── test_phase0.py          # 6 tests
-    └── test_phase1.py          # 8 tests (Strategy schema, save/current, mocked persona end-to-end)
+    ├── test_phase0.py          #  6 tests
+    ├── test_phase1.py          #  8 tests
+    └── test_phase2.py          # 12 tests (content schemas, angle picker, queue state machine, mocked agent)
 ```
 
 ## Tests
@@ -134,9 +147,9 @@ exercise schema, seed, budget gate, prompt loader, and the
 
 ## What ships in later phases
 
-- **Phase 2** — `agents/content.py` (Layer 2, Sonnet 4.6) + Next.js approval dashboard
-- **Phase 3** — `integrations/x.py`, `integrations/resend.py`, `integrations/posthog.py`; scheduler/worker draining `marketing_jobs`
-- **Phase 4** — `agents/analyze.py` (Layer 4); auto-updates the strategy from outcomes
+- **Phase 2b** — mobile-friendly Next.js admin dashboard sitting over the same queue (swipe approve/reject); for now the CLI does the same job
+- **Phase 3** — `integrations/x.py`, `integrations/resend.py`, `integrations/posthog.py`; scheduler/worker draining `marketing_jobs`; approved items auto-flow to distribution
+- **Phase 4** — `agents/analyze.py` (Layer 4); auto-updates the strategy from outcomes (signups attributed via PostHog, engagement from X API, etc.)
 - **Phase 5** — multi-tenant onboarding flow; encrypted per-tenant keys in `marketing_tenant_api_keys`; optional Notion mirror of strategy doc
 
 ## Non-negotiables
