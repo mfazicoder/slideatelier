@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 
 from . import (
@@ -25,6 +26,7 @@ from . import (
     distribute as distribute_mod,
     jobs as jobs_mod,
     schema,
+    secrets as secrets_mod,
     seed as seed_mod,
     strategy,
     tenant,
@@ -214,6 +216,123 @@ def cmd_queue_reject(args: argparse.Namespace) -> int:
         return 1
     finally:
         conn.close()
+
+
+def cmd_tenant_create(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        schema.ensure_schema(conn)
+        try:
+            tid = tenant.create(
+                conn,
+                slug=args.slug,
+                signup_id=args.signup_id,
+                product_url=args.product_url,
+                spend_cap_daily_usd=args.cap_usd,
+            )
+        except sqlite3.IntegrityError as exc:
+            print(f"create failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"tenant '{args.slug}' created with id={tid}, cap=${args.cap_usd:.2f}")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_tenant_list(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        for t in tenant.list_all(conn):
+            sid = t.signup_id if t.signup_id is not None else "—"
+            print(
+                f"  #{t.id:>2}  {t.slug:<20}  {t.status:<8}  "
+                f"signup={sid}  cap=${t.spend_cap_daily_usd:.2f}  url={t.product_url or '—'}"
+            )
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_tenant_show(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        print(f"id:                  {t.id}")
+        print(f"slug:                {t.slug}")
+        print(f"signup_id:           {t.signup_id}")
+        print(f"product_url:         {t.product_url}")
+        print(f"status:              {t.status}")
+        print(f"spend_cap_daily_usd: {t.spend_cap_daily_usd}")
+        if t.settings:
+            print(f"settings:")
+            print(json.dumps(t.settings, indent=2, ensure_ascii=False))
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_tenant_key_set(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        try:
+            secrets_mod.set_key(
+                conn, tenant_id=t.id, provider=args.provider, plaintext=args.value
+            )
+        except (secrets_mod.MissingMasterKey, secrets_mod.MissingCryptoLib) as exc:
+            print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
+        print(f"key '{args.provider}' set for tenant '{t.slug}'.")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_tenant_key_list(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        rows = secrets_mod.list_providers(conn, tenant_id=t.id)
+        if not rows:
+            print(f"no keys stored for tenant '{t.slug}'.")
+            return 0
+        for r in rows:
+            print(f"  {r['provider']:<32}  set_at={r['created_at']}")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_tenant_key_delete(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        ok = secrets_mod.delete_key(conn, tenant_id=t.id, provider=args.provider)
+        if ok:
+            print(f"key '{args.provider}' deleted for tenant '{t.slug}'.")
+            return 0
+        print(
+            f"no such key '{args.provider}' for tenant '{t.slug}'.", file=sys.stderr
+        )
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_secrets_generate_key(args: argparse.Namespace) -> int:
+    try:
+        key = secrets_mod.generate_key()
+    except secrets_mod.MissingCryptoLib as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(key)
+    print(
+        "\nStore as MARKETING_MASTER_ENCRYPTION_KEY in /etc/hatchik/signup.env "
+        "(or .env locally). Rotating this key invalidates every encrypted "
+        "row in marketing_tenant_api_keys — re-encryption is manual in v1.",
+        file=sys.stderr,
+    )
+    return 0
 
 
 def cmd_analytics_refresh_x(args: argparse.Namespace) -> int:
@@ -639,6 +758,50 @@ def main(argv: list[str] | None = None) -> int:
     rs.add_argument("--tenant", default="hatchik")
     rs.add_argument("--json", action="store_true")
     rs.set_defaults(func=cmd_analysis_show)
+
+    ten_p = sub.add_parser("tenant", help="multi-tenant CRUD + encrypted key vault")
+    ten_sub = ten_p.add_subparsers(dest="tenant_cmd", required=True)
+
+    tc = ten_sub.add_parser("create", help="create a new marketing tenant")
+    tc.add_argument("--slug", required=True)
+    tc.add_argument("--signup-id", type=int, default=None,
+                    help="signups(id) to bind (productized customers)")
+    tc.add_argument("--product-url", default=None)
+    tc.add_argument("--cap-usd", type=float, default=5.0)
+    tc.set_defaults(func=cmd_tenant_create)
+
+    tl = ten_sub.add_parser("list", help="list all tenants")
+    tl.set_defaults(func=cmd_tenant_list)
+
+    ts = ten_sub.add_parser("show", help="show one tenant by slug")
+    ts.add_argument("tenant")
+    ts.set_defaults(func=cmd_tenant_show)
+
+    tk = ten_sub.add_parser("key", help="encrypted per-tenant API keys")
+    tk_sub = tk.add_subparsers(dest="key_cmd", required=True)
+
+    tks = tk_sub.add_parser("set", help="set/replace an encrypted key")
+    tks.add_argument("tenant")
+    tks.add_argument("provider", help="e.g. x_consumer_key, x_consumer_secret, anthropic")
+    tks.add_argument("value", help="plaintext (encrypted at rest with Fernet)")
+    tks.set_defaults(func=cmd_tenant_key_set)
+
+    tkl = tk_sub.add_parser("list", help="list providers stored (never values)")
+    tkl.add_argument("tenant")
+    tkl.set_defaults(func=cmd_tenant_key_list)
+
+    tkd = tk_sub.add_parser("delete", help="delete one key")
+    tkd.add_argument("tenant")
+    tkd.add_argument("provider")
+    tkd.set_defaults(func=cmd_tenant_key_delete)
+
+    sec_p = sub.add_parser("secrets", help="encryption helpers")
+    sec_sub = sec_p.add_subparsers(dest="secrets_cmd", required=True)
+    sgk = sec_sub.add_parser(
+        "generate-key",
+        help="print a fresh Fernet master key — store as MARKETING_MASTER_ENCRYPTION_KEY",
+    )
+    sgk.set_defaults(func=cmd_secrets_generate_key)
 
     args = parser.parse_args(argv)
     return args.func(args)

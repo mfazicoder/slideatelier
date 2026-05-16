@@ -27,6 +27,12 @@ distribute = [
     "tweepy>=4.14,<5.0",
     "posthog>=3.0,<4.0",
 ]
+# `multitenant` enables Phase 5 per-tenant encrypted API keys.
+# Optional because the founder tenant (id=1) can run on env vars
+# alone. Customer tenants supplied their own keys need this.
+multitenant = [
+    "cryptography>=42,<46",
+]
 
 [project.scripts]
 marketing = "marketing.cli:main"

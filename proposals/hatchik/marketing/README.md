@@ -23,7 +23,9 @@ Layer 5  Self-Improvement      A/B + auto-promote winners, monthly
 | 3b | Resend email + self-rescheduling cron + worker drain loop on `marketing_jobs` | ✅ |
 | 3c | Blog auto-publish + IndexNow (deferred until a blog target exists) | — |
 | 4 | Layer 4 — weekly analysis loop, strategy auto-update (Opus 4.7, cached) | ✅ |
-| 5 | Layer 5 — A/B experiments + multi-tenant onboarding | — |
+| 5a | Multi-tenant CRUD + Fernet-encrypted per-tenant API key vault | ✅ |
+| 5b | Layer 5 — A/B experiment runner (auto-promote winners) | — |
+| 5c | Mobile-friendly Next.js admin dashboard | — |
 
 ## Stack
 
@@ -81,7 +83,28 @@ python -m marketing.cli analytics refresh-x           # pull fresh X public_metr
 python -m marketing.cli run analyze                   # Layer 4: weekly review → bumps strategy version
 python -m marketing.cli analysis show                 # human-readable summary of the latest analysis report
 python -m marketing.cli analysis show --json          # full report JSON
+
+# ─── Phase 5: multi-tenant onboarding + encrypted key vault ───────────
+python -m marketing.cli secrets generate-key                       # print a fresh Fernet master key (store as MARKETING_MASTER_ENCRYPTION_KEY)
+python -m marketing.cli tenant create --slug=acme --signup-id=42 --product-url=https://acme.io --cap-usd=2.50
+python -m marketing.cli tenant list
+python -m marketing.cli tenant show acme
+python -m marketing.cli tenant key set acme anthropic     sk-ant-…
+python -m marketing.cli tenant key set acme x_consumer_key ABC
+python -m marketing.cli tenant key list acme              # providers only — never plaintext
+python -m marketing.cli tenant key delete acme anthropic
 ```
+
+For Phase 5 multi-tenant (per-tenant encrypted keys) also install:
+
+```bash
+pip install -e ".[multitenant]"   # adds cryptography
+```
+
+…and set `MARKETING_MASTER_ENCRYPTION_KEY` in your env. The founder
+tenant (id=1) can run on env vars alone; customer tenants (id>1)
+*must* have their keys in `marketing_tenant_api_keys` — env fallback
+is deliberately denied for them to prevent cross-tenant leaks.
 
 For Phase 3a (X distribution) you also need:
 
@@ -153,6 +176,8 @@ marketing/
 │   ├── worker.py               # Phase-3b: tick() + dispatch + self-rescheduling cron seeds
 │   ├── analytics.py            # Phase-4: X public_metrics refresher + window-aggregations
 │   ├── analysis.py             # Phase-4: AnalysisReport schema + latest_report() retrieval
+│   ├── secrets.py              # Phase-5: Fernet vault for marketing_tenant_api_keys (lazy cryptography import)
+│   ├── tenant.py               # Phase-5: tenant CRUD (+ existing slug/id lookup)
 │   ├── cli.py                  # `python -m marketing.cli …`
 │   ├── integrations/
 │   │   ├── x.py                # XClient (OAuth 1.0a, lazy tweepy import)
@@ -174,7 +199,8 @@ marketing/
     ├── test_phase2.py          # 12 tests
     ├── test_phase3a.py         #  9 tests
     ├── test_phase3b.py         # 13 tests
-    └── test_phase4.py          # 12 tests (AnalysisReport schema, analytics aggregation, X metrics fetcher mocked, analyze agent end-to-end)
+    ├── test_phase4.py          # 12 tests
+    └── test_phase5.py          # 15 tests (Fernet round-trip, tenant CRUD, key vault, cross-tenant isolation, env materialize/restore)
 ```
 
 ## Tests
@@ -188,10 +214,12 @@ The tests don't require an Anthropic key or a network call — they
 exercise schema, seed, budget gate, prompt loader, and the
 `MissingAPIKey` path of the hello agent.
 
-## What ships in later phases
+## What's deferred
 
-- **Phase 2b** — mobile-friendly Next.js admin dashboard sitting over the same queue (swipe approve/reject); for now the CLI does the same job
-- **Phase 5** — multi-tenant onboarding flow; encrypted per-tenant keys in `marketing_tenant_api_keys`; optional Notion mirror of strategy doc
+- **Phase 2b** — mobile-friendly Next.js admin dashboard sitting over the same queue. CLI covers approve/reject for now; UI is a velocity question.
+- **Phase 3c** — Blog auto-publish + IndexNow. Deferred until a Hatchik blog target exists.
+- **Phase 5b** — Layer 5 A/B experiment runner (the `marketing_experiments` table is in place; the runner that picks winners and auto-promotes them lives here).
+- **Phase 5c** — Notion mirror of the strategy doc.
 
 ## Non-negotiables
 
