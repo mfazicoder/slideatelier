@@ -5227,6 +5227,125 @@ async def admin_promote_to_growth(
     }
 
 
+# ═════════════════════════════════════════════════════════════════════════
+# Operator agents — Hatchik's AI back-office surface
+# ─────────────────────────────────────────────────────────────────────────
+# Spec: agents/ package. Customer-facing in /account → Agents.
+# Operator-facing via the systemd-driven sweep that calls runtime.tick().
+
+from agents import registry as agents_registry  # noqa: E402
+from agents import runtime as agents_runtime  # noqa: E402
+
+
+@app.get("/api/account/agents")
+async def list_agents_for_account(
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        return {"agents": [], "pending_actions": [], "recent_runs": []}
+    # Discover agents so REGISTRY is populated.
+    agents_runtime.discover_agents()
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        tier_row = db.execute("SELECT tier FROM signups WHERE id=?", (signup_id,)).fetchone()
+    tier = (tier_row["tier"] if tier_row else "sandbox") or "sandbox"
+    return {
+        "agents": agents_registry.list_for_tenant(signup_id, tier.lower()),
+        "pending_actions": agents_registry.pending_actions_for(signup_id),
+        "recent_runs": agents_registry.recent_runs_for(signup_id, limit=20),
+    }
+
+
+class AgentEnableRequest(BaseModel):
+    agent_name: str = Field(..., min_length=1, max_length=80)
+    enabled: bool
+
+
+@app.post("/api/account/agents/enable")
+async def set_agent_enabled(
+    req: AgentEnableRequest, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    agents_runtime.discover_agents()
+    if req.agent_name not in agents_registry.REGISTRY:
+        raise HTTPException(status_code=404, detail=f"unknown agent: {req.agent_name}")
+    agents_registry.set_enabled(req.agent_name, signup_id, req.enabled)
+    mcp_audit.record(signup_id, f"agent.{'enable' if req.enabled else 'disable'}",
+                     "ok", payload={"agent": req.agent_name},
+                     remote_ip=_remote_ip(request), tool_caller="web")
+    return {"ok": True, "agent_name": req.agent_name, "enabled": req.enabled}
+
+
+class AgentActionDecideRequest(BaseModel):
+    decision: Literal["approve", "reject"]
+
+
+@app.post("/api/account/agents/actions/{action_id}/decide")
+async def decide_agent_action(
+    action_id: int, req: AgentActionDecideRequest, request: Request,
+    hatchik_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    session = _resolve_auth(hatchik_session, authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="not signed in")
+    signup_id = _signup_id_for_session(session)
+    if not signup_id:
+        raise HTTPException(status_code=404, detail="no signup")
+    # Confirm the action belongs to this signup.
+    with agents_registry.conn() as db:
+        row = db.execute(
+            "SELECT signup_id FROM agent_actions WHERE id=?", (action_id,),
+        ).fetchone()
+    if not row or row["signup_id"] != signup_id:
+        raise HTTPException(status_code=404, detail="action not found")
+    if req.decision == "approve":
+        result = agents_runtime.execute_pending_action(action_id, decider="founder")
+    else:
+        result = agents_runtime.reject_pending_action(action_id, decider="founder")
+    mcp_audit.record(signup_id, f"agent.action_{req.decision}", "ok",
+                     payload={"action_id": action_id}, result=result,
+                     remote_ip=_remote_ip(request), tool_caller="web")
+    return result
+
+
+# ─── Admin: trigger sweep + dispatch event (for testing / cron) ──────────
+@app.post("/api/admin/agents/tick")
+async def admin_agents_tick(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    _require_admin(x_admin_token)
+    return agents_runtime.tick()
+
+
+class AgentDispatchEventRequest(BaseModel):
+    event_name: str
+    signup_id: int
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/api/admin/agents/dispatch-event")
+async def admin_agents_dispatch_event(
+    req: AgentDispatchEventRequest,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    _require_admin(x_admin_token)
+    runs = agents_runtime.dispatch_event(req.event_name, req.signup_id, req.payload)
+    return {"ok": True, "runs": runs}
+
+
 @app.get("/api/admin/feature-flags")
 async def admin_feature_flags(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
