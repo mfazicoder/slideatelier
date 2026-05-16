@@ -5452,6 +5452,243 @@ async def admin_porkbun_ping(
     }
 
 
+@app.get("/api/admin/anthropic-ping")
+async def admin_anthropic_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """List Anthropic models with HATCHIK_ANTHROPIC_MASTER_KEY. Free."""
+    _require_admin(x_admin_token)
+    key = os.environ.get("HATCHIK_ANTHROPIC_MASTER_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        return {"ok": False, "reason": "HATCHIK_ANTHROPIC_MASTER_KEY not set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.get,
+            "https://api.anthropic.com/v1/models",
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
+            timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    if r.status_code != 200:
+        return {"ok": False, "status": r.status_code, "body": r.text[:300]}
+    body = r.json()
+    models = [m.get("id") for m in body.get("data", [])]
+    return {"ok": True, "models_count": len(models), "models_sample": models[:5],
+            "note": "Free /v1/models endpoint. No tokens consumed."}
+
+
+@app.get("/api/admin/openai-ping")
+async def admin_openai_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """List OpenAI models with HATCHIK_OPENAI_MASTER_KEY. Free."""
+    _require_admin(x_admin_token)
+    key = os.environ.get("HATCHIK_OPENAI_MASTER_KEY") or os.environ.get("OPENAI_API_KEY", "")
+    if not key:
+        return {"ok": False, "reason": "HATCHIK_OPENAI_MASTER_KEY not set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.get,
+            "https://api.openai.com/v1/models",
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    if r.status_code != 200:
+        return {"ok": False, "status": r.status_code, "body": r.text[:300]}
+    body = r.json()
+    models = [m.get("id") for m in body.get("data", [])]
+    return {"ok": True, "models_count": len(models), "models_sample": models[:5],
+            "note": "Free /v1/models endpoint. No tokens consumed."}
+
+
+@app.get("/api/admin/hetzner-ping")
+async def admin_hetzner_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Hetzner Cloud token check via /server_types (free, lists pricing).
+    Confirms token + scope. Also surfaces which datacenters we can reach."""
+    _require_admin(x_admin_token)
+    token = os.environ.get("HETZNER_API_TOKEN", "")
+    if not token:
+        return {"ok": False, "reason": "HETZNER_API_TOKEN not set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.get,
+            "https://api.hetzner.cloud/v1/server_types",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"per_page": 5}, timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    if r.status_code != 200:
+        return {"ok": False, "status": r.status_code, "body": r.text[:300]}
+    body = r.json()
+    return {
+        "ok": True,
+        "server_types_sample": [t.get("name") for t in body.get("server_types", [])][:5],
+        "note": "Read-only /server_types. No VPS spawned, no money moved.",
+    }
+
+
+@app.get("/api/admin/cloudflare-ping")
+async def admin_cloudflare_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Cloudflare's own /tokens/verify endpoint. Returns token status."""
+    _require_admin(x_admin_token)
+    token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+    if not token:
+        return {"ok": False, "reason": "CLOUDFLARE_API_TOKEN not set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.get,
+            "https://api.cloudflare.com/client/v4/user/tokens/verify",
+            headers={"Authorization": f"Bearer {token}"}, timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    body = r.json()
+    result = body.get("result") or {}
+    return {
+        "ok": bool(body.get("success")) and result.get("status") == "active",
+        "token_status": result.get("status"),
+        "token_id": result.get("id"),
+        "messages": body.get("messages"),
+        "note": "Read-only /tokens/verify endpoint.",
+    }
+
+
+@app.get("/api/admin/github-ping")
+async def admin_github_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """GitHub /user check. Returns the authenticated user + scope hints."""
+    _require_admin(x_admin_token)
+    token = os.environ.get("HATCHIK_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        return {"ok": False, "reason": "HATCHIK_GITHUB_TOKEN not set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.get,
+            "https://api.github.com/user",
+            headers={"Authorization": f"token {token}",
+                     "Accept": "application/vnd.github+json"},
+            timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    if r.status_code != 200:
+        return {"ok": False, "status": r.status_code, "body": r.text[:300]}
+    body = r.json()
+    scopes = r.headers.get("x-oauth-scopes", "")
+    return {
+        "ok": True,
+        "login": body.get("login"),
+        "scopes": [s.strip() for s in scopes.split(",")] if scopes else [],
+        "org_org_required": os.environ.get("HATCHIK_GITHUB_ORG", "hatchik-tenants"),
+        "note": "Read-only /user endpoint. Verify scope includes repo + admin:org.",
+    }
+
+
+@app.get("/api/admin/infomaniak-ping")
+async def admin_infomaniak_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Infomaniak /profile check (free)."""
+    _require_admin(x_admin_token)
+    token = os.environ.get("HATCHIK_INFOMANIAK_API_TOKEN", "")
+    if not token:
+        return {"ok": False, "reason": "HATCHIK_INFOMANIAK_API_TOKEN not set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.get,
+            "https://api.infomaniak.com/1/profile",
+            headers={"Authorization": f"Bearer {token}"}, timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    if r.status_code != 200:
+        return {"ok": False, "status": r.status_code, "body": r.text[:300]}
+    body = r.json()
+    data = body.get("data") or {}
+    return {
+        "ok": body.get("result") == "success",
+        "user_email": data.get("email"),
+        "mail_service_id_set": bool(os.environ.get("HATCHIK_INFOMANIAK_MAIL_SERVICE_ID")),
+        "note": "Read-only /profile endpoint.",
+    }
+
+
+@app.get("/api/admin/x-ping")
+async def admin_x_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """X (Twitter) OAuth 1.0a credential check via tweepy.get_me().
+    Free, no tweet posted. Tweepy is part of the marketing extras —
+    install via `pip install -e proposals/hatchik/marketing[distribute]`."""
+    _require_admin(x_admin_token)
+    needed = ("X_API_CONSUMER_KEY", "X_API_CONSUMER_SECRET",
+              "X_API_ACCESS_TOKEN", "X_API_ACCESS_TOKEN_SECRET")
+    missing = [k for k in needed if not os.environ.get(k)]
+    if missing:
+        return {"ok": False, "reason": "missing_env_vars", "missing": missing}
+    try:
+        import tweepy  # type: ignore[import-not-found]
+    except ImportError:
+        return {"ok": False, "reason": "tweepy_not_installed",
+                "fix": "pip install tweepy or `pip install -e proposals/hatchik/marketing[distribute]`"}
+    try:
+        client = tweepy.Client(
+            consumer_key=os.environ["X_API_CONSUMER_KEY"],
+            consumer_secret=os.environ["X_API_CONSUMER_SECRET"],
+            access_token=os.environ["X_API_ACCESS_TOKEN"],
+            access_token_secret=os.environ["X_API_ACCESS_TOKEN_SECRET"],
+        )
+        me = await asyncio.to_thread(client.get_me)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "api_error", "error": str(e)[:300]}
+    user = getattr(me, "data", None)
+    return {
+        "ok": user is not None,
+        "username": getattr(user, "username", None) if user else None,
+        "user_id": getattr(user, "id", None) if user else None,
+        "note": "tweepy.get_me() — free, no tweets posted.",
+    }
+
+
+@app.get("/api/admin/posthog-ping")
+async def admin_posthog_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """PostHog connectivity check via /decide endpoint.
+    Validates project key without sending an event."""
+    _require_admin(x_admin_token)
+    key = os.environ.get("POSTHOG_API_KEY", "")
+    host = os.environ.get("POSTHOG_HOST", "https://eu.posthog.com").rstrip("/")
+    if not key:
+        return {"ok": False, "reason": "POSTHOG_API_KEY not set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.post,
+            f"{host}/decide/?v=3",
+            json={"api_key": key, "distinct_id": "hatchik-probe"},
+            timeout=15,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    if r.status_code != 200:
+        return {"ok": False, "status": r.status_code, "body": r.text[:300]}
+    body = r.json()
+    return {
+        "ok": True, "host": host,
+        "config_keys": list(body.keys())[:8],
+        "note": "POST /decide — no event captured, just validates the project key.",
+    }
+
+
 @app.get("/api/admin/porkbun-check")
 async def admin_porkbun_check(
     domain: str,
