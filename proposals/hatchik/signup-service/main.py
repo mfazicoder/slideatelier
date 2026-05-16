@@ -5413,6 +5413,78 @@ async def admin_feature_flags(
     }
 
 
+# ═════════════════════════════════════════════════════════════════════════
+# Vendor connectivity probes — verify credentials work without spending
+# ─────────────────────────────────────────────────────────────────────────
+# Each /api/admin/<vendor>-ping endpoint hits ONLY free / read-only
+# endpoints on the vendor's API. Use them after dropping a key into
+# .env (or /etc/hatchik/signup.env) to confirm the wiring is good
+# before flipping execute=1 anywhere.
+
+@app.get("/api/admin/porkbun-ping")
+async def admin_porkbun_ping(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Free Porkbun /ping endpoint. Confirms HATCHIK_PORKBUN_API_KEY +
+    HATCHIK_PORKBUN_SECRET are valid. No domains touched, no money moved."""
+    _require_admin(x_admin_token)
+    api_key = os.environ.get("HATCHIK_PORKBUN_API_KEY", "")
+    api_secret = os.environ.get("HATCHIK_PORKBUN_SECRET", "")
+    if not (api_key and api_secret):
+        return {"ok": False, "reason": "keys_not_set",
+                "fix": "Add HATCHIK_PORKBUN_API_KEY + HATCHIK_PORKBUN_SECRET to .env"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.post,
+            "https://api.porkbun.com/api/json/v3/ping",
+            json={"apikey": api_key, "secretapikey": api_secret},
+            timeout=15,
+        )
+        body = r.json()
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    return {
+        "ok": body.get("status") == "SUCCESS",
+        "porkbun_status": body.get("status"),
+        "your_ip_per_porkbun": body.get("yourIp"),
+        "message": body.get("message", ""),
+        "note": "Free /ping endpoint. No domains touched, no money moved.",
+    }
+
+
+@app.get("/api/admin/porkbun-check")
+async def admin_porkbun_check(
+    domain: str,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> dict[str, Any]:
+    """Free Porkbun availability check. Returns price + availability for
+    the given domain. Hits /domain/checkDomain — no money moved."""
+    _require_admin(x_admin_token)
+    api_key = os.environ.get("HATCHIK_PORKBUN_API_KEY", "")
+    api_secret = os.environ.get("HATCHIK_PORKBUN_SECRET", "")
+    if not (api_key and api_secret):
+        return {"ok": False, "reason": "keys_not_set"}
+    try:
+        r = await asyncio.to_thread(
+            httpx.post,
+            f"https://api.porkbun.com/api/json/v3/domain/checkDomain/{domain}",
+            json={"apikey": api_key, "secretapikey": api_secret},
+            timeout=15,
+        )
+        body = r.json()
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reason": "network_error", "error": str(e)[:200]}
+    return {
+        "ok": body.get("status") == "SUCCESS",
+        "domain": domain,
+        "available": body.get("response", {}).get("avail") == "yes",
+        "price_usd": body.get("response", {}).get("price"),
+        "premium": body.get("response", {}).get("premium") == "yes",
+        "raw": body.get("response"),
+        "note": "Read-only availability check. No money moved.",
+    }
+
+
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
