@@ -11,11 +11,16 @@ Layer 4  Listening & Adjust    Opus 4.7  weekly
 Layer 5  Self-Improvement      A/B + auto-promote winners, monthly
 ```
 
-## Phase 0 status
+## Status
 
-Smoke pipeline only — schema, tenant seed, budget gate, prompt loader,
-hello-world agent + CLI. No scheduler, no distribution, no dashboard
-yet (those are Phases 2–5).
+| Phase | Layer | Done? |
+|---|---|---|
+| 0 | foundation: schema, tenants, budget gate, runs, prompts, hello agent | ✅ |
+| 1 | Layer 1 — persona/strategy agent (Opus 4.7) + `marketing_strategies` versioning | ✅ |
+| 2 | Layer 2 — content agent (Sonnet 4.6) + approval queue (Next.js admin) | — |
+| 3 | Layer 3 — distribution (X API, Resend, PostHog, blog) + scheduler | — |
+| 4 | Layer 4 — weekly analysis loop, strategy auto-update | — |
+| 5 | Layer 5 — A/B experiments + multi-tenant onboarding | — |
 
 ## Stack
 
@@ -35,16 +40,29 @@ own tenant. SQLite has no RLS, so tenant scoping is enforced in code
 ```bash
 cd proposals/hatchik/marketing
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 cp .env.example .env
-# edit .env and set ANTHROPIC_API_KEY (see "Where the API key lives" below)
+# edit .env and set HATCHIK_ANTHROPIC_MASTER_KEY (see "Where the API key lives" below)
 
-python -m marketing.cli init                  # creates schema + seeds 'hatchik' tenant
-python -m marketing.cli run hello             # one-sentence Hatchik positioning, logged to DB
-python -m marketing.cli runs --limit=5        # last 5 agent runs
+python -m marketing.cli init                  # schema + seeds 'hatchik' tenant w/ competitors
+python -m marketing.cli run hello             # smoke: one-sentence Hatchik positioning
+python -m marketing.cli run persona           # Layer 1: full strategy (ICP, voice, 5 pillars × 8-10 angles)
+python -m marketing.cli strategy show         # human-readable summary of current strategy
+python -m marketing.cli strategy show --json  # full strategy as JSON
+python -m marketing.cli runs --limit=5        # last 5 agent runs (any layer)
 python -m marketing.cli spend                 # rolling 24h spend
 ```
+
+The persona agent reads `proposals/hatchik/PRODUCT_OFFERING.md` and
+`MARKETING_PLAN.md` as the product brief (paths configurable via the
+tenant's `settings_json.product_docs`). Competitors live in
+`settings_json.competitors`. Both are seeded by `init`.
+
+Prompt caching is on by default — the system prompt + product/competitor
+blob get `cache_control: ephemeral` markers, so re-running `persona`
+within ~5 minutes pays only the variable-block + output cost
+(roughly 1/10th of a cold call).
 
 ## Where the API key lives
 
@@ -89,14 +107,18 @@ marketing/
 │   ├── prompts.py              # load v<N>.md + mirror to DB
 │   ├── runs.py                 # marketing_agent_runs CRUD
 │   ├── anthropic_client.py     # SDK wrapper: budget gate → call → log
-│   ├── seed.py                 # idempotent Hatchik tenant insert
+│   ├── seed.py                 # idempotent Hatchik tenant insert (+ competitors)
+│   ├── strategy.py             # Pydantic Strategy schema + marketing_strategies CRUD
 │   ├── cli.py                  # `python -m marketing.cli …`
 │   └── agents/
-│       └── hello.py            # Phase-0 smoke agent
+│       ├── hello.py            # Phase-0 smoke agent
+│       └── persona.py          # Phase-1 Layer-1 strategy agent (Opus 4.7, cached)
 ├── prompts/
-│   └── hello/v1.md
+│   ├── hello/v1.md
+│   └── persona/v1.md
 └── tests/
-    └── test_phase0.py          # no-network unit tests
+    ├── test_phase0.py          # 6 tests
+    └── test_phase1.py          # 8 tests (Strategy schema, save/current, mocked persona end-to-end)
 ```
 
 ## Tests
@@ -112,11 +134,10 @@ exercise schema, seed, budget gate, prompt loader, and the
 
 ## What ships in later phases
 
-- **Phase 1** — `agents/persona.py` (Layer 1) + Notion mirror of strategy doc
-- **Phase 2** — `agents/content.py` (Layer 2) + Next.js approval dashboard
-- **Phase 3** — `integrations/x.py`, `integrations/resend.py`, `integrations/posthog.py`; scheduler/worker on `marketing_jobs`
-- **Phase 4** — `agents/analyze.py` (Layer 4); auto-updates strategy from outcomes
-- **Phase 5** — multi-tenant onboarding flow; encrypted per-tenant keys in `marketing_tenant_api_keys`
+- **Phase 2** — `agents/content.py` (Layer 2, Sonnet 4.6) + Next.js approval dashboard
+- **Phase 3** — `integrations/x.py`, `integrations/resend.py`, `integrations/posthog.py`; scheduler/worker draining `marketing_jobs`
+- **Phase 4** — `agents/analyze.py` (Layer 4); auto-updates the strategy from outcomes
+- **Phase 5** — multi-tenant onboarding flow; encrypted per-tenant keys in `marketing_tenant_api_keys`; optional Notion mirror of strategy doc
 
 ## Non-negotiables
 

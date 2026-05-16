@@ -26,11 +26,31 @@ class MissingAPIKey(RuntimeError):
     pass
 
 
-def _cost_usd(model: str, tokens_in: int, tokens_out: int) -> float:
+def _cost_usd(
+    model: str,
+    tokens_in: int,
+    tokens_out: int,
+    *,
+    cache_creation: int = 0,
+    cache_read: int = 0,
+) -> float:
+    """Cost in USD. Cache writes are billed 1.25× input; cache reads 0.1×.
+    Best-effort — exact billing comes from the Anthropic console."""
     pricing = config.PRICING_PER_1M.get(model)
     if pricing is None:
         return 0.0
-    return (tokens_in / 1_000_000) * pricing["input"] + (tokens_out / 1_000_000) * pricing["output"]
+    inp = pricing["input"]
+    out = pricing["output"]
+    return (
+        (tokens_in / 1_000_000) * inp
+        + (cache_creation / 1_000_000) * inp * 1.25
+        + (cache_read / 1_000_000) * inp * 0.10
+        + (tokens_out / 1_000_000) * out
+    )
+
+
+SystemParam = str | list[dict[str, Any]] | None
+UserContent = str | list[dict[str, Any]]
 
 
 def complete(
@@ -40,8 +60,8 @@ def complete(
     tenant_cap_usd: float,
     layer: str,
     model: str,
-    system: str | None,
-    user_message: str,
+    system: SystemParam,
+    user_message: UserContent,
     max_tokens: int = 1024,
     prompt_name: str | None = None,
     prompt_version: int | None = None,
@@ -50,7 +70,10 @@ def complete(
     """Make one LLM call. Returns dict with `text`, `tokens_in`, `tokens_out`, `cost_usd`, `run_id`."""
     if not config.ANTHROPIC_API_KEY:
         raise MissingAPIKey(
-            "ANTHROPIC_API_KEY not set. Populate proposals/hatchik/marketing/.env."
+            "No Anthropic key in env. Set HATCHIK_ANTHROPIC_MASTER_KEY "
+            "(or ANTHROPIC_API_KEY as fallback). Populate "
+            "proposals/hatchik/marketing/.env for local dev, or "
+            "/etc/hatchik/signup.env on the VPS."
         )
 
     budget.assert_within_cap(conn, tenant_id, tenant_cap_usd)
@@ -89,13 +112,26 @@ def complete(
     )
     tokens_in = message.usage.input_tokens
     tokens_out = message.usage.output_tokens
-    cost = _cost_usd(model, tokens_in, tokens_out)
+    cache_creation = getattr(message.usage, "cache_creation_input_tokens", 0) or 0
+    cache_read = getattr(message.usage, "cache_read_input_tokens", 0) or 0
+    cost = _cost_usd(
+        model,
+        tokens_in,
+        tokens_out,
+        cache_creation=cache_creation,
+        cache_read=cache_read,
+    )
 
     runs.finish_run(
         conn,
         run_id,
         status="success",
-        output_payload={"text": text, "stop_reason": message.stop_reason},
+        output_payload={
+            "text": text,
+            "stop_reason": message.stop_reason,
+            "cache_creation_input_tokens": cache_creation,
+            "cache_read_input_tokens": cache_read,
+        },
         tokens_in=tokens_in,
         tokens_out=tokens_out,
         cost_usd=cost,
@@ -106,5 +142,7 @@ def complete(
         "text": text,
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
+        "cache_creation": cache_creation,
+        "cache_read": cache_read,
         "cost_usd": cost,
     }

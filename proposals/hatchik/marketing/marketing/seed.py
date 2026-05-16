@@ -18,6 +18,22 @@ HATCHIK_SETTINGS: dict = {
         "reddit": {"enabled": True, "draft_only": True},
         "discord": {"enabled": True, "draft_only": True},
     },
+    # Inputs into Layer 1 (persona agent). Alternatives the audience
+    # considers — not direct competitors necessarily. Editable any time
+    # by updating marketing_tenants.settings_json.
+    "competitors": [
+        {"name": "Lovable",     "url": "https://lovable.dev",   "note": "AI-first full-stack app generator"},
+        {"name": "Bolt.new",    "url": "https://bolt.new",       "note": "StackBlitz AI app builder"},
+        {"name": "Replit Agent","url": "https://replit.com",     "note": "AI dev environment + hosting"},
+        {"name": "ShipFast",    "url": "https://shipfa.st",      "note": "SaaS boilerplate sold as a zip"},
+        {"name": "Vercel",      "url": "https://vercel.com",     "note": "Frontend deploy; no business layer (auth/payments/mail)"},
+    ],
+    # Hatchik-specific source docs the persona agent reads. Paths are
+    # relative to proposals/hatchik/ so this works in any worktree.
+    "product_docs": [
+        "PRODUCT_OFFERING.md",
+        "MARKETING_PLAN.md",
+    ],
 }
 
 
