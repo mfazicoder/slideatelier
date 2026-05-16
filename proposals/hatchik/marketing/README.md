@@ -22,7 +22,7 @@ Layer 5  Self-Improvement      A/B + auto-promote winners, monthly
 | 3a | Layer 3 — X distribution (tweets + threads), PostHog tracking, dry-run | ✅ |
 | 3b | Resend email + self-rescheduling cron + worker drain loop on `marketing_jobs` | ✅ |
 | 3c | Blog auto-publish + IndexNow (deferred until a blog target exists) | — |
-| 4 | Layer 4 — weekly analysis loop, strategy auto-update | — |
+| 4 | Layer 4 — weekly analysis loop, strategy auto-update (Opus 4.7, cached) | ✅ |
 | 5 | Layer 5 — A/B experiments + multi-tenant onboarding | — |
 
 ## Stack
@@ -75,6 +75,12 @@ python -m marketing.cli scheduler start --sleep=10    # foreground drain loop; c
 python -m marketing.cli worker tick                   # run one job (debug)
 python -m marketing.cli jobs list [--status=queued]
 python -m marketing.cli jobs stats
+
+# ─── Phase 4: weekly analysis + auto-promote strategy ─────────────────
+python -m marketing.cli analytics refresh-x           # pull fresh X public_metrics for recent distributions
+python -m marketing.cli run analyze                   # Layer 4: weekly review → bumps strategy version
+python -m marketing.cli analysis show                 # human-readable summary of the latest analysis report
+python -m marketing.cli analysis show --json          # full report JSON
 ```
 
 For Phase 3a (X distribution) you also need:
@@ -145,6 +151,8 @@ marketing/
 │   ├── distribute.py           # Phase-3a/b orchestrator: approved item → X | Resend → distribution log → posted
 │   ├── jobs.py                 # Phase-3b: marketing_jobs CRUD + atomic claim_one (UPDATE … RETURNING)
 │   ├── worker.py               # Phase-3b: tick() + dispatch + self-rescheduling cron seeds
+│   ├── analytics.py            # Phase-4: X public_metrics refresher + window-aggregations
+│   ├── analysis.py             # Phase-4: AnalysisReport schema + latest_report() retrieval
 │   ├── cli.py                  # `python -m marketing.cli …`
 │   ├── integrations/
 │   │   ├── x.py                # XClient (OAuth 1.0a, lazy tweepy import)
@@ -153,17 +161,20 @@ marketing/
 │   └── agents/
 │       ├── hello.py            # Phase-0 smoke agent
 │       ├── persona.py          # Phase-1 Layer-1 strategy agent (Opus 4.7, cached)
-│       └── content.py          # Phase-2 Layer-2 content agent (Sonnet 4.6, cached batch)
+│       ├── content.py          # Phase-2 Layer-2 content agent (Sonnet 4.6, cached batch)
+│       └── analyze.py          # Phase-4 Layer-4 analysis agent (Opus 4.7, auto-bumps strategy)
 ├── prompts/
 │   ├── hello/v1.md
 │   ├── persona/v1.md
-│   └── content/v1.md
+│   ├── content/v1.md
+│   └── analyze/v1.md
 └── tests/
     ├── test_phase0.py          #  6 tests
     ├── test_phase1.py          #  8 tests
     ├── test_phase2.py          # 12 tests
     ├── test_phase3a.py         #  9 tests
-    └── test_phase3b.py         # 13 tests (jobs CRUD, worker dispatch, cron self-reschedule, Resend email mocked)
+    ├── test_phase3b.py         # 13 tests
+    └── test_phase4.py          # 12 tests (AnalysisReport schema, analytics aggregation, X metrics fetcher mocked, analyze agent end-to-end)
 ```
 
 ## Tests
@@ -180,8 +191,6 @@ exercise schema, seed, budget gate, prompt loader, and the
 ## What ships in later phases
 
 - **Phase 2b** — mobile-friendly Next.js admin dashboard sitting over the same queue (swipe approve/reject); for now the CLI does the same job
-- **Phase 3b** — `integrations/resend.py` for email; blog auto-publish + IndexNow; scheduler/worker draining `marketing_jobs` so approved items auto-distribute on a cron instead of by manual `distribute due` invocation
-- **Phase 4** — `agents/analyze.py` (Layer 4); auto-updates the strategy from outcomes (signups attributed via PostHog, engagement from X API metrics endpoint, etc.)
 - **Phase 5** — multi-tenant onboarding flow; encrypted per-tenant keys in `marketing_tenant_api_keys`; optional Notion mirror of strategy doc
 
 ## Non-negotiables

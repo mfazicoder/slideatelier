@@ -16,6 +16,8 @@ import json
 import sys
 
 from . import (
+    analysis,
+    analytics,
     budget,
     config,
     content,
@@ -34,6 +36,7 @@ AGENTS = {
     "hello": "marketing.agents.hello",
     "persona": "marketing.agents.persona",
     "content": "marketing.agents.content",
+    "analyze": "marketing.agents.analyze",
 }
 
 
@@ -77,6 +80,22 @@ def cmd_run(args: argparse.Namespace) -> int:
             f"{result['pillars']} pillars, {result['sub_personas']} sub-personas, "
             f"{result['total_angles']} angles. Use `strategy show` to inspect."
         )
+    elif args.agent == "analyze":
+        prior = result["prior_strategy_version"]
+        new_v = result["new_strategy_version"]
+        if new_v is not None:
+            print(
+                f"analysis run #{result['run_id']}: strategy bumped "
+                f"v{prior} → v{new_v}. "
+                f"{result['posts_analyzed']} posts, {result['winners']} winners, "
+                f"{result['losers']} losers, {result['hypotheses']} hypotheses."
+            )
+        else:
+            print(
+                f"analysis run #{result['run_id']} (no auto-promote): "
+                f"{result['posts_analyzed']} posts analyzed. "
+                f"Use `analysis show` to inspect."
+            )
     elif args.agent == "content":
         print(
             f"queued {result['items_queued']}/{result['items_planned']} drafts "
@@ -193,6 +212,70 @@ def cmd_queue_reject(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+    finally:
+        conn.close()
+
+
+def cmd_analytics_refresh_x(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        try:
+            stats = analytics.refresh_x_metrics(
+                conn, tenant_id=t.id, max_age_hours=args.max_age_hours
+            )
+        except Exception as exc:
+            print(f"refresh failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"refreshed {stats['refreshed']} distributions, "
+            f"{stats['errors']} errors."
+        )
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_analysis_show(args: argparse.Namespace) -> int:
+    conn = db.connect()
+    try:
+        t = tenant.get_by_slug(conn, args.tenant)
+        result = analysis.latest_report(conn, tenant_id=t.id)
+        if result is None:
+            print(f"no analysis runs yet for tenant {t.slug!r}.")
+            return 1
+        run_id, report = result
+        if args.json:
+            print(report.model_dump_json(indent=2))
+            return 0
+        print(f"=== analysis run #{run_id}  (tenant={t.slug}) ===\n")
+        print("Summary:")
+        for k, v in report.summary.items():
+            print(f"  {k}: {v}")
+        print(f"\nWinners ({len(report.winners)}):")
+        for w in report.winners:
+            print(f"  ✓ dist={w.distribution_id} ({w.pillar}) — {w.what}")
+            print(f"      lesson: {w.lesson}")
+        print(f"\nLosers ({len(report.losers)}):")
+        for l in report.losers:
+            print(f"  ✗ dist={l.distribution_id} ({l.pillar}) — {l.what}")
+            print(f"      lesson: {l.lesson}")
+        print(f"\nHypotheses ({len(report.hypotheses)}):")
+        for h in report.hypotheses:
+            print(f"  • {h}")
+        print(f"\nStrategy changes:")
+        sc = report.strategy_changes
+        if sc.voice_do_additions:
+            print(f"  voice.do +: {sc.voice_do_additions}")
+        if sc.voice_dont_additions:
+            print(f"  voice.dont +: {sc.voice_dont_additions}")
+        if sc.pillars_to_amplify:
+            print(f"  amplify: {sc.pillars_to_amplify}")
+        if sc.pillars_to_deprecate:
+            print(f"  deprecate: {sc.pillars_to_deprecate}")
+        if sc.icp_refinements:
+            print(f"  icp_refinements: {sc.icp_refinements}")
+        return 0
     finally:
         conn.close()
 
@@ -542,6 +625,20 @@ def main(argv: list[str] | None = None) -> int:
     work_sub = work_p.add_subparsers(dest="worker_cmd", required=True)
     wt = work_sub.add_parser("tick", help="run at most one job and exit")
     wt.set_defaults(func=cmd_worker_tick)
+
+    an_p = sub.add_parser("analytics", help="pull engagement metrics from external sources")
+    an_sub = an_p.add_subparsers(dest="analytics_cmd", required=True)
+    arx = an_sub.add_parser("refresh-x", help="pull fresh X public_metrics for recent distributions")
+    arx.add_argument("--tenant", default="hatchik")
+    arx.add_argument("--max-age-hours", type=int, default=24)
+    arx.set_defaults(func=cmd_analytics_refresh_x)
+
+    rep_p = sub.add_parser("analysis", help="inspect the latest Layer-4 analysis report")
+    rep_sub = rep_p.add_subparsers(dest="analysis_cmd", required=True)
+    rs = rep_sub.add_parser("show", help="print a human-readable summary")
+    rs.add_argument("--tenant", default="hatchik")
+    rs.add_argument("--json", action="store_true")
+    rs.set_defaults(func=cmd_analysis_show)
 
     args = parser.parse_args(argv)
     return args.func(args)
